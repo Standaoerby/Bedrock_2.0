@@ -48,6 +48,16 @@ BoxLayout:
             valign: "middle"
             on_touch_down:
                 if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "weather"
+        ThemedLabel:
+            text: "SCHEDULE"
+            color: app.theme_config["menu_selected_color"] if app.current_screen == "schedule" else app.theme_config["menu_unselected_color"]
+            font_size: "22sp"
+            size_hint_x: None
+            width: "120dp"
+            halign: "center"
+            valign: "middle"
+            on_touch_down:
+                if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "schedule"
 
 
     # Экраны — как всегда
@@ -60,6 +70,8 @@ BoxLayout:
             name: "alarm"
         WeatherScreen:
             name: "weather"
+        ScheduleScreen:
+            name: "schedule"
 
 <HomeScreen>:
     FloatLayout:
@@ -141,3 +153,82 @@ BoxLayout:
             valign: "top"
             color: 1, 1, 1, 1
             pos_hint: {"center_x": 0.5, "top": 0.85}
+<ScheduleScreen>:
+    FloatLayout:
+        size_hint_y: 1
+        Image:
+            source: app.theme_config["background_image"]
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+
+        Image:
+            source: app.get_overlay_image("schedule")
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            opacity: 0.5
+    BoxLayout:
+        orientation: "vertical"
+        # Верхний слой: today + tomorrow
+        BoxLayout:
+            orientation: "horizontal"
+            padding: "32dp"
+            spacing: "32dp"
+
+            # Сегодня
+            BoxLayout:
+                orientation: "vertical"
+                ThemedLabel:
+                    text: "Сегодня"
+                    font_size: "18sp"
+                    bold: True
+                    color: 1, 1, 0.7, 1
+                ThemedLabel:
+                    id: today_label
+                    text: "..."
+                    font_size: "16sp"
+                    halign: "left"
+                    valign: "top"
+                    color: 1, 1, 1, 1
+
+            # Завтра
+            BoxLayout:
+                orientation: "vertical"
+                ThemedLabel:
+                    text: "Завтра"
+                    font_size: "18sp"
+                    bold: True
+                    color: 0.8, 1, 1, 1
+                ThemedLabel:
+                    id: tomorrow_label
+                    text: "..."
+                    font_size: "16sp"
+                    halign: "left"
+                    valign: "top"
+                    color: 1, 1, 1, 1
+
+        # Кнопка "Вся неделя" или "Назад к сегодня"
+        ThemedLabel:
+            id: week_button
+            text: "Вся неделя"
+            font_size: "22sp"
+            color: 0.5, 1, 0.5, 1
+            halign: "center"
+            valign: "middle"
+            size_hint_y: None
+            height: "48dp"
+            on_touch_down:
+                if self.collide_point(*args[1].pos): root.toggle_week_mode()
+
+        # Если week_mode — вывод всей недели (скрывает today/tomorrow, показывает week)
+        ThemedLabel:
+            id: week_label
+            text: ""
+            font_size: "18sp"
+            halign: "left"
+            valign: "top"
+            color: 1, 1, 1, 1
+            opacity: 0  # Скрыто по умолчанию

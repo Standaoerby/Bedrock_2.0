@@ -1,0 +1,106 @@
+Ma — Mathematics
+
+En — English
+
+Sc — Science
+
+Ft — French
+
+Ga — Games (спорт, физкультура)
+
+Ge — Geography
+
+Hi — History
+
+Mt — Maths (часто — повтор математики, иногда "Maths Test")
+
+PS — PSHE (Personal, Social, Health and Economic Education)
+
+Re — Religious Education
+
+KwE — Knowledge and Understanding of the World (или, возможно, "Key Word English")
+
+AP — Art and Practice
+
+AR — Art
+
+DR — Drama
+
+Mu — Music
+
+PE — Physical Education
+
+La — Latin
+
+FR — French
+
+SS — Social Studies
+
+DZ — Design & Technology
+
+RC — Reading Comprehension
+
+DC — Design & Computing
+
+OW — Outdoor/Woodland
+
+PP — Prep Period (подготовка, самостоятельная работа)
+
+AN — Assembly
+
+JL — Junior Library
+
+AGH — ??? (уточни, возможно, "Additional Group Help" или "Advanced German/History")
+
+CEA — ??? (уточни, может быть "Class Extension Activity")
+
+SWA — ??? (уточни, предположительно "Swimming")
+
+SB — School Band
+
+MT — Maths Test
+
+MI — Morning Intro/Meeting (или Music Instruments)
+
+GH — ??? (не найдено в стандартных списках, если встретится — уточни по школе)
+
+PS — PSHE (повтор)
+
+TN — Technology
+
+PE — Physical Education
+
+Если есть редкие аббревиатуры типа AGH/CEA/SWA — уточни, если важно для расписания.
+
+2. Временные слоты
+08:15–08:30
+
+08:30–09:00
+
+09:00–09:30
+
+09:30–10:00
+
+10:00–10:30
+
+10:30–11:00
+
+11:00–11:30
+
+11:30–12:00
+
+12:00–12:30
+
+12:30–13:00
+
+13:00–13:30
+
+13:30–14:00
+
+14:00–14:30
+
+14:30–15:00
+
+15:00–15:30
+
+15:30–16:00
