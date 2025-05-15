@@ -1,6 +1,6 @@
 {
   "time": "06:01",
-  "enabled": false,
+  "enabled": true,
   "repeat": [
     "Mon",
     "Tue",

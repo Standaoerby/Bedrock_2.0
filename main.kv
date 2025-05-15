@@ -1,4 +1,6 @@
 #:import Window kivy.core.window.Window
+#:import MarqueeLabel classes.marquee.MarqueeLabel
+
 
 <ThemedLabel@Label>:
     font_name: app.font_name
@@ -92,6 +94,78 @@ FloatLayout:
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
+        # Alarm widget (слева вверху)
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint: 0.38, None
+            height: "64dp"
+            pos_hint: {"x": 0.05, "top": 0.94}
+            spacing: "8dp"
+            canvas.before:
+                Color:
+                    rgba: 0,0,0,0.08
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [16]
+            ThemedLabel:
+                text: "Alarm:"
+                font_size: "22sp"
+            ThemedLabel:
+                id: alarm_time_label
+                text: root.current_alarm_time
+                font_size: "22sp"
+                color: (0.7, 1, 0.7, 1) if root.alarm_active else (0.6,0.6,0.6,1)
+            ThemedLabel:
+                id: alarm_status_label
+                text: "ON" if root.alarm_active else "OFF"
+                font_size: "20sp"
+                color: (0, 1, 0, 1) if root.alarm_active else (0.7,0.7,0.7,1)
+
+        # Weather widget (справа вверху)
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint: 0.52, None
+            height: "64dp"
+            pos_hint: {"right": 0.95, "top": 0.94}
+            spacing: "8dp"
+            canvas.before:
+                Color:
+                    rgba: 0,0,0,0.08
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [16]
+            ThemedLabel:
+                text: "Weather:"
+                font_size: "22sp"
+            ThemedLabel:
+                id: weather_now_label
+                text: root.weather_now_str
+                font_size: "22sp"
+            ThemedLabel:
+                id: weather_forecast_label
+                text: root.weather_5h_str
+                font_size: "20sp"
+            ThemedLabel:
+                id: weather_trend_label
+                text: root.weather_trend_arrow
+                font_size: "28sp"
+
+        # Notification widget (бегущая строка — внизу)
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint: 0.8, None
+            height: "48dp"
+            pos_hint: {"center_x": 0.5, "y": 0.03}
+            MarqueeLabel:
+                id: notification_label
+                full_text: root.notification_text
+                text: root.notification_text
+                font_name: app.theme_config["font_name"]
+                font_size: "20sp"
+                color: app.theme_config["font_color"]
+
 <AlarmScreen>:
     FloatLayout:
         size_hint: 1, 1
@@ -333,14 +407,30 @@ FloatLayout:
             size_hint: 1, 1
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
             opacity: 0.5
-        ThemedLabel:
-            id: weather_label
-            text: "Погода..."
-            font_size: "32sp"
-            halign: "center"
-            valign: "top"
-            color: 1, 1, 1, 1
-            pos_hint: {"center_x": 0.5, "top": 0.85}
+            
+        BoxLayout:
+            orientation: "vertical"
+            size_hint: 0.9, 0.8
+            pos_hint: {"center_x": 0.5, "top": 0.9}
+            spacing: "15dp"
+            
+            ThemedLabel:
+                id: weather_label
+                text: "Loading weather..."
+                font_size: "24sp"
+                halign: "center"
+                valign: "top"
+                color: 1, 1, 1, 1
+                text_size: self.width, None
+                
+            Button:
+                text: "Refresh"
+                font_name: app.theme_config["font_name"]
+                font_size: "18sp"
+                size_hint: 0.3, None
+                height: "40dp"
+                pos_hint: {"center_x": 0.5}
+                on_release: root.update_weather()
 <ScheduleScreen>:
     FloatLayout:
         size_hint_y: 1

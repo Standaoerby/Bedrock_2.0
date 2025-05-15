@@ -59,3 +59,8 @@ class NotificationService:
         """Удалить все уведомления"""
         self.notifications = []
         self.save()
+
+    def get_last_notification(self):
+        if self.notifications:
+            return self.notifications[-1]
+        return None

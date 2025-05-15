@@ -8,6 +8,8 @@ from services.weather_service import WeatherService
 from services.schedule_service import ScheduleService
 from services.pigs_service import PigsService
 from services.notifications_service import NotificationService
+from classes.marquee import MarqueeLabel
+
 
 import json
 import os
