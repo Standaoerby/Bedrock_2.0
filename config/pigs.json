@@ -11,17 +11,17 @@
     "water": {
       "label": "Вода",
       "max_hours": 8,
-      "last_reset": "2025-05-15T12:04:28"
+      "last_reset": "2025-05-15T14:20:02"
     },
     "food": {
       "label": "Еда",
       "max_hours": 6,
-      "last_reset": "2025-05-15T12:04:30"
+      "last_reset": "2025-05-15T14:20:02"
     },
     "clean": {
       "label": "Очистка",
       "max_hours": 12,
-      "last_reset": "2025-05-15T12:04:31"
+      "last_reset": "2025-05-15T14:20:03"
     }
   }
 }

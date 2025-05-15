@@ -1,14 +1,14 @@
 {
   "current": {
-    "time": "2025-05-15T10:15",
-    "temperature": 15.9,
-    "condition": "туман",
+    "time": "2025-05-15T13:15",
+    "temperature": 18.1,
+    "condition": "пасмурно",
     "precipitation_probability": 0
   },
   "forecast_5h": {
-    "temperature": null,
-    "condition": "нет данных",
-    "precipitation_probability": null
+    "temperature": 17.7,
+    "condition": "пасмурно",
+    "precipitation_probability": 0
   },
-  "updated": "2025-05-15T11:18:40.589131"
+  "updated": "2025-05-15T14:19:05.235241"
 }

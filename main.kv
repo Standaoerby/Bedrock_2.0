@@ -1,89 +1,67 @@
+#:import Window kivy.core.window.Window
+
 <ThemedLabel@Label>:
     font_name: app.font_name
+    color: app.theme_config.get("font_color", (1,1,1,1))
 
-BoxLayout:
-    orientation: "vertical"
+# Добавляем кастомный класс для кнопки меню
+<MenuButton@Button>:
+    background_normal: app.theme_config["menu_button_normal"]
+    background_down: app.theme_config.get("menu_button_active", app.theme_config["menu_button_normal"])
+    color: app.theme_config.get("menu_selected_color", (1,1,1,1)) if self.screen_name == app.current_screen else app.theme_config.get("menu_unselected_color", (0.7,0.7,0.7,1))
+    font_name: app.theme_config["font_name"]
+    font_size: str(app.theme_config.get("menu_button_font_size", 30)) + "sp"
+    size_hint_x: None
+    size_hint_y: None
+    width: app.theme_config.get("menu_button_size", [192,64])[0]
+    height: app.theme_config.get("menu_button_size", [192,64])[1]
+    padding: app.theme_config.get("menu_button_padding", [0,0,0,0])
+    screen_name: ""
+    on_release:
+        app.root.ids.screen_manager.current = self.screen_name
 
-    BoxLayout:
-        orientation: "horizontal"
-        size_hint_y: None
-        height: "64dp"
-        padding: "8dp"
-        spacing: "32dp"
-        canvas.before:
-            Color:
-                rgba: 0.8, 0.8, 0.8, 1
-            Rectangle:
-                size: self.size
-                pos: self.pos
-
-        ThemedLabel:
-            text: "HOME"
-            color: app.theme_config["menu_selected_color"] if app.current_screen == "home" else app.theme_config["menu_unselected_color"]
-            font_size: "22sp"
-            size_hint_x: None
-            width: "120dp"
-            halign: "center"
-            valign: "middle"
-            on_touch_down:
-                if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "home"
-
-        ThemedLabel:
-            text: "ALARM"
-            color: app.theme_config["menu_selected_color"] if app.current_screen == "alarm" else app.theme_config["menu_unselected_color"]
-            font_size: "22sp"
-            size_hint_x: None
-            width: "120dp"
-            halign: "center"
-            valign: "middle"
-            on_touch_down:
-                if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "alarm"
-        ThemedLabel:
-            text: "WEATHER"
-            color: app.theme_config["menu_selected_color"] if app.current_screen == "weather" else app.theme_config["menu_unselected_color"]
-            font_size: "22sp"
-            size_hint_x: None
-            width: "120dp"
-            halign: "center"
-            valign: "middle"
-            on_touch_down:
-                if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "weather"
-        ThemedLabel:
-            text: "SCHEDULE"
-            color: app.theme_config["menu_selected_color"] if app.current_screen == "schedule" else app.theme_config["menu_unselected_color"]
-            font_size: "22sp"
-            size_hint_x: None
-            width: "120dp"
-            halign: "center"
-            valign: "middle"
-            on_touch_down:
-                if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "schedule"
-        ThemedLabel:
-            text: "PIGS"
-            color: app.theme_config["menu_selected_color"] if app.current_screen == "pigs" else app.theme_config["menu_unselected_color"]
-            font_size: "22sp"
-            size_hint_x: None
-            width: "120dp"
-            halign: "center"
-            valign: "middle"
-            on_touch_down:
-                if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "pigs"
-
-
-    # Экраны — как всегда
+FloatLayout:
+    # Контейнер для всех экранов (во весь экран)
     MDScreenManager:
         id: screen_manager
-
+        pos_hint: {"x": 0, "y": 0}
+        size_hint: 1, 1  # Изменено на весь экран
         HomeScreen:
             name: "home"
         AlarmScreen:
             name: "alarm"
-        WeatherScreen:
-            name: "weather"
         ScheduleScreen:
             name: "schedule"
+        WeatherScreen:
+            name: "weather"
         PigsScreen:
             name: "pigs"
+
+    # Меню (прозрачный контейнер поверх всего)
+    BoxLayout:
+        orientation: "horizontal"
+        size_hint: (1, None)
+        height: app.theme_config.get("menu_button_size", [220,70])[1] + 16
+        pos_hint: {"top": 1}  # Помещаем вверху экрана
+        spacing: "16dp"
+        padding: "24dp", "8dp", "24dp", "8dp"
+        # Контейнер полностью прозрачный, без canvas.before
+        MenuButton:
+            text: "Главная"
+            screen_name: "home"
+        MenuButton:
+            text: "Будильник"
+            screen_name: "alarm"
+        MenuButton:
+            text: "Расписание"
+            screen_name: "schedule"
+        MenuButton:
+            text: "Погода"
+            screen_name: "weather"
+        MenuButton:
+            text: "Свинки"
+            screen_name: "pigs"
+
 
 <HomeScreen>:
     FloatLayout:
@@ -285,6 +263,7 @@ BoxLayout:
                 size_hint_x: 0.6
             Button:
                 text: "Дать воды"
+                font_name: app.theme_config["font_name"]
                 on_release: root.reset_bar("water")
 
         # Еда
@@ -301,6 +280,7 @@ BoxLayout:
                 size_hint_x: 0.6
             Button:
                 text: "Покормить"
+                font_name: app.theme_config["font_name"]
                 on_release: root.reset_bar("food")
 
         # Очистка
@@ -317,6 +297,7 @@ BoxLayout:
                 size_hint_x: 0.6
             Button:
                 text: "Убрать"
+                font_name: app.theme_config["font_name"]
                 on_release: root.reset_bar("clean")
 
         ThemedLabel:
