@@ -1,0 +1,14 @@
+{
+  "current": {
+    "time": "2024-05-16T09:00",
+    "temperature": 17.0,
+    "precipitation": 0.1,
+    "condition": "sunny"
+  },
+  "forecast_5h": {
+    "temperature": 15.0,
+    "precipitation": 0.6,
+    "condition": "rain"
+  },
+  "updated": "2024-05-16T09:00:00"
+}
