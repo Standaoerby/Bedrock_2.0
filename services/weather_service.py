@@ -38,7 +38,7 @@ class WeatherService:
             )
             data = requests.get(url, timeout=10).json()
         except (requests.RequestException, json.JSONDecodeError) as e:
-            print(f"Ошибка получения данных о погоде: {e}")
+            print(f"Error: {e}")
             return False
         now = datetime.now()
         times = data["hourly"]["time"]
@@ -73,19 +73,19 @@ class WeatherService:
 
         # Маппинг погодных кодов в статусы на русском
         weather_map = {
-            0: "солнечно",
-            1: "частично облачно",
-            2: "пасмурно",
-            3: "туман",
-            45: "туман",
-            48: "изморозь",
-            51: "морось",
-            61: "дождь",
-            71: "снег",
-            95: "гроза",
+            0: "Sunny",
+            1: "Partially Cloudy",
+            2: "Cloudy",
+            3: "Fog",
+            45: "Fog",
+            48: "Frost",
+            51: "Drizzle",
+            61: "Rain",
+            71: "Snow",
+            95: "Thunderstorm",
         }
-        current_condition = weather_map.get(current["weathercode"], "неизвестно")
-        forecast_condition = weather_map.get(forecast_5h.get("weathercode"), "неизвестно") if forecast_5h else "нет данных"
+        current_condition = weather_map.get(current["weathercode"], "unknown")
+        forecast_condition = weather_map.get(forecast_5h.get("weathercode"), "unknown") if forecast_5h else "unknown"
 
         self.weather = {
             "current": {

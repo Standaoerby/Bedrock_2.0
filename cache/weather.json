@@ -2,12 +2,12 @@
   "current": {
     "time": "2025-05-15T13:15",
     "temperature": 18.1,
-    "condition": "пасмурно",
+    "condition": "Cloudy",
     "precipitation_probability": 0
   },
   "forecast_5h": {
     "temperature": 17.7,
-    "condition": "пасмурно",
+    "condition": "Cloudy",
     "precipitation_probability": 0
   },
   "updated": "2025-05-15T14:19:05.235241"

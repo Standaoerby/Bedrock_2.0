@@ -1,8 +1,12 @@
-[
-  {
-    "time": "07:00",
-    "enabled": true,
-    "repeat": [1,2,3,4,5],
-    "label": "Подъём"
-  }
-]
+{
+  "time": "06:01",
+  "enabled": false,
+  "repeat": [
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu"
+  ],
+  "ringtone": "robot.mp3",
+  "fadein": true
+}

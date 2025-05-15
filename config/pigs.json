@@ -1,25 +1,25 @@
 {
   "pigs": [
     {
-      "name": "Коровка"
+      "name": "Korovka"
     },
     {
-      "name": "Карамелька"
+      "name": "Karamelka"
     }
   ],
   "bars": {
     "water": {
-      "label": "Вода",
+      "label": "Water",
       "max_hours": 8,
       "last_reset": "2025-05-15T14:20:02"
     },
     "food": {
-      "label": "Еда",
+      "label": "Food",
       "max_hours": 6,
       "last_reset": "2025-05-15T14:20:02"
     },
     "clean": {
-      "label": "Очистка",
+      "label": "Cleaning",
       "max_hours": 12,
       "last_reset": "2025-05-15T14:20:03"
     }

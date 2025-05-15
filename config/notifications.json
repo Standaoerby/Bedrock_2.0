@@ -1,14 +1,14 @@
 [
   {
     "time": "2024-05-16T09:00",
-    "text": "Пора на тренировку!",
-    "category": "экстра",
+    "text": "Gogogo!",
+    "category": "extra",
     "read": false
   },
   {
     "time": "2024-05-16T11:00",
-    "text": "Домашка по математике!",
-    "category": "школьный",
+    "text": "Homework in Mathematics!",
+    "category": "school",
     "read": false
   }
 ]
