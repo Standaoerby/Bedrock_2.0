@@ -1,38 +1,93 @@
-MDScreenManager:
-    HomeScreen:
-    AlarmScreen:
-    ScheduleScreen:
-    WeatherScreen:
-    PigsScreen:
-    SettingsScreen:
+BoxLayout:
+    orientation: "vertical"
+
+    # Меню всегда сверху, не меняется при переходах
+    MDBoxLayout:
+        orientation: "horizontal"
+        size_hint_y: None
+        height: "64dp"
+        md_bg_color: 0.8, 0.8, 0.8, 1
+        padding: "8dp"
+        spacing: "32dp"
+
+        MDLabel:
+            text: "HOME"
+            halign: "center"
+            valign: "middle"
+            theme_text_color: "Custom"
+            text_color: 0, 0, 0, 1
+            font_size: "22sp"
+            size_hint_x: None
+            width: "120dp"
+            on_touch_down:
+                if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "home"
+
+        MDLabel:
+            text: "ALARM"
+            halign: "center"
+            valign: "middle"
+            theme_text_color: "Custom"
+            text_color: 0, 0, 0, 1
+            font_size: "22sp"
+            size_hint_x: None
+            width: "120dp"
+            on_touch_down:
+                if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "alarm"
+
+    # Здесь переключаются только экраны
+    MDScreenManager:
+        id: screen_manager
+
+        HomeScreen:
+            name: "home"
+
+        AlarmScreen:
+            name: "alarm"
 
 <HomeScreen>:
-    name: "home"
-    MDLabel:
-        text: "Главная"
-        halign: "center"
+    FloatLayout:
+        size_hint_y: 1
+        Image:
+            source: app.theme_config["background_image"]
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+        Image:
+            source: app.get_overlay_image("home")
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            opacity: 0.5
+        MDLabel:
+            text: "Это Home (main.kv + home.py)"
+            halign: "center"
+            theme_text_color: "Custom"
+            text_color: 0, 0, 1, 1
+            font_size: "32sp"
+            pos_hint: {"center_x": 0.5, "center_y": 0.6}
+
 <AlarmScreen>:
-    name: "alarm"
-    MDLabel:
-        text: "Будильник"
-        halign: "center"
-<ScheduleScreen>:
-    name: "schedule"
-    MDLabel:
-        text: "Расписание"
-        halign: "center"
-<WeatherScreen>:
-    name: "weather"
-    MDLabel:
-        text: "Погода"
-        halign: "center"
-<PigsScreen>:
-    name: "pigs"
-    MDLabel:
-        text: "Свинки"
-        halign: "center"
-<SettingsScreen>:
-    name: "settings"
-    MDLabel:
-        text: "Настройки"
-        halign: "center"
+    FloatLayout:
+        size_hint_y: 1
+        Image:
+            source: app.theme_config["background_image"]
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+        Image:
+            source: app.get_overlay_image("alarm")
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            opacity: 0.5
+        MDLabel:
+            text: "Это Alarm (main.kv + alarm.py)"
+            halign: "center"
+            theme_text_color: "Custom"
+            text_color: 1, 0, 0, 1
+            font_size: "32sp"
+            pos_hint: {"center_x": 0.5, "center_y": 0.6}

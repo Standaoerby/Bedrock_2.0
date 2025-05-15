@@ -1,0 +1,15 @@
+{
+  "name": "Minecraft Dark",
+  "primary_color": [0.25, 0.65, 0.15, 1],
+  "font_color": [0.13, 0.13, 0.13, 1],
+  "font_name": "assets/fonts/Minecraftia-Regular.ttf",
+  "background_image": "themes/minecraft/light/background.png",
+  "overlay_images": {
+    "home": "themes/minecraft/light/overlay_home.png",
+    "alarm": "themes/minecraft/light/overlay_alarm.png",
+    "schedule": "themes/minecraft/light/overlay_schedule.png",
+    "weather": "themes/minecraft/light/overlay_weather.png",
+    "pigs": "themes/minecraft/light/overlay_pigs.png",
+    "settings": "themes/minecraft/light/overlay_settings.png"
+  }
+}
