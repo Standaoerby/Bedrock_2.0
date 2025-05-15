@@ -3,12 +3,14 @@ from kivy.lang import Builder
 from kivymd.app import MDApp
 from kivy.properties import StringProperty
 from services.alarm_service import AlarmService
+from services.weather_service import WeatherService
 import json
 import os
 
 LabelBase.register(name="Minecraftia", fn_regular="assets/fonts/Minecraftia-Regular.ttf")
 from pages.home import HomeScreen
 from pages.alarm import AlarmScreen
+from pages.weather import WeatherScreen
 
 def load_theme_config(theme="minecraft", mode="light"):
     path = f"themes/{theme}/{mode}/theme.json"
@@ -34,6 +36,7 @@ class BedrockApp(MDApp):
         self.theme_mode = "light"
         self.theme_config = load_theme_config(self.theme_name, self.theme_mode)
         self.alarm_service = AlarmService()
+        self.weather_service = WeatherService(lat=55.75, lon=37.62)
         return Builder.load_file('main.kv')
 
     def get_overlay_image(self, page):

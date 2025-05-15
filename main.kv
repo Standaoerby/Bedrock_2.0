@@ -38,6 +38,16 @@ BoxLayout:
             valign: "middle"
             on_touch_down:
                 if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "alarm"
+        ThemedLabel:
+            text: "WEATHER"
+            color: app.theme_config["menu_selected_color"] if app.current_screen == "weather" else app.theme_config["menu_unselected_color"]
+            font_size: "22sp"
+            size_hint_x: None
+            width: "120dp"
+            halign: "center"
+            valign: "middle"
+            on_touch_down:
+                if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "weather"
 
 
     # Экраны — как всегда
@@ -48,6 +58,8 @@ BoxLayout:
             name: "home"
         AlarmScreen:
             name: "alarm"
+        WeatherScreen:
+            name: "weather"
 
 <HomeScreen>:
     FloatLayout:
@@ -104,3 +116,28 @@ BoxLayout:
             halign: "left"
             valign: "top"
             pos_hint: {"x": 0.05, "top": 0.9}
+<WeatherScreen>:
+    FloatLayout:
+        size_hint_y: 1
+        Image:
+            source: app.theme_config["background_image"]
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+
+        Image:
+            source: app.get_overlay_image("weather")
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            opacity: 0.5
+        ThemedLabel:
+            id: weather_label
+            text: "Погода..."
+            font_size: "32sp"
+            halign: "center"
+            valign: "top"
+            color: 1, 1, 1, 1
+            pos_hint: {"center_x": 0.5, "top": 0.85}
