@@ -58,6 +58,16 @@ BoxLayout:
             valign: "middle"
             on_touch_down:
                 if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "schedule"
+        ThemedLabel:
+            text: "PIGS"
+            color: app.theme_config["menu_selected_color"] if app.current_screen == "pigs" else app.theme_config["menu_unselected_color"]
+            font_size: "22sp"
+            size_hint_x: None
+            width: "120dp"
+            halign: "center"
+            valign: "middle"
+            on_touch_down:
+                if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "pigs"
 
 
     # Экраны — как всегда
@@ -72,6 +82,8 @@ BoxLayout:
             name: "weather"
         ScheduleScreen:
             name: "schedule"
+        PigsScreen:
+            name: "pigs"
 
 <HomeScreen>:
     FloatLayout:
@@ -232,3 +244,84 @@ BoxLayout:
             valign: "top"
             color: 1, 1, 1, 1
             opacity: 0  # Скрыто по умолчанию
+<PigsScreen>:
+    FloatLayout:
+        size_hint_y: 1
+        Image:
+            source: app.theme_config["background_image"]
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+
+        Image:
+            source: app.get_overlay_image("pigs")
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            opacity: 0.5
+    BoxLayout:
+        orientation: "vertical"
+        padding: "24dp"
+        spacing: "16dp"
+        ThemedLabel:
+            text: "Ферма свинок"
+            font_size: "32sp"
+            halign: "center"
+            color: 1, 1, 0.7, 1
+
+        # Вода
+        BoxLayout:
+            spacing: "12dp"
+            ThemedLabel:
+                text: "Вода"
+                font_size: "20sp"
+                size_hint_x: 0.2
+            ProgressBar:
+                id: water_bar
+                max: 1
+                value: 0.9
+                size_hint_x: 0.6
+            Button:
+                text: "Дать воды"
+                on_release: root.reset_bar("water")
+
+        # Еда
+        BoxLayout:
+            spacing: "12dp"
+            ThemedLabel:
+                text: "Еда"
+                font_size: "20sp"
+                size_hint_x: 0.2
+            ProgressBar:
+                id: food_bar
+                max: 1
+                value: 0.8
+                size_hint_x: 0.6
+            Button:
+                text: "Покормить"
+                on_release: root.reset_bar("food")
+
+        # Очистка
+        BoxLayout:
+            spacing: "12dp"
+            ThemedLabel:
+                text: "Очистка"
+                font_size: "20sp"
+                size_hint_x: 0.2
+            ProgressBar:
+                id: clean_bar
+                max: 1
+                value: 0.7
+                size_hint_x: 0.6
+            Button:
+                text: "Убрать"
+                on_release: root.reset_bar("clean")
+
+        ThemedLabel:
+            id: pigs_status_label
+            text: "Статус: ???"
+            font_size: "24sp"
+            halign: "center"
+            color: 1, 1, 1, 1

@@ -5,7 +5,9 @@ from kivy.properties import StringProperty
 from services.alarm_service import AlarmService
 from services.weather_service import WeatherService
 from services.schedule_service import ScheduleService
+from services.pigs_service import PigsService
 from services.notifications_service import NotificationService
+
 import json
 import os
 
@@ -14,6 +16,7 @@ from pages.home import HomeScreen
 from pages.alarm import AlarmScreen
 from pages.weather import WeatherScreen
 from pages.schedule import ScheduleScreen
+from pages.pigs import PigsScreen
 
 def load_theme_config(theme="minecraft", mode="light"):
     path = f"themes/{theme}/{mode}/theme.json"
@@ -43,6 +46,7 @@ class BedrockApp(MDApp):
         self.alarm_service = AlarmService()
         self.weather_service = WeatherService(lat=55.75, lon=37.62)
         self.schedule_service = ScheduleService()
+        self.pigs_service = PigsService()
         return Builder.load_file('main.kv')
 
     def get_overlay_image(self, page):
