@@ -31,11 +31,15 @@ class WeatherService:
         return (datetime.now() - last) > timedelta(hours=3)
 
     def fetch_weather(self):
-        url = (
+        try:
+            url = (
             f"https://api.open-meteo.com/v1/forecast?latitude={self.lat}&longitude={self.lon}"
             f"&current_weather=true&hourly=temperature_2m,precipitation_probability,weathercode"
-        )
-        data = requests.get(url, timeout=10).json()
+            )
+            data = requests.get(url, timeout=10).json()
+        except (requests.RequestException, json.JSONDecodeError) as e:
+            print(f"Ошибка получения данных о погоде: {e}")
+            return False
         now = datetime.now()
         times = data["hourly"]["time"]
 

@@ -47,6 +47,7 @@ class BedrockApp(MDApp):
         self.weather_service = WeatherService(lat=55.75, lon=37.62)
         self.schedule_service = ScheduleService()
         self.pigs_service = PigsService()
+        self.notification_service = NotificationService()
         return Builder.load_file('main.kv')
 
     def get_overlay_image(self, page):

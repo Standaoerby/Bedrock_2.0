@@ -4,7 +4,7 @@ from kivy.clock import Clock
 class PigsScreen(MDScreen):
     def on_enter(self):
         self.update_bars()
-        self._clock_ev = Clock.schedule_interval(lambda dt: self.update_bars(), 30)  # обновление каждые 30 сек
+        self._clock_ev = Clock.schedule_interval(lambda dt: self.update_bars(), 60)  # обновление каждые 60 сек
 
     def on_leave(self):
         if hasattr(self, "_clock_ev"):
