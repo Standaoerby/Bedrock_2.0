@@ -1,0 +1,76 @@
+<ScheduleScreen>:
+    FloatLayout:
+        size_hint_y: 1
+        Image:
+            source: app.theme_config["background_image"]
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+
+        Image:
+            source: app.get_overlay_image("schedule")
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            opacity: app.theme_config.get("overlay_opacity", 0.5)
+    BoxLayout:
+        orientation: "vertical"
+        # Верхний слой: today + tomorrow
+        BoxLayout:
+            orientation: "horizontal"
+            padding: app.theme_config.get("padding_large", "32dp")
+            spacing: app.theme_config.get("spacing_large", "32dp")
+
+            # Сегодня
+            BoxLayout:
+                orientation: "vertical"
+                ThemedLabel:
+                    text: "Today"
+                    font_size: app.theme_config.get("font_sizes", {}).get("small", "18sp")
+                    bold: True
+                    color: app.theme_config.get("colors", {}).get("font_highlight", [1, 1, 0.7, 1])
+                ThemedLabel:
+                    id: today_label
+                    text: "..."
+                    font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")
+                    halign: "left"
+                    valign: "top"
+
+            # Завтра
+            BoxLayout:
+                orientation: "vertical"
+                ThemedLabel:
+                    text: "Tomorrow"
+                    font_size: app.theme_config.get("font_sizes", {}).get("small", "18sp")
+                    bold: True
+                    color: app.theme_config.get("colors", {}).get("font_secondary", [0.8, 1, 1, 1])
+                ThemedLabel:
+                    id: tomorrow_label
+                    text: "..."
+                    font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")
+                    halign: "left"
+                    valign: "top"
+
+        # Кнопка "Вся неделя" или "Назад к сегодня"
+        ThemedLabel:
+            id: week_button
+            text: "All week"
+            font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+            color: app.theme_config.get("colors", {}).get("font_action", [0.5, 1, 0.5, 1])
+            halign: "center"
+            valign: "middle"
+            size_hint_y: None
+            height: "48dp"
+            on_touch_down:
+                if self.collide_point(*args[1].pos): root.toggle_week_mode()
+
+        # Если week_mode — вывод всей недели (скрывает today/tomorrow, показывает week)
+        ThemedLabel:
+            id: week_label
+            text: ""
+            font_size: app.theme_config.get("font_sizes", {}).get("small", "18sp")
+            halign: "left"
+            valign: "top"
+            opacity: 0  # Скрыто по умолчанию

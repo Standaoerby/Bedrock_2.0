@@ -1,0 +1,39 @@
+<WeatherScreen>:
+    FloatLayout:
+        size_hint_y: 1
+        Image:
+            source: app.theme_config["background_image"]
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+
+        Image:
+            source: app.get_overlay_image("weather")
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            opacity: app.theme_config.get("overlay_opacity", 0.5)
+            
+        BoxLayout:
+            orientation: "vertical"
+            size_hint: 0.9, 0.8
+            pos_hint: {"center_x": 0.5, "top": 0.9}
+            spacing: app.theme_config.get("spacing_small", "15dp")
+            
+            ThemedLabel:
+                id: weather_label
+                text: "Loading weather..."
+                font_size: app.theme_config.get("font_sizes", {}).get("medium", "24sp")
+                halign: "center"
+                valign: "top"
+                text_size: self.width, None
+                
+            ThemedButton:
+                text: "Refresh"
+                font_size: app.theme_config.get("font_sizes", {}).get("small", "18sp")
+                size_hint: 0.3, None
+                height: app.theme_config.get("widget_heights", {}).get("button_small", "40dp")
+                pos_hint: {"center_x": 0.5}
+                on_release: root.update_weather()

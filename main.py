@@ -9,10 +9,9 @@ from services.schedule_service import ScheduleService
 from services.pigs_service import PigsService
 from services.notifications_service import NotificationService
 from classes.marquee import MarqueeLabel
-
+import os
 
 import json
-import os
 
 LabelBase.register(name="Minecraftia", fn_regular="assets/fonts/Minecraftia-Regular.ttf")
 from pages.home import HomeScreen
@@ -38,6 +37,11 @@ class BedrockApp(MDApp):
         self.schedule_service = ScheduleService()
         self.pigs_service = PigsService()
         self.notification_service = NotificationService()
+        
+        # Ensure the pages directory exists
+        os.makedirs("pages", exist_ok=True)
+        
+        # Load main.kv which includes all the other KV files
         return Builder.load_file('main.kv')
 
     def get_overlay_image(self, page):

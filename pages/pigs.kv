@@ -1,0 +1,80 @@
+<PigsScreen>:
+    FloatLayout:
+        size_hint_y: 1
+        Image:
+            source: app.theme_config["background_image"]
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+
+        Image:
+            source: app.get_overlay_image("pigs")
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            opacity: app.theme_config.get("overlay_opacity", 0.5)
+    BoxLayout:
+        orientation: "vertical"
+        padding: "24dp"
+        spacing: app.theme_config.get("spacing_small", "16dp")
+        ThemedLabel:
+            text: "Pig Farm"
+            font_size: app.theme_config.get("font_sizes", {}).get("xlarge", "32sp")
+            halign: "center"
+            color: app.theme_config.get("colors", {}).get("font_highlight", [1, 1, 0.7, 1])
+
+        # Вода
+        BoxLayout:
+            spacing: app.theme_config.get("spacing_small", "12dp")
+            ThemedLabel:
+                text: "Water"
+                font_size: app.theme_config.get("font_sizes", {}).get("default", "20sp")
+                size_hint_x: 0.2
+            ProgressBar:
+                id: water_bar
+                max: 1
+                value: 0.9
+                size_hint_x: 0.6
+            ThemedButton:
+                text: "Give Water"
+                on_release: root.reset_bar("water")
+
+        # Еда
+        BoxLayout:
+            spacing: app.theme_config.get("spacing_small", "12dp")
+            ThemedLabel:
+                text: "Food"
+                font_size: app.theme_config.get("font_sizes", {}).get("default", "20sp")
+                size_hint_x: 0.2
+            ProgressBar:
+                id: food_bar
+                max: 1
+                value: 0.8
+                size_hint_x: 0.6
+            ThemedButton:
+                text: "Feed"
+                on_release: root.reset_bar("food")
+
+        # Очистка
+        BoxLayout:
+            spacing: app.theme_config.get("spacing_small", "12dp")
+            ThemedLabel:
+                text: "Cleaning"
+                font_size: app.theme_config.get("font_sizes", {}).get("default", "20sp")
+                size_hint_x: 0.2
+            ProgressBar:
+                id: clean_bar
+                max: 1
+                value: 0.7
+                size_hint_x: 0.6
+            ThemedButton:
+                text: "Clean"
+                on_release: root.reset_bar("clean")
+
+        ThemedLabel:
+            id: pigs_status_label
+            text: "Status: ???"
+            font_size: app.theme_config.get("font_sizes", {}).get("medium", "24sp")
+            halign: "center"
