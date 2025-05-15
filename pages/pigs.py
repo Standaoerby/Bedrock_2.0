@@ -13,24 +13,31 @@ class PigsScreen(MDScreen):
     def update_bars(self):
         app = self.get_app()
         vals, integral = app.pigs_service.get_all_values()
+        # Update progress bars
         self.ids.water_bar.value = vals["water"]
         self.ids.food_bar.value = vals["food"]
         self.ids.clean_bar.value = vals["clean"]
-        # Интегральный статус
+        
+        # Update status display
         percent = int(integral * 100)
+        
+        # Select emoji based on status percentage
         if percent == 0:
-            status = "💀"
+            status_emoji = "💀"  # Dead
         elif 1 <= percent < 25:
-            status = "😨"
+            status_emoji = "😨"  # Very worried
         elif 25 <= percent < 50:
-            status = "☹️"
+            status_emoji = "☹️"  # Sad
         elif 50 <= percent < 75:
-            status = "🙂"
+            status_emoji = "🙂"  # Slightly happy
         elif 75 <= percent < 100:
-            status = "😀"
+            status_emoji = "😀"  # Happy
         else:
-            status = "🐷"
-        self.ids.pigs_status_label.text = f"Статус: {status} ({percent}%)"
+            status_emoji = "🐷"  # Perfect
+        
+        # Update emoji and status text
+        self.ids.status_emoji.text = status_emoji
+        self.ids.pigs_status_label.text = f"Status: {percent}%"
 
     def reset_bar(self, key):
         app = self.get_app()

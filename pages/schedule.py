@@ -1,27 +1,56 @@
 from kivymd.uix.screen import MDScreen
 from datetime import datetime, timedelta
+from kivy.properties import BooleanProperty, StringProperty
 
 DAYS_RU = {
     1: "Monday",
     2: "Tuesday",
     3: "Wednesday",
-    4: "Thursday",
+    4: "Thursday", 
     5: "Friday",
     6: "Saturday",
     7: "Sunday"
 }
+
+DAYS_SHORT = {
+    1: "monday",
+    2: "tuesday",
+    3: "wednesday",
+    4: "thursday",
+    5: "friday"
+}
+
 TYPES_RU = {"0": "School", "1": "Extra"}
 
 class ScheduleScreen(MDScreen):
-    week_mode = False
+    week_mode = BooleanProperty(False)
+    today_date = StringProperty("")
+    today_day = StringProperty("")
+    tomorrow_date = StringProperty("")
+    tomorrow_day = StringProperty("")
 
     def on_pre_enter(self):
         self.show_today_tomorrow()
 
     def show_today_tomorrow(self):
+        """Display today and tomorrow schedules with times"""
         self.week_mode = False
-        today = datetime.now().isoweekday()  # 1=пн, ... 7=вс
-        tomorrow = today + 1 if today < 7 else 1
+        
+        # Get today and tomorrow dates
+        today_date = datetime.now()
+        tomorrow_date = today_date + timedelta(days=1)
+        
+        # Get day numbers (1-7 for Monday-Sunday)
+        today_daynum = today_date.isoweekday()
+        tomorrow_daynum = tomorrow_date.isoweekday()
+        
+        # Set date and day properties for display in the format "15 May, Thursday"
+        self.today_date = today_date.strftime("%d %b")
+        self.today_day = DAYS_RU[today_daynum]
+        self.tomorrow_date = tomorrow_date.strftime("%d %b")
+        self.tomorrow_day = DAYS_RU[tomorrow_daynum]
+        
+        # Get schedule data
         app = self.get_app()
         schedule = app.schedule_service.schedule
 
@@ -30,37 +59,40 @@ class ScheduleScreen(MDScreen):
             if not lessons:
                 return "Free Day"
             return "\n".join(
-                f'{l["start"]} — {l["subject"]}' #({TYPES_RU.get(l.get("type", "0"), "?")})'
+                f'{l["start"]} — {l["subject"]}'
                 for l in lessons
             )
-        self.ids.today_label.text = lessons_text(today)
-        self.ids.tomorrow_label.text = lessons_text(tomorrow)
-        self.ids.week_label.opacity = 0
-        self.ids.week_button.text = "All week"
+        
+        self.ids.today_label.text = lessons_text(today_daynum)
+        self.ids.tomorrow_label.text = lessons_text(tomorrow_daynum)
 
     def show_week(self):
+        """Display weekly schedule in 5 fixed columns without bullets"""
         self.week_mode = True
         app = self.get_app()
         schedule = app.schedule_service.schedule
-        text = ""
-        for day_num in range(1, 8):
+        
+        # Fill content for each day column (Monday-Friday)
+        for day_num in range(1, 6):  # 1-5 (Monday-Friday)
             lessons = schedule.get(str(day_num), [])
+            day_id = DAYS_SHORT[day_num] + "_label"  # e.g., "monday_label"
+            
             if not lessons:
-                continue
-            text += f"[b]{DAYS_RU[day_num]}[/b]:\n"
-            for l in lessons:
-                t = l.get("start", "")
-                subj = l.get("subject", "")
-                typ = TYPES_RU.get(l.get("type", "0"), "?")
-                text += f"   {t} — {subj} ({typ})\n"
-            text += "\n"
-        self.ids.week_label.text = text.strip()
-        self.ids.week_label.opacity = 1
-        self.ids.today_label.text = ""
-        self.ids.tomorrow_label.text = ""
-        self.ids.week_button.text = "Back to Today"
+                # No lessons this day
+                self.ids[day_id].text = "Free Day"
+            else:
+                # Get unique subjects for this day (no duplicates)
+                subjects = {}
+                for l in lessons:
+                    subject = l.get("subject", "")
+                    subjects[subject] = True
+                
+                # Add each unique subject to the text
+                subjects_text = "\n".join(subject for subject in subjects)
+                self.ids[day_id].text = subjects_text
 
     def toggle_week_mode(self):
+        """Toggle between daily and weekly views"""
         if self.week_mode:
             self.show_today_tomorrow()
         else:

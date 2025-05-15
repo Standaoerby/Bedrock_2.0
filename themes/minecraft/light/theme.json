@@ -28,6 +28,14 @@
   "panel_radius": 16,
   "overlay_opacity": 0.5,
   "panel_bg": [0, 0, 0, 0.08],
+  
+  "grid_unit": "32dp",
+  "grid_unit_half": "16dp",
+  "grid_unit_quarter": "8dp",
+  "grid_unit_2x": "64dp",
+  "grid_unit_3x": "96dp",
+  "grid_unit_4x": "128dp",
+  
   "font_sizes": {
     "tiny": "1sp",
     "small": "16sp",

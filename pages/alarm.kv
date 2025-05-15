@@ -2,13 +2,15 @@
     FloatLayout:
         size_hint: 1, 1
 
-        # Фон и оверлей
+        # Background image (full screen, bottom layer)
         Image:
             source: app.theme_config["background_image"]
             allow_stretch: True
             keep_ratio: False
             size_hint: 1, 1
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
+        
+        # Overlay image (full screen, above background)
         Image:
             source: app.get_overlay_image("alarm")
             allow_stretch: True
@@ -17,193 +19,254 @@
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
             opacity: app.theme_config.get("overlay_opacity", 0.5)
 
-        # Блок — время + активность
+        # Main content container - all UI controls go inside this
         BoxLayout:
-            orientation: "horizontal"
-            size_hint: 0.65, None
-            height: "60dp"
-            pos_hint: {"center_x": 0.5, "top": 0.87}
-            spacing: app.theme_config.get("spacing_large", "32dp")
-
-            ThemedLabel:
-                text: "Time"
-                font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
-                size_hint_x: 0.2
-
-            # Новый блок выбора времени с кнопками +/-
+            orientation: "vertical"
+            size_hint: 0.9, 0.85
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            spacing: app.theme_config.get("grid_unit", "32dp")
+            
+            # Section 1: Time and Active toggle - aligned to grid
+            GridLayout:
+                cols: 3
+                spacing: [app.theme_config.get("grid_unit", "32dp"), 0]
+                size_hint: 1, None
+                height: app.theme_config.get("grid_unit_3x", "96dp")  # Increased height to accommodate larger time display
+                
+                ThemedLabel:
+                    text: "Time"
+                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                    size_hint_x: 0.15  # Slightly reduced to give more space to time
+                    halign: "left"
+                    valign: "center"
+    
+                # Time selection with +/- buttons
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_x: 0.65  # Slightly increased to give more space
+                    spacing: app.theme_config.get("grid_unit_half", "16dp")
+                    
+                    # Hours (with buttons +/-)
+                    BoxLayout:
+                        orientation: "horizontal"
+                        size_hint_x: 0.45
+                        
+                        # Narrower buttons column
+                        BoxLayout:
+                            orientation: "vertical"
+                            size_hint_x: 0.2  # Half as wide as before
+                            
+                            ThemedButton:
+                                text: "+"
+                                size_hint_y: 0.6  # 1.5 times taller
+                                on_release: root.increment_hour()
+                            
+                            # Spacer
+                            Widget:
+                                size_hint_y: 0.1
+                            
+                            ThemedButton:
+                                text: "-"
+                                size_hint_y: 0.6  # 1.5 times taller
+                                on_release: root.decrement_hour()
+                        
+                        # Larger hour display
+                        ThemedLabel:
+                            id: hour_label
+                            text: root.alarm_time.split(':')[0]
+                            font_size: app.theme_config.get("font_sizes", {}).get("xlarge", "52sp")  # Doubled from 26sp
+                            halign: "center"
+                            valign: "center"
+                            size_hint_x: 0.8  # More space for larger text
+                    
+                    # Separator
+                    ThemedLabel:
+                        text: ":"
+                        font_size: app.theme_config.get("font_sizes", {}).get("xlarge", "52sp")  # Doubled from 26sp
+                        halign: "center"
+                        valign: "center"
+                        size_hint_x: 0.1
+                    
+                    # Minutes (with buttons +/-)
+                    BoxLayout:
+                        orientation: "horizontal"
+                        size_hint_x: 0.45
+                        
+                        # Larger minute display
+                        ThemedLabel:
+                            id: minute_label
+                            text: root.alarm_time.split(':')[1]
+                            font_size: app.theme_config.get("font_sizes", {}).get("xlarge", "52sp")  # Doubled from 26sp
+                            halign: "center"
+                            valign: "center"
+                            size_hint_x: 0.8  # More space for larger text
+                        
+                        # Narrower buttons column
+                        BoxLayout:
+                            orientation: "vertical"
+                            size_hint_x: 0.2  # Half as wide as before
+                            
+                            ThemedButton:
+                                text: "+"
+                                size_hint_y: 0.6  # 1.5 times taller
+                                on_release: root.increment_minute()
+                            
+                            # Spacer
+                            Widget:
+                                size_hint_y: 0.1
+                            
+                            ThemedButton:
+                                text: "-"
+                                size_hint_y: 0.6  # 1.5 times taller
+                                on_release: root.decrement_minute()
+    
+                # Active toggle
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_x: 0.2
+                    
+                    ThemedLabel:
+                        text: "Active"
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                        size_hint_x: 0.65
+                        halign: "right"
+                        valign: "center"
+                        
+                    CheckBox:
+                        id: active_checkbox
+                        active: root.alarm_active
+                        size_hint_x: 0.35
+                        on_active: root.on_active_toggled(self.active)
+            
+            # Section 2: Days of week - aligned to grid
+            BoxLayout:
+                orientation: "vertical"
+                size_hint: 1, None
+                height: app.theme_config.get("grid_unit_3x", "96dp")
+                spacing: app.theme_config.get("grid_unit_half", "16dp")
+                
+                ThemedLabel:
+                    text: "Repeat on days:"
+                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                    halign: "left"
+                    size_hint_y: 0.3
+                    
+                GridLayout:
+                    cols: 7
+                    spacing: app.theme_config.get("grid_unit_half", "16dp")
+                    size_hint_y: 0.7
+                    
+                    ToggleButton:
+                        id: repeat_mon
+                        text: "Mon"
+                        state: "down" if "Mon" in root.alarm_repeat else "normal"
+                        on_state: root.toggle_repeat("Mon", self.state)
+                        font_name: app.theme_config["font_name"]
+                        font_size: app.theme_config.get("widget_font_size", "20sp")
+                    ToggleButton:
+                        id: repeat_tue
+                        text: "Tue"
+                        state: "down" if "Tue" in root.alarm_repeat else "normal"
+                        on_state: root.toggle_repeat("Tue", self.state)
+                        font_name: app.theme_config["font_name"]
+                        font_size: app.theme_config.get("widget_font_size", "20sp")
+                    ToggleButton:
+                        id: repeat_wed
+                        text: "Wed"
+                        state: "down" if "Wed" in root.alarm_repeat else "normal"
+                        on_state: root.toggle_repeat("Wed", self.state)
+                        font_name: app.theme_config["font_name"]
+                        font_size: app.theme_config.get("widget_font_size", "20sp")
+                    ToggleButton:
+                        id: repeat_thu
+                        text: "Thu"
+                        state: "down" if "Thu" in root.alarm_repeat else "normal"
+                        on_state: root.toggle_repeat("Thu", self.state)
+                        font_name: app.theme_config["font_name"]
+                        font_size: app.theme_config.get("widget_font_size", "20sp")
+                    ToggleButton:
+                        id: repeat_fri
+                        text: "Fri"
+                        state: "down" if "Fri" in root.alarm_repeat else "normal"
+                        on_state: root.toggle_repeat("Fri", self.state)
+                        font_name: app.theme_config["font_name"]
+                        font_size: app.theme_config.get("widget_font_size", "20sp")
+                    ToggleButton:
+                        id: repeat_sat
+                        text: "Sat"
+                        state: "down" if "Sat" in root.alarm_repeat else "normal"
+                        on_state: root.toggle_repeat("Sat", self.state)
+                        font_name: app.theme_config["font_name"]
+                        font_size: app.theme_config.get("widget_font_size", "20sp")
+                    ToggleButton:
+                        id: repeat_sun
+                        text: "Sun"
+                        state: "down" if "Sun" in root.alarm_repeat else "normal"
+                        on_state: root.toggle_repeat("Sun", self.state)
+                        font_name: app.theme_config["font_name"]
+                        font_size: app.theme_config.get("widget_font_size", "20sp")
+    
+            # Section 3: Ringtone selection - aligned to grid
+            BoxLayout:
+                orientation: "vertical"
+                size_hint: 1, None
+                height: app.theme_config.get("grid_unit_2x", "64dp")
+                spacing: app.theme_config.get("grid_unit_half", "16dp")
+                
+                ThemedLabel:
+                    text: "Ringtone:"
+                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                    halign: "left"
+                    size_hint_y: 0.3
+                
+                BoxLayout:
+                    orientation: "horizontal"
+                    spacing: app.theme_config.get("grid_unit_half", "16dp")
+                    size_hint_y: 0.7
+                    
+                    Spinner:
+                        id: ringtone_spinner
+                        text: root.selected_ringtone
+                        values: root.ringtone_list
+                        font_name: app.theme_config["font_name"]
+                        font_size: app.theme_config.get("widget_font_size", "20sp")
+                        size_hint_x: 0.7
+                        on_text: root.select_ringtone(self.text)
+                    
+                    ThemedButton:
+                        text: "Play"
+                        size_hint_x: 0.3
+                        on_release: root.play_ringtone()
+    
+            # Section 4: Fade-in option - aligned to grid
             BoxLayout:
                 orientation: "horizontal"
-                size_hint_x: 0.5
-                spacing: app.theme_config.get("spacing_small", "8dp")
+                size_hint: 1, None
+                height: app.theme_config.get("grid_unit", "32dp")
                 
-                # Часы (с кнопками +/-)
-                BoxLayout:
-                    orientation: "vertical"
-                    size_hint_x: 0.45
-                    
-                    # Кнопка +
-                    ThemedButton:
-                        text: "+"
-                        size_hint_y: 0.4
-                        on_release: root.increment_hour()
-                    
-                    # Значение часов
-                    ThemedLabel:
-                        id: hour_label
-                        text: root.alarm_time.split(':')[0]
-                        font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
-                        halign: "center"
-                        valign: "center"
-                        size_hint_y: 0.4
-                    
-                    # Кнопка -
-                    ThemedButton:
-                        text: "-"
-                        size_hint_y: 0.4
-                        on_release: root.decrement_hour()
+                CheckBox:
+                    id: fadein_checkbox
+                    active: root.alarm_fadein
+                    size_hint_x: None
+                    width: app.theme_config.get("grid_unit", "32dp")
+                    on_active: root.on_fadein_toggled(self.active)
                 
-                # Разделитель
                 ThemedLabel:
-                    text: ":"
-                    font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
-                    halign: "center"
+                    text: "Fade-in volume (gradually increase volume)"
+                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                    halign: "left"
                     valign: "center"
-                    size_hint_x: 0.1
+    
+            # Section 5: Save button - aligned to grid
+            AnchorLayout:
+                anchor_x: "center"
+                anchor_y: "center"
+                size_hint: 1, None
+                height: app.theme_config.get("grid_unit_2x", "64dp")
                 
-                # Минуты (с кнопками +/-)
-                BoxLayout:
-                    orientation: "vertical"
-                    size_hint_x: 0.45
-                    
-                    # Кнопка +
-                    ThemedButton:
-                        text: "+"
-                        size_hint_y: 0.4
-                        on_release: root.increment_minute()
-                    
-                    # Значение минут
-                    ThemedLabel:
-                        id: minute_label
-                        text: root.alarm_time.split(':')[1]
-                        font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
-                        halign: "center"
-                        valign: "center"
-                        size_hint_y: 0.4
-                    
-                    # Кнопка -
-                    ThemedButton:
-                        text: "-"
-                        size_hint_y: 0.4
-                        on_release: root.decrement_minute()
-
-            ThemedLabel:
-                text: "Active"
-                font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
-                size_hint_x: 0.15
-            CheckBox:
-                id: active_checkbox
-                active: root.alarm_active
-                size_hint_x: None
-                width: "38dp"
-                on_active: root.on_active_toggled(self.active)
-
-        # Повтор по дням недели
-        BoxLayout:
-            orientation: "horizontal"
-            size_hint: 0.85, None
-            height: "48dp"
-            pos_hint: {"center_x": 0.5, "top": 0.76}
-            spacing: app.theme_config.get("spacing", "10dp")
-            ToggleButton:
-                id: repeat_mon
-                text: "Mon"
-                state: "down" if "Mon" in root.alarm_repeat else "normal"
-                on_state: root.toggle_repeat("Mon", self.state)
-                font_name: app.theme_config["font_name"]
-                font_size: app.theme_config.get("widget_font_size", "20sp")
-            ToggleButton:
-                id: repeat_tue
-                text: "Tue"
-                state: "down" if "Tue" in root.alarm_repeat else "normal"
-                on_state: root.toggle_repeat("Tue", self.state)
-                font_name: app.theme_config["font_name"]
-                font_size: app.theme_config.get("widget_font_size", "20sp")
-            ToggleButton:
-                id: repeat_wed
-                text: "Wed"
-                state: "down" if "Wed" in root.alarm_repeat else "normal"
-                on_state: root.toggle_repeat("Wed", self.state)
-                font_name: app.theme_config["font_name"]
-                font_size: app.theme_config.get("widget_font_size", "20sp")
-            ToggleButton:
-                id: repeat_thu
-                text: "Thu"
-                state: "down" if "Thu" in root.alarm_repeat else "normal"
-                on_state: root.toggle_repeat("Thu", self.state)
-                font_name: app.theme_config["font_name"]
-                font_size: app.theme_config.get("widget_font_size", "20sp")
-            ToggleButton:
-                id: repeat_fri
-                text: "Fri"
-                state: "down" if "Fri" in root.alarm_repeat else "normal"
-                on_state: root.toggle_repeat("Fri", self.state)
-                font_name: app.theme_config["font_name"]
-                font_size: app.theme_config.get("widget_font_size", "20sp")
-            ToggleButton:
-                id: repeat_sat
-                text: "Sat"
-                state: "down" if "Sat" in root.alarm_repeat else "normal"
-                on_state: root.toggle_repeat("Sat", self.state)
-                font_name: app.theme_config["font_name"]
-                font_size: app.theme_config.get("widget_font_size", "20sp")
-            ToggleButton:
-                id: repeat_sun
-                text: "Sun"
-                state: "down" if "Sun" in root.alarm_repeat else "normal"
-                on_state: root.toggle_repeat("Sun", self.state)
-                font_name: app.theme_config["font_name"]
-                font_size: app.theme_config.get("widget_font_size", "20sp")
-
-        # Рингтон + Play
-        BoxLayout:
-            orientation: "horizontal"
-            size_hint: 0.82, None
-            height: app.theme_config.get("widget_heights", {}).get("medium", "54dp")
-            pos_hint: {"center_x": 0.5, "top": 0.67}
-            spacing: app.theme_config.get("spacing", "10dp")
-            Spinner:
-                id: ringtone_spinner
-                text: root.selected_ringtone
-                values: root.ringtone_list
-                font_name: app.theme_config["font_name"]
-                font_size: app.theme_config.get("widget_font_size", "20sp")
-                size_hint_x: 0.7
-                on_text: root.select_ringtone(self.text)
-            ThemedButton:
-                text: "Play"
-                size_hint_x: 0.3
-                on_release: root.play_ringtone()
-
-        # Fade-in
-        BoxLayout:
-            orientation: "horizontal"
-            size_hint: 0.4, None
-            height: app.theme_config.get("widget_heights", {}).get("small", "44dp")
-            pos_hint: {"center_x": 0.5, "top": 0.60}
-            spacing: app.theme_config.get("spacing_small", "8dp")
-            CheckBox:
-                id: fadein_checkbox
-                active: root.alarm_fadein
-                size_hint_x: None
-                width: "36dp"
-                on_active: root.on_fadein_toggled(self.active)
-            ThemedLabel:
-                text: "Fade-in"
-
-        # Save button
-        ThemedButton:
-            text: "Save"
-            font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
-            size_hint: 0.2, None
-            pos_hint: {"center_x": 0.5, "top": 0.52}
-            on_release: root.save_alarm()
+                ThemedButton:
+                    text: "Save"
+                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                    size_hint: 0.3, None
+                    height: app.theme_config.get("widget_heights", {}).get("button", "48dp")
+                    on_release: root.save_alarm()

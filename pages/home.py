@@ -4,22 +4,34 @@ from datetime import datetime
 from kivy.properties import StringProperty, BooleanProperty
 
 class HomeScreen(MDScreen):
-
     current_alarm_time = StringProperty("--:--")
     alarm_active = BooleanProperty(False)
     weather_now_str = StringProperty("")
     weather_5h_str = StringProperty("")
-    weather_trend_arrow = StringProperty("")  # "↑" or "↓" or ""
+    weather_trend_arrow = StringProperty("")  # "↑", "↓", or "="
     notification_text = StringProperty("")
+    current_date = StringProperty("")
+    current_day = StringProperty("")
 
     def on_pre_enter(self):
         Clock.schedule_once(lambda dt: self.post_init(), 0)
         self.update_alarm()
         self.update_weather()
         self.update_notification()
+        self.update_date()
+        
+        # Schedule regular updates
         Clock.schedule_interval(lambda dt: self.update_alarm(), 60)
         Clock.schedule_interval(lambda dt: self.update_weather(), 180)
         Clock.schedule_interval(lambda dt: self.update_notification(), 10)
+        Clock.schedule_interval(lambda dt: self.update_date(), 60)
+    
+    def update_date(self):
+        """Update the current date and day of week"""
+        now = datetime.now()
+        self.current_date = now.strftime("%d %B %Y")  # Format: "15 May 2025"
+        self.current_day = now.strftime("%A")  # Format: "Thursday"
+    
     def update_alarm(self):
         app = self.get_app()
         alarm = app.alarm_service.get_alarm()
@@ -29,6 +41,15 @@ class HomeScreen(MDScreen):
         else:
             self.current_alarm_time = "--:--"
             self.alarm_active = False
+    
+    def toggle_alarm(self):
+        """Toggle the alarm active state on button press"""
+        app = self.get_app()
+        alarm = app.alarm_service.get_alarm()
+        if alarm:
+            alarm["enabled"] = not alarm.get("enabled", False)
+            app.alarm_service.set_alarm(alarm)
+            self.update_alarm()
 
     def update_weather(self):
         app = self.get_app()
@@ -41,16 +62,16 @@ class HomeScreen(MDScreen):
             self.weather_now_str = ""
         if f5:
             self.weather_5h_str = f'{f5.get("temperature", "--")}°C in 5h'
-            # Trend
+            # Trend - modified to use equals sign when temperatures are the same
             try:
                 temp_now = float(now.get("temperature", 0))
                 temp_5h = float(f5.get("temperature", 0))
                 if temp_5h > temp_now:
-                    self.weather_trend_arrow = "↑"
+                    self.weather_trend_arrow = "↑"  # Red arrow up
                 elif temp_5h < temp_now:
-                    self.weather_trend_arrow = "↓"
+                    self.weather_trend_arrow = "↓"  # Blue arrow down
                 else:
-                    self.weather_trend_arrow = ""
+                    self.weather_trend_arrow = "="  # White equals sign for no change
             except Exception:
                 self.weather_trend_arrow = ""
         else:
@@ -66,15 +87,14 @@ class HomeScreen(MDScreen):
         else:
             self.notification_text = ""
 
-
     def get_app(self):
         from kivy.app import App
         return App.get_running_app()
+        
     def post_init(self):
-        print("IDS HomeScreen (post):", self.ids)  # теперь всегда НЕ пустой
+        print("IDS HomeScreen (post):", self.ids)
         self.update_clock()
         self._clock_ev = Clock.schedule_interval(lambda dt: self.update_clock(), 1)
-
 
     def on_leave(self):
         # Останавливаем таймер при уходе со страницы

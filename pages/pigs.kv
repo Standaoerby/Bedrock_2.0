@@ -1,13 +1,13 @@
 <PigsScreen>:
     FloatLayout:
-        size_hint_y: 1
+        size_hint: 1, 1
+        # Background and overlay images
         Image:
             source: app.theme_config["background_image"]
             allow_stretch: True
             keep_ratio: False
             size_hint: 1, 1
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
-
         Image:
             source: app.get_overlay_image("pigs")
             allow_stretch: True
@@ -15,66 +15,134 @@
             size_hint: 1, 1
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
             opacity: app.theme_config.get("overlay_opacity", 0.5)
-    BoxLayout:
-        orientation: "vertical"
-        padding: "24dp"
-        spacing: app.theme_config.get("spacing_small", "16dp")
-        ThemedLabel:
-            text: "Pig Farm"
-            font_size: app.theme_config.get("font_sizes", {}).get("xlarge", "32sp")
-            halign: "center"
-            color: app.theme_config.get("colors", {}).get("font_highlight", [1, 1, 0.7, 1])
-
-        # Вода
+            
+        # Main content containers
         BoxLayout:
-            spacing: app.theme_config.get("spacing_small", "12dp")
-            ThemedLabel:
-                text: "Water"
-                font_size: app.theme_config.get("font_sizes", {}).get("default", "20sp")
-                size_hint_x: 0.2
-            ProgressBar:
-                id: water_bar
-                max: 1
-                value: 0.9
+            orientation: "horizontal"
+            size_hint: 0.9, 0.8
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            spacing: app.theme_config.get("grid_unit", "32dp")
+            
+            # Left side - Controls (60% of width)
+            ThemedPanel:
+                orientation: "vertical"
                 size_hint_x: 0.6
-            ThemedButton:
-                text: "Give Water"
-                on_release: root.reset_bar("water")
-
-        # Еда
-        BoxLayout:
-            spacing: app.theme_config.get("spacing_small", "12dp")
-            ThemedLabel:
-                text: "Food"
-                font_size: app.theme_config.get("font_sizes", {}).get("default", "20sp")
-                size_hint_x: 0.2
-            ProgressBar:
-                id: food_bar
-                max: 1
-                value: 0.8
-                size_hint_x: 0.6
-            ThemedButton:
-                text: "Feed"
-                on_release: root.reset_bar("food")
-
-        # Очистка
-        BoxLayout:
-            spacing: app.theme_config.get("spacing_small", "12dp")
-            ThemedLabel:
-                text: "Cleaning"
-                font_size: app.theme_config.get("font_sizes", {}).get("default", "20sp")
-                size_hint_x: 0.2
-            ProgressBar:
-                id: clean_bar
-                max: 1
-                value: 0.7
-                size_hint_x: 0.6
-            ThemedButton:
-                text: "Clean"
-                on_release: root.reset_bar("clean")
-
-        ThemedLabel:
-            id: pigs_status_label
-            text: "Status: ???"
-            font_size: app.theme_config.get("font_sizes", {}).get("medium", "24sp")
-            halign: "center"
+                padding: app.theme_config.get("grid_unit_half", "16dp")
+                spacing: app.theme_config.get("grid_unit", "32dp")
+                
+                # Water
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: app.theme_config.get("grid_unit_2x", "64dp")
+                    spacing: app.theme_config.get("grid_unit_half", "16dp")
+                    
+                    ThemedLabel:
+                        text: "Water"
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                        size_hint_x: 0.25
+                        halign: "left"
+                        valign: "center"
+                    
+                    BoxLayout:
+                        orientation: "vertical"
+                        size_hint_x: 0.5
+                        padding: [0, app.theme_config.get("grid_unit_half", "16dp"), 0, app.theme_config.get("grid_unit_half", "16dp")]
+                        
+                        ProgressBar:
+                            id: water_bar
+                            max: 1
+                            value: 0.9
+                            size_hint_y: None
+                            height: app.theme_config.get("grid_unit_half", "16dp")  # Thicker progress bar
+                    
+                    ThemedButton:
+                        text: "Water"
+                        size_hint_x: 0.25
+                        on_release: root.reset_bar("water")
+                
+                # Food
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: app.theme_config.get("grid_unit_2x", "64dp")
+                    spacing: app.theme_config.get("grid_unit_half", "16dp")
+                    
+                    ThemedLabel:
+                        text: "Food"
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                        size_hint_x: 0.25
+                        halign: "left"
+                        valign: "center"
+                    
+                    BoxLayout:
+                        orientation: "vertical"
+                        size_hint_x: 0.5
+                        padding: [0, app.theme_config.get("grid_unit_half", "16dp"), 0, app.theme_config.get("grid_unit_half", "16dp")]
+                        
+                        ProgressBar:
+                            id: food_bar
+                            max: 1
+                            value: 0.8
+                            size_hint_y: None
+                            height: app.theme_config.get("grid_unit_half", "16dp")  # Thicker progress bar
+                    
+                    ThemedButton:
+                        text: "Feed"
+                        size_hint_x: 0.25
+                        on_release: root.reset_bar("food")
+                
+                # Cleaning
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: app.theme_config.get("grid_unit_2x", "64dp")
+                    spacing: app.theme_config.get("grid_unit_half", "16dp")
+                    
+                    ThemedLabel:
+                        text: "Cleaning"
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                        size_hint_x: 0.25
+                        halign: "left"
+                        valign: "center"
+                    
+                    BoxLayout:
+                        orientation: "vertical"
+                        size_hint_x: 0.5
+                        padding: [0, app.theme_config.get("grid_unit_half", "16dp"), 0, app.theme_config.get("grid_unit_half", "16dp")]
+                        
+                        ProgressBar:
+                            id: clean_bar
+                            max: 1
+                            value: 0.7
+                            size_hint_y: None
+                            height: app.theme_config.get("grid_unit_half", "16dp")  # Thicker progress bar
+                    
+                    ThemedButton:
+                        text: "Clean"
+                        size_hint_x: 0.25
+                        on_release: root.reset_bar("clean")
+            
+            # Right side - Status display (40% of width)
+            ThemedPanel:
+                orientation: "vertical"
+                size_hint_x: 0.4
+                padding: app.theme_config.get("grid_unit", "32dp")
+                
+                # Status emoji (large display)
+                ThemedLabel:
+                    id: status_emoji
+                    text: "🐷"  # Default, will be updated in Python
+                    font_size: app.theme_config.get("font_sizes", {}).get("huge", "120sp")
+                    halign: "center"
+                    valign: "center"
+                    size_hint_y: 0.7
+                
+                # Status percentage
+                ThemedLabel:
+                    id: pigs_status_label
+                    text: "Status: 100%"
+                    font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
+                    halign: "center"
+                    valign: "center"
+                    size_hint_y: 0.3
