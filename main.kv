@@ -43,23 +43,23 @@ FloatLayout:
         size_hint: (1, None)
         height: app.theme_config.get("menu_button_size", [220,70])[1] + 16
         pos_hint: {"top": 1}  # Помещаем вверху экрана
-        spacing: "16dp"
-        padding: "24dp", "8dp", "24dp", "8dp"
+        spacing: "10dp"
+        padding: "15dp", "4dp", "15dp", "4dp"
         # Контейнер полностью прозрачный, без canvas.before
         MenuButton:
-            text: "Главная"
+            text: "Home"
             screen_name: "home"
         MenuButton:
-            text: "Будильник"
+            text: "Alarm"
             screen_name: "alarm"
         MenuButton:
-            text: "Расписание"
+            text: "School"
             screen_name: "schedule"
         MenuButton:
-            text: "Погода"
+            text: "Climate"
             screen_name: "weather"
         MenuButton:
-            text: "Свинки"
+            text: "Pigs"
             screen_name: "pigs"
 
 
@@ -112,7 +112,7 @@ FloatLayout:
             opacity: 0.5
         ThemedLabel:
             id: alarms_label
-            text: "Загрузка будильников..."
+            text: "Loading..."
             color: 1, 1, 1, 1
             font_size: "24sp"
             halign: "left"
@@ -172,7 +172,7 @@ FloatLayout:
             BoxLayout:
                 orientation: "vertical"
                 ThemedLabel:
-                    text: "Сегодня"
+                    text: "Today"
                     font_size: "18sp"
                     bold: True
                     color: 1, 1, 0.7, 1
@@ -188,7 +188,7 @@ FloatLayout:
             BoxLayout:
                 orientation: "vertical"
                 ThemedLabel:
-                    text: "Завтра"
+                    text: "Tomorrow"
                     font_size: "18sp"
                     bold: True
                     color: 0.8, 1, 1, 1
@@ -203,7 +203,7 @@ FloatLayout:
         # Кнопка "Вся неделя" или "Назад к сегодня"
         ThemedLabel:
             id: week_button
-            text: "Вся неделя"
+            text: "All week"
             font_size: "22sp"
             color: 0.5, 1, 0.5, 1
             halign: "center"
@@ -244,7 +244,7 @@ FloatLayout:
         padding: "24dp"
         spacing: "16dp"
         ThemedLabel:
-            text: "Ферма свинок"
+            text: "Pig Farm"
             font_size: "32sp"
             halign: "center"
             color: 1, 1, 0.7, 1
@@ -253,7 +253,7 @@ FloatLayout:
         BoxLayout:
             spacing: "12dp"
             ThemedLabel:
-                text: "Вода"
+                text: "Water"
                 font_size: "20sp"
                 size_hint_x: 0.2
             ProgressBar:
@@ -262,7 +262,7 @@ FloatLayout:
                 value: 0.9
                 size_hint_x: 0.6
             Button:
-                text: "Дать воды"
+                text: "Give Water"
                 font_name: app.theme_config["font_name"]
                 on_release: root.reset_bar("water")
 
@@ -270,7 +270,7 @@ FloatLayout:
         BoxLayout:
             spacing: "12dp"
             ThemedLabel:
-                text: "Еда"
+                text: "Food"
                 font_size: "20sp"
                 size_hint_x: 0.2
             ProgressBar:
@@ -279,7 +279,7 @@ FloatLayout:
                 value: 0.8
                 size_hint_x: 0.6
             Button:
-                text: "Покормить"
+                text: "Feed"
                 font_name: app.theme_config["font_name"]
                 on_release: root.reset_bar("food")
 
@@ -287,7 +287,7 @@ FloatLayout:
         BoxLayout:
             spacing: "12dp"
             ThemedLabel:
-                text: "Очистка"
+                text: "Cleaning"
                 font_size: "20sp"
                 size_hint_x: 0.2
             ProgressBar:
@@ -296,13 +296,13 @@ FloatLayout:
                 value: 0.7
                 size_hint_x: 0.6
             Button:
-                text: "Убрать"
+                text: "Clean"
                 font_name: app.theme_config["font_name"]
                 on_release: root.reset_bar("clean")
 
         ThemedLabel:
             id: pigs_status_label
-            text: "Статус: ???"
+            text: "Status: ???"
             font_size: "24sp"
             halign: "center"
             color: 1, 1, 1, 1

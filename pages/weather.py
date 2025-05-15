@@ -17,18 +17,18 @@ class WeatherScreen(MDScreen):
 
         # Сейчас
         if cur:
-            lines.append(f'Сейчас: {cur.get("temperature", "—")}°C, {cur.get("condition", "—")}')
-            lines.append(f'Вероятность осадков: {cur.get("precipitation_probability", "—")}%')
+            lines.append(f'Now: {cur.get("t", "—")}°C, {cur.get("condition", "—")}')
+            lines.append(f'Probability of precipitation: {cur.get("precipitation_probability", "—")}%')
 
         # Прогноз на 5 часов/завтра/ближайшее
         if forecast and forecast.get("temperature") is not None:
             lines.append("")
-            lines.append(f'Через 5 часов: {forecast.get("temperature", "—")}°C, {forecast.get("condition", "—")}')
+            lines.append(f'In 5 hrs: {forecast.get("t", "—")}°C, {forecast.get("condition", "—")}')
             if forecast.get("precipitation_probability") is not None:
-                lines.append(f'Вероятность осадков: {forecast["precipitation_probability"]}%')
+                lines.append(f'Probability of precipitation: {forecast["precipitation_probability"]}%')
         else:
             lines.append("")
-            lines.append("Нет прогноза на 5 часов или завтра")
+            lines.append("No forecast for 5 hours or tomorrow")
 
         self.ids.weather_label.text = "\n".join(lines)
 

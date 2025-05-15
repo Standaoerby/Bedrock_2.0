@@ -9,7 +9,7 @@ class AlarmScreen(MDScreen):
         app = self.get_app()
         alarm_list = app.alarm_service.alarms
         text = "\n".join([
-            f'{a["time"]} | {"ВКЛ" if a["enabled"] else "выкл"} | Повтор: {",".join(map(str, a["repeat"]))} | {a.get("label", "")}'
+            f'{a["time"]} | {"ON" if a["enabled"] else "OFF"} | Повтор: {",".join(map(str, a["repeat"]))} | {a.get("label", "")}'
             for a in alarm_list
         ])
         self.ids.alarms_label.text = text

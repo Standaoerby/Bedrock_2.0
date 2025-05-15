@@ -2,15 +2,15 @@ from kivymd.uix.screen import MDScreen
 from datetime import datetime, timedelta
 
 DAYS_RU = {
-    1: "Понедельник",
-    2: "Вторник",
-    3: "Среда",
-    4: "Четверг",
-    5: "Пятница",
-    6: "Суббота",
-    7: "Воскресенье"
+    1: "Monday",
+    2: "Tuesday",
+    3: "Wednesday",
+    4: "Thursday",
+    5: "Friday",
+    6: "Saturday",
+    7: "Sunday"
 }
-TYPES_RU = {"0": "Школа", "1": "Экстра"}
+TYPES_RU = {"0": "School", "1": "Extra"}
 
 class ScheduleScreen(MDScreen):
     week_mode = False
@@ -28,7 +28,7 @@ class ScheduleScreen(MDScreen):
         def lessons_text(day):
             lessons = schedule.get(str(day), [])
             if not lessons:
-                return "Нет занятий"
+                return "Free Day"
             return "\n".join(
                 f'{l["start"]} — {l["subject"]}' #({TYPES_RU.get(l.get("type", "0"), "?")})'
                 for l in lessons
@@ -36,7 +36,7 @@ class ScheduleScreen(MDScreen):
         self.ids.today_label.text = lessons_text(today)
         self.ids.tomorrow_label.text = lessons_text(tomorrow)
         self.ids.week_label.opacity = 0
-        self.ids.week_button.text = "Вся неделя"
+        self.ids.week_button.text = "All week"
 
     def show_week(self):
         self.week_mode = True
@@ -58,7 +58,7 @@ class ScheduleScreen(MDScreen):
         self.ids.week_label.opacity = 1
         self.ids.today_label.text = ""
         self.ids.tomorrow_label.text = ""
-        self.ids.week_button.text = "Назад к сегодня"
+        self.ids.week_button.text = "Back to Today"
 
     def toggle_week_mode(self):
         if self.week_mode:
