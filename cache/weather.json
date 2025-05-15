@@ -1,14 +1,14 @@
 {
   "current": {
-    "time": "2025-05-15T16:00",
-    "temperature": 17.3,
-    "condition": "Partially Cloudy",
-    "precipitation_probability": 0
-  },
-  "forecast_5h": {
-    "temperature": 14.2,
+    "time": "2025-05-15T17:45",
+    "temperature": 14.5,
     "condition": "Sunny",
     "precipitation_probability": 0
   },
-  "updated": "2025-05-15T17:12:52.210860"
+  "forecast_5h": {
+    "temperature": 12.9,
+    "condition": "Cloudy",
+    "precipitation_probability": 0
+  },
+  "updated": "2025-05-15T18:48:32.052175"
 }

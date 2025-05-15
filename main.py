@@ -23,19 +23,6 @@ from pages.pigs import PigsScreen
 
 def load_theme_config(theme="minecraft", mode="light"):
     path = f"themes/{theme}/{mode}/theme.json"
-    # if not os.path.exists(path):
-    #     return {
-    #         "background_image": "",
-    #         "overlay_images": {
-    #             "home": "",
-    #             "alarm": "",
-    #             "weather": "",
-    #             "schedule": ""
-    #         },
-    #         "font_name": "Minecraftia",
-    #         "menu_selected_color": [0, 0.7, 0, 1],
-    #         "menu_unselected_color": [0, 0, 0, 1]
-    #     }
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 

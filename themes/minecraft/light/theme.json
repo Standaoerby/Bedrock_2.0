@@ -18,5 +18,42 @@
     "weather": "themes/minecraft/light/overlay_weather.png",
     "pigs": "themes/minecraft/light/overlay_pigs.png",
     "settings": "themes/minecraft/light/overlay_settings.png"
-  }
+  },
+  "widget_font_size": "20sp",
+  "spacing": "10dp",
+  "spacing_small": "8dp",
+  "spacing_large": "32dp",
+  "padding": "15dp",
+  "padding_large": "32dp",
+  "panel_radius": 16,
+  "overlay_opacity": 0.5,
+  "panel_bg": [0, 0, 0, 0.08],
+  "font_sizes": {
+    "tiny": "1sp",
+    "small": "16sp",
+    "default": "20sp",
+    "medium": "22sp",
+    "large": "26sp",
+    "xlarge": "32sp",
+    "huge": "200sp"
+  },
+  "colors": {
+    "primary": [0.25, 0.65, 0.15, 1],
+    "font_default": [1, 1, 1, 1],
+    "font_highlight": [1, 1, 0.7, 1],
+    "font_secondary": [0.8, 1, 1, 1],
+    "font_action": [0.5, 1, 0.5, 1],
+    "active": [0, 1, 0, 1],
+    "inactive": [0.6, 0.6, 0.6, 1],
+    "semi_active": [0.7, 1, 0.7, 1]
+  },
+  "widget_heights": {
+    "small": "44dp",
+    "medium": "54dp",
+    "large": "64dp",
+    "button": "48dp",
+    "button_small": "40dp"
+  },
+  "button_normal": "themes/minecraft/light/button.png",
+  "button_active": "themes/minecraft/light/button_active.png"
 }
