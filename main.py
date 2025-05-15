@@ -1,9 +1,17 @@
 import json
 import os
+
+from kivy.core.text import LabelBase
 from kivy.lang import Builder
 from kivymd.app import MDApp
 
-# Импортируем классы экранов
+# Регистрируем кастомный шрифт
+LabelBase.register(
+    name="Minecraftia",
+    fn_regular="assets/fonts/Minecraftia-Regular.ttf"
+)
+
+# Импорт экранов
 from pages.home import HomeScreen
 from pages.alarm import AlarmScreen
 
@@ -15,7 +23,8 @@ def load_theme_config(theme="minecraft", mode="light"):
             "overlay_images": {
                 "home": "",
                 "alarm": ""
-            }
+            },
+            "font_name": "Minecraftia"
         }
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -29,6 +38,10 @@ class BedrockApp(MDApp):
 
     def get_overlay_image(self, page):
         return self.theme_config["overlay_images"].get(page, "")
+
+    @property
+    def font_name(self):
+        return self.theme_config.get("font_name", "Minecraftia")
 
 if __name__ == "__main__":
     BedrockApp().run()
