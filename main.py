@@ -2,6 +2,7 @@ from kivy.core.text import LabelBase
 from kivy.lang import Builder
 from kivymd.app import MDApp
 from kivy.properties import StringProperty
+from services.alarm_service import AlarmService
 import json
 import os
 
@@ -32,6 +33,7 @@ class BedrockApp(MDApp):
         self.theme_name = "minecraft"
         self.theme_mode = "light"
         self.theme_config = load_theme_config(self.theme_name, self.theme_mode)
+        self.alarm_service = AlarmService()
         return Builder.load_file('main.kv')
 
     def get_overlay_image(self, page):

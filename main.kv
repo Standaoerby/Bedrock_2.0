@@ -66,16 +66,23 @@ BoxLayout:
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
             opacity: 0.5
         ThemedLabel:
-            text: "Это Home (main.kv + home.py)"
-            color: 0, 0, 1, 1
-            font_size: "32sp"
+            id: debug_marker
+            text: "debug_marker"
+            font_size: "1sp"
+
+        ThemedLabel:
+            id: clock_label
+            text: "00:00"
+            font_size: "96sp"
+            color: 1, 1, 1, 1
             halign: "center"
             valign: "middle"
-            pos_hint: {"center_x": 0.5, "center_y": 0.6}
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
 
 <AlarmScreen>:
     FloatLayout:
-        size_hint_y: 1
+        size_hint_y: 1      
+        
         Image:
             source: app.theme_config["background_image"]
             allow_stretch: True
@@ -90,9 +97,10 @@ BoxLayout:
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
             opacity: 0.5
         ThemedLabel:
-            text: "Это Alarm (main.kv + alarm.py)"
-            color: 1, 0, 0, 1
-            font_size: "32sp"
-            halign: "center"
-            valign: "middle"
-            pos_hint: {"center_x": 0.5, "center_y": 0.6}
+            id: alarms_label
+            text: "Загрузка будильников..."
+            color: 1, 1, 1, 1
+            font_size: "24sp"
+            halign: "left"
+            valign: "top"
+            pos_hint: {"x": 0.05, "top": 0.9}
