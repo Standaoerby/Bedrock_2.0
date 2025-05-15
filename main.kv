@@ -1,12 +1,9 @@
-#:import Window kivy.core.window.Window
-
 <ThemedLabel@Label>:
     font_name: app.font_name
 
 BoxLayout:
     orientation: "vertical"
 
-    # Статичное меню сверху (заголовки через ThemedLabel!)
     BoxLayout:
         orientation: "horizontal"
         size_hint_y: None
@@ -22,7 +19,7 @@ BoxLayout:
 
         ThemedLabel:
             text: "HOME"
-            color: 0, 0, 0, 1
+            color: app.theme_config["menu_selected_color"] if app.current_screen == "home" else app.theme_config["menu_unselected_color"]
             font_size: "22sp"
             size_hint_x: None
             width: "120dp"
@@ -33,7 +30,7 @@ BoxLayout:
 
         ThemedLabel:
             text: "ALARM"
-            color: 0, 0, 0, 1
+            color: app.theme_config["menu_selected_color"] if app.current_screen == "alarm" else app.theme_config["menu_unselected_color"]
             font_size: "22sp"
             size_hint_x: None
             width: "120dp"
@@ -41,6 +38,7 @@ BoxLayout:
             valign: "middle"
             on_touch_down:
                 if self.collide_point(*args[1].pos): app.root.ids.screen_manager.current = "alarm"
+
 
     # Экраны — как всегда
     MDScreenManager:

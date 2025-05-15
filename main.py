@@ -1,17 +1,11 @@
-import json
-import os
-
 from kivy.core.text import LabelBase
 from kivy.lang import Builder
 from kivymd.app import MDApp
+from kivy.properties import StringProperty
+import json
+import os
 
-# Регистрируем кастомный шрифт
-LabelBase.register(
-    name="Minecraftia",
-    fn_regular="assets/fonts/Minecraftia-Regular.ttf"
-)
-
-# Импорт экранов
+LabelBase.register(name="Minecraftia", fn_regular="assets/fonts/Minecraftia-Regular.ttf")
 from pages.home import HomeScreen
 from pages.alarm import AlarmScreen
 
@@ -24,12 +18,16 @@ def load_theme_config(theme="minecraft", mode="light"):
                 "home": "",
                 "alarm": ""
             },
-            "font_name": "Minecraftia"
+            "font_name": "Minecraftia",
+            "menu_selected_color": [0, 0.7, 0, 1],
+            "menu_unselected_color": [0, 0, 0, 1]
         }
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 class BedrockApp(MDApp):
+    current_screen = StringProperty("home")
+
     def build(self):
         self.theme_name = "minecraft"
         self.theme_mode = "light"
@@ -42,6 +40,12 @@ class BedrockApp(MDApp):
     @property
     def font_name(self):
         return self.theme_config.get("font_name", "Minecraftia")
+
+    def on_start(self):
+        self.root.ids.screen_manager.bind(current=self._update_current_screen)
+
+    def _update_current_screen(self, instance, value):
+        self.current_screen = value
 
 if __name__ == "__main__":
     BedrockApp().run()

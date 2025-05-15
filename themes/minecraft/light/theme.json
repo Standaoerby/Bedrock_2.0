@@ -2,6 +2,8 @@
   "name": "Minecraft Light",
   "primary_color": [0.25, 0.65, 0.15, 1],
   "font_color": [1,1,1,1],
+  "menu_selected_color": [0, 0.7, 0, 1],
+  "menu_unselected_color": [0, 0, 0, 1],
   "font_name": "Minecraftia",
   "background_image": "themes/minecraft/light/background.png",
   "overlay_images": {
