@@ -119,7 +119,7 @@ class WeatherService:
             # Маппинг погодных кодов в статусы на английском
             weather_map = {
                 0: "Sunny",
-                1: "Partially Cloudy",
+                1: "Bit Cloudy",
                 2: "Cloudy",
                 3: "Fog",
                 45: "Fog",
@@ -127,7 +127,7 @@ class WeatherService:
                 51: "Drizzle",
                 61: "Rain",
                 71: "Snow",
-                95: "Thunderstorm",
+                95: "Storm",
             }
             current_condition = weather_map.get(current.get("weathercode", -1), "Unknown")
             forecast_condition = weather_map.get(forecast_5h.get("weathercode", -1), "Unknown") if forecast_5h else "Unknown"

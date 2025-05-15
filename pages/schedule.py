@@ -54,17 +54,17 @@ class ScheduleScreen(MDScreen):
         app = self.get_app()
         schedule = app.schedule_service.schedule
 
-        def lessons_text(day):
+        def lessons_text(day, only_subjects=False):
             lessons = schedule.get(str(day), [])
             if not lessons:
                 return "Free Day"
-            return "\n".join(
-                f'{l["start"]} — {l["subject"]}'
-                for l in lessons
-            )
+            if only_subjects:
+                return "\n".join(l["subject"] for l in lessons)
+            return "\n".join(f'{l["start"]} — {l["subject"]}' for l in lessons)
         
         self.ids.today_label.text = lessons_text(today_daynum)
-        self.ids.tomorrow_label.text = lessons_text(tomorrow_daynum)
+        self.ids.tomorrow_label.text = lessons_text(tomorrow_daynum, only_subjects=True)
+
 
     def show_week(self):
         """Display weekly schedule in 5 fixed columns without bullets"""

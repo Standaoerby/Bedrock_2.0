@@ -18,51 +18,56 @@
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
             opacity: app.theme_config.get("overlay_opacity", 0.5)
             
-        # Current date and day of week (top left) - smaller font
+        # Date panel - properly center content vertically with consistent padding
+        # Date panel - moved lower to avoid menu overlap and adjusted padding
         ThemedPanel:
             orientation: "vertical"
             size_hint: 0.38, None
-            height: app.theme_config.get("grid_unit_2x", "64dp")
-            pos_hint: {"x": 0.05, "top": 0.88}
-            padding: app.theme_config.get("grid_unit_quarter", "8dp")
+            height: app.theme_config.get("grid_unit_1.5x", "48dp")
+            pos_hint: {"x": 0.05, "top": 0.85}  # Moved down to avoid menu
+            padding: [app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_eighth", "4dp"), app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_eighth", "4dp")]
             
             ThemedLabel:
                 id: date_label
                 text: root.current_date
-                font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")  # Smaller font
+                font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
                 halign: "left"
+                valign: "middle"  # Ensure vertical centering
                 
-            ThemedLabel:
-                id: day_label
-                text: root.current_day
-                font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")  # Smaller font
-                halign: "left"
+            # ThemedLabel:
+            #     id: day_label
+            #     text: root.current_day
+            #     font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")  # Smaller font
+            #     halign: "left"
 
-        # Alarm widget (top right) - with padding and larger time digits
+        # Alarm panel - moved lower and to the right
         ThemedPanel:
             orientation: "horizontal"
             size_hint: 0.42, None
-            height: app.theme_config.get("grid_unit_2x", "64dp")
-            pos_hint: {"right": 0.95, "top": 0.88}
+            height: app.theme_config.get("grid_unit_1.5x", "48dp") 
+            pos_hint: {"right": 0.95, "top": 0.85}  # Moved down and to the right
             spacing: app.theme_config.get("grid_unit_quarter", "8dp")
-            padding: [app.theme_config.get("grid_unit_half", "16dp"), 0, 0, 0]  # Added left padding
-            
+            padding: [app.theme_config.get("grid_unit_half", "16dp"), app.theme_config.get("grid_unit_eighth", "4dp"), app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_eighth", "4dp")]           
             ThemedLabel:
                 text: "Alarm:"
                 font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
                 size_hint_x: 0.25
+                valign: "middle"  # Ensure vertical centering
                 
             ThemedLabel:
                 id: alarm_time_label
                 text: root.current_alarm_time
-                font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")  # Larger font for time
+                font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
                 size_hint_x: 0.45
-                color: app.theme_config.get("colors", {}).get("semi_active", [0.7, 1, 0.7, 1]) if root.alarm_active else [0.4, 0.4, 0.4, 1]  # Darker when inactive
+                valign: "middle"  # Ensure vertical centering
+                color: app.theme_config.get("colors", {}).get("semi_active", [0.7, 1, 0.7, 1]) if root.alarm_active else [0.4, 0.4, 0.4, 1]
                 
             Button:
                 id: alarm_status_button
                 text: "ON" if root.alarm_active else "OFF"
                 size_hint_x: 0.3
+                size_hint_y: 0.8  # Slightly smaller height to fit better in the panel
+                pos_hint: {"center_y": 0.5}  # Center vertically
                 font_name: app.theme_config["font_name"]
                 font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
                 color: app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1]) if root.alarm_active else app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
@@ -75,29 +80,27 @@
         ThemedLabel:
             id: clock_shadow_label
             text: clock_label.text  # Bind to the main clock's text
-            font_size: app.theme_config.get("font_sizes", {}).get("huge", "200sp")
+            font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "160").replace("sp", "")), Window.height * 0.25)) + "sp"
             halign: "center"
             valign: "middle"
-            pos_hint: {"center_x": 0.51, "center_y": 0.54}  # 5px right and down (approx in normalized coordinates)
+            pos_hint: {"center_x": 0.51, "center_y": 0.52}  # 5px right and down (approx in normalized coordinates)
             color: [0, 0, 0, 0.5]  # Dark shadow color
             
         ThemedLabel:
             id: clock_label
             text: "00:00"
-            font_size: app.theme_config.get("font_sizes", {}).get("huge", "200sp")
+            font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "160").replace("sp", "")), Window.height * 0.25)) + "sp"
             halign: "center"
             valign: "middle"
-            pos_hint: {"center_x": 0.5, "center_y": 0.55}
+            pos_hint: {"center_x": 0.5, "center_y": 0.53} 
 
-        # Weather widget - removed "Weather:" label and colorized trend indicators
+        # Weather panel - consistent padding with other panels
         ThemedPanel:
             orientation: "vertical"
             size_hint: 0.6, None
-            height: app.theme_config.get("grid_unit_2x", "64dp")  # Reduced height since we removed the title
-            pos_hint: {"center_x": 0.5, "center_y": 0.25}
-            spacing: app.theme_config.get("grid_unit_quarter", "8dp")
-            padding: app.theme_config.get("grid_unit_half", "16dp")
-            
+            height: app.theme_config.get("grid_unit_1.5x", "48dp")
+            pos_hint: {"center_x": 0.5, "center_y": 0.23}
+            padding: [app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_eighth", "4dp"), app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_eighth", "4dp")]            
             BoxLayout:
                 orientation: "horizontal"
                 spacing: app.theme_config.get("grid_unit_half", "16dp")
@@ -109,6 +112,7 @@
                     font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
                     size_hint_x: 0.6
                     halign: "center"
+                    valign: "middle"  # Ensure vertical centering
                 
                 # Forecast temperature with colored trend indicator
                 BoxLayout:
@@ -122,6 +126,7 @@
                         font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
                         size_hint_x: 0.2
                         halign: "center"
+                        valign: "middle"  # Ensure vertical centering
                         color: [0, 0.6, 1, 1] if root.weather_trend_arrow == "↓" else ([1, 0.3, 0.3, 1] if root.weather_trend_arrow == "↑" else [1, 1, 1, 1])
                         
                     ThemedLabel:
@@ -130,13 +135,14 @@
                         font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
                         size_hint_x: 0.8
                         halign: "left"
+                        valign: "middle"  # Ensure vertical centering
 
         # Notification widget (bottom)
         BoxLayout:
             orientation: "horizontal"
             size_hint: 0.8, None
             height: app.theme_config.get("grid_unit_2x", "64dp")
-            pos_hint: {"center_x": 0.5, "y": 0.05}
+            pos_hint: {"center_x": 0.5, "y": 0.03}
             
             MarqueeLabel:
                 id: notification_label

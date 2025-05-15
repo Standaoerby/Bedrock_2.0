@@ -29,8 +29,9 @@ class HomeScreen(MDScreen):
     def update_date(self):
         """Update the current date and day of week"""
         now = datetime.now()
-        self.current_date = now.strftime("%d %B %Y")  # Format: "15 May 2025"
-        self.current_day = now.strftime("%A")  # Format: "Thursday"
+        self.current_date = now.strftime("%d %B, %A")  # "15 May, Thursday"
+
+
     
     def update_alarm(self):
         app = self.get_app()

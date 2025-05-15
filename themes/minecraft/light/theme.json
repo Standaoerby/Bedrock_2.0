@@ -6,8 +6,8 @@
   "background_image": "themes/minecraft/light/background.png",
   "menu_button_normal": "themes/minecraft/light/menu_button.png",
   "menu_button_active": "themes/minecraft/light/menu_button_active.png",
-  "menu_button_size": [220, 70],
-  "menu_button_font_size": 30,
+  "menu_button_size": [200, 60],
+  "menu_button_font_size": 26,
   "menu_button_padding": [0, 0, 0, 0],
   "menu_selected_color": [1, 1, 1, 1],
   "menu_unselected_color": [0.7, 0.7, 0.7, 1],
@@ -26,25 +26,28 @@
   "padding": "15dp",
   "padding_large": "32dp",
   "panel_radius": 16,
-  "overlay_opacity": 0.5,
-  "panel_bg": [0, 0, 0, 0.08],
+  "overlay_opacity": 1,
+  "panel_bg": [0, 0, 0, 0.3],
   
   "grid_unit": "32dp",
   "grid_unit_half": "16dp",
   "grid_unit_quarter": "8dp",
+  "grid_unit_eighth": "4dp",
+  "grid_unit_1.5x": "48dp",
   "grid_unit_2x": "64dp",
   "grid_unit_3x": "96dp",
   "grid_unit_4x": "128dp",
   
-  "font_sizes": {
-    "tiny": "1sp",
-    "small": "16sp",
-    "default": "20sp",
-    "medium": "22sp",
-    "large": "26sp",
-    "xlarge": "32sp",
-    "huge": "200sp"
-  },
+ "font_sizes": {
+  "tiny": "1sp",
+  "small": "14sp",          
+  "default": "18sp",       
+  "medium": "20sp",         
+  "large": "24sp",         
+  "xlarge": "28sp",         
+  "huge": "160sp"          
+},
+
   "colors": {
     "primary": [0.25, 0.65, 0.15, 1],
     "font_default": [1, 1, 1, 1],
