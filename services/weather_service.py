@@ -119,8 +119,8 @@ class WeatherService:
 
             # Маппинг погодных кодов в статусы на английском
             weather_map = {
-                0: "Sunny",
-                1: "Bit Cloudy",
+                0: "Sunny", 
+                1: "Cloudy",
                 2: "Cloudy",
                 3: "Fog",
                 45: "Fog",

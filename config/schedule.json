@@ -1,7 +1,7 @@
 {
   "1": [
     {"start": "08:15", "subject": "Mathematics", "type": "0"},
-    {"start": "08:30", "subject": "Key Word English", "type": "0"},
+    {"start": "08:30", "subject": "English", "type": "0"},
     {"start": "09:00", "subject": "Design & Computing", "type": "0"},
     {"start": "09:30", "subject": "Mathematics", "type": "0"},
     {"start": "10:00", "subject": "Morning Intro", "type": "0"},
@@ -19,7 +19,7 @@
   ],
   "2": [
     {"start": "08:15", "subject": "Mathematics", "type": "0"},
-    {"start": "08:30", "subject": "Key Word English", "type": "0"},
+    {"start": "08:30", "subject": "English", "type": "0"},
     {"start": "09:00", "subject": "Mathematics", "type": "0"},
     {"start": "09:30", "subject": "Mathematics", "type": "0"},
     {"start": "10:00", "subject": "Outdoor/Woodland", "type": "0"},
@@ -37,7 +37,7 @@
   ],
   "3": [
     {"start": "08:15", "subject": "Mathematics", "type": "0"},
-    {"start": "08:30", "subject": "Key Word English", "type": "0"},
+    {"start": "08:30", "subject": "English", "type": "0"},
     {"start": "09:00", "subject": "Library", "type": "0"},
     {"start": "09:30", "subject": "Reading Comprehension", "type": "0"},
     {"start": "10:00", "subject": "Design & Technology", "type": "0"},
@@ -55,7 +55,7 @@
   ],
   "4": [
     {"start": "08:15", "subject": "Mathematics", "type": "0"},
-    {"start": "08:30", "subject": "Key Word English", "type": "0"},
+    {"start": "08:30", "subject": "English", "type": "0"},
     {"start": "09:00", "subject": "Design & Computing", "type": "0"},
     {"start": "09:30", "subject": "Music", "type": "0"},
     {"start": "10:00", "subject": "Reading Comprehension", "type": "0"},
@@ -73,10 +73,10 @@
   ],
   "5": [
     {"start": "08:15", "subject": "Mathematics", "type": "0"},
-    {"start": "08:30", "subject": "Key Word English", "type": "0"},
+    {"start": "08:30", "subject": "English", "type": "0"},
     {"start": "09:00", "subject": "Mathematics", "type": "0"},
-    {"start": "09:30", "subject": "Key Word English", "type": "0"},
-    {"start": "10:00", "subject": "Key Word English", "type": "0"},
+    {"start": "09:30", "subject": "English", "type": "0"},
+    {"start": "10:00", "subject": "English", "type": "0"},
     {"start": "10:30", "subject": "Mathematics", "type": "0"},
     {"start": "11:00", "subject": "Prep Period", "type": "0"},
     {"start": "11:30", "subject": "Physical Education", "type": "0"},
