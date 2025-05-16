@@ -18,7 +18,6 @@
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
             opacity: app.theme_config.get("overlay_opacity", 0.5)
             
-        # Date panel - properly center content vertically with consistent padding
         # Date panel - moved lower to avoid menu overlap and adjusted padding
         ThemedPanel:
             orientation: "vertical"
@@ -30,9 +29,9 @@
             ThemedLabel:
                 id: date_label
                 text: root.current_date
-                font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                font_size: app.theme_config.get("font_sizes", {}).get("large", "24sp")  # Увеличили с medium до large
                 halign: "left"
-                valign: "middle"  # Ensure vertical centering
+                valign: "middle"
                 
             # ThemedLabel:
             #     id: day_label
@@ -43,15 +42,16 @@
         # Alarm panel - moved lower and to the right
         ThemedPanel:
             orientation: "horizontal"
-            size_hint: 0.42, None
+            size_hint: 0.38, None  # Уменьшили с 0.42 до 0.38
             height: app.theme_config.get("grid_unit_1.5x", "48dp") 
-            pos_hint: {"right": 0.95, "top": 0.85}  # Moved down and to the right
-            spacing: app.theme_config.get("grid_unit_quarter", "8dp")
-            padding: [app.theme_config.get("grid_unit_half", "16dp"), app.theme_config.get("grid_unit_eighth", "4dp"), app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_eighth", "4dp")]           
+            pos_hint: {"right": 0.95, "top": 0.85}
+            spacing: app.theme_config.get("grid_unit_eighth", "4dp")  # Уменьшили расстояние между элементами
+            padding: [app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_eighth", "4dp"), app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_eighth", "4dp")]
+            
             ThemedLabel:
                 text: "Alarm:"
                 font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
-                size_hint_x: 0.25
+                size_hint_x: 0.2  # Уменьшили с 0.25 до 0.2
                 valign: "middle"  # Ensure vertical centering
                 
             ThemedLabel:
@@ -77,30 +77,32 @@
 
         # Main clock display with proper shadow effect
         # Shadow effect - now properly updates with the main clock
-        ThemedLabel:
-            id: clock_shadow_label
-            text: clock_label.text  # Bind to the main clock's text
-            font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "160").replace("sp", "")), Window.height * 0.25)) + "sp"
-            halign: "center"
-            valign: "middle"
-            pos_hint: {"center_x": 0.51, "center_y": 0.52}  # 5px right and down (approx in normalized coordinates)
-            color: [0, 0, 0, 0.5]  # Dark shadow color
-            
+        # Изменим размер часов
         ThemedLabel:
             id: clock_label
             text: "00:00"
-            font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "160").replace("sp", "")), Window.height * 0.25)) + "sp"
+            font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "240").replace("sp", "")), Window.height * 0.35)) + "sp"  # Увеличено с 0.25 до 0.35
             halign: "center"
             valign: "middle"
-            pos_hint: {"center_x": 0.5, "center_y": 0.53} 
+            pos_hint: {"center_x": 0.5, "center_y": 0.53}
+
+        # То же для тени часов
+        ThemedLabel:
+            id: clock_shadow_label
+            text: clock_label.text
+            font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "240").replace("sp", "")), Window.height * 0.35)) + "sp"
+            halign: "center"
+            valign: "middle"
+            pos_hint: {"center_x": 0.51, "center_y": 0.52}
+            color: [0, 0, 0, 0.5]  # Shadow color
 
         # Weather panel - consistent padding with other panels
         ThemedPanel:
             orientation: "vertical"
-            size_hint: 0.6, None
+            size_hint: 0.38, None
             height: app.theme_config.get("grid_unit_1.5x", "48dp")
-            pos_hint: {"center_x": 0.5, "center_y": 0.23}
-            padding: [app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_eighth", "4dp"), app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_eighth", "4dp")]            
+            pos_hint: {"x": 0.05, "top": 0.85}
+            padding: [app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_quarter", "8dp"), app.theme_config.get("grid_unit_quarter", "8dp")]  # Увеличены вертикальные отступы
             BoxLayout:
                 orientation: "horizontal"
                 spacing: app.theme_config.get("grid_unit_half", "16dp")
@@ -138,11 +140,12 @@
                         valign: "middle"  # Ensure vertical centering
 
         # Notification widget (bottom)
+        # Повышаем бегущую строку
         BoxLayout:
             orientation: "horizontal"
             size_hint: 0.8, None
             height: app.theme_config.get("grid_unit_2x", "64dp")
-            pos_hint: {"center_x": 0.5, "y": 0.03}
+            pos_hint: {"center_x": 0.5, "y": 0.05}  # Изменено с 0.03 до 0.05
             
             MarqueeLabel:
                 id: notification_label

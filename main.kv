@@ -65,10 +65,10 @@ FloatLayout:
     BoxLayout:
         orientation: "horizontal"
         size_hint: (1, None)
-        height: app.theme_config.get("menu_button_size", [220,70])[1] + 16
+        height: app.theme_config.get("menu_button_size", [180,60])[1] + 16
         pos_hint: {"top": 1}
         spacing: app.theme_config.get("spacing", "10dp")
-        padding: app.theme_config.get("padding", "15dp"), "4dp", app.theme_config.get("padding", "15dp"), "4dp"
+        padding: 0, "4dp", 0, "4dp"  # Удалили боковые отступы
         MenuButton:
             text: "Home"
             screen_name: "home"

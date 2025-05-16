@@ -12,6 +12,15 @@ class AlarmScreen(MDScreen):
     selected_ringtone = StringProperty("morning.mp3")
     ringtone_list = ListProperty([])
     alarm_fadein = BooleanProperty(False)
+    is_playing = BooleanProperty(False)  # Добавить в класс AlarmScreen
+
+    def toggle_play_ringtone(self):
+        if self.is_playing:
+            # Остановить воспроизведение...
+            self.is_playing = False
+        else:
+            # Воспроизвести рингтон...
+            self.is_playing = True
 
     def on_pre_enter(self):
         self.load_ringtones()
