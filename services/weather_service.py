@@ -67,7 +67,8 @@ class WeatherService:
             return True
         try:
             last = datetime.fromisoformat(updated)
-            return (datetime.now() - last) > timedelta(hours=3)
+            # Увеличиваем интервал между запросами на RPi для экономии ресурсов
+            return (datetime.now() - last) > timedelta(hours=6)  # Увеличено с 3 до 6 часов
         except Exception as e:
             print(f"Error checking if weather needs update: {e}")
             return True

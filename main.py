@@ -10,6 +10,12 @@ from services.pigs_service import PigsService
 from services.notifications_service import NotificationService
 from classes.marquee import MarqueeLabel
 import os
+os.environ['KIVY_GL_BACKEND'] = 'sdl2'
+os.environ['KIVY_WINDOW'] = 'sdl2'
+os.environ['KIVY_GRAPHICS'] = 'gles'
+os.environ['KIVY_BCM_DISPMANX_ID'] = '0'  # Использовать основной дисплей
+# Отключить многосенсорность для лучшей производительности (если это простой сенсорный экран)
+os.environ['KIVY_WINDOW'] = 'egl_rpi'
 
 import json
 
@@ -24,7 +30,14 @@ def load_theme_config(theme="minecraft", mode="light"):
     path = f"themes/{theme}/{mode}/theme.json"
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
-
+    
+from kivy.config import Config # Добавьте перед BedrockApp класса
+Config.set('graphics', 'width', '1024')
+Config.set('graphics', 'height', '600')
+# Отключение полноэкранного режима для разработки (включить для продакшн)
+Config.set('graphics', 'fullscreen', '0')  # Измените на '1' для продакшн
+# Скрыть курсор мыши на сенсорном экране
+Config.set('graphics', 'show_cursor', '0')
 class BedrockApp(MDApp):
     current_screen = StringProperty("home")
 

@@ -21,10 +21,10 @@ class HomeScreen(MDScreen):
         self.update_date()
         
         # Schedule regular updates
-        Clock.schedule_interval(lambda dt: self.update_alarm(), 60)
-        Clock.schedule_interval(lambda dt: self.update_weather(), 180)
-        Clock.schedule_interval(lambda dt: self.update_notification(), 10)
-        Clock.schedule_interval(lambda dt: self.update_date(), 60)
+        Clock.schedule_interval(lambda dt: self.update_alarm(), 300)
+        Clock.schedule_interval(lambda dt: self.update_weather(), 900)
+        Clock.schedule_interval(lambda dt: self.update_notification(), 30)
+        Clock.schedule_interval(lambda dt: self.update_date(), 300)
     
     def update_date(self):
         """Update the current date and day of week"""
