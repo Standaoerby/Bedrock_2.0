@@ -2,8 +2,5 @@ kivy>=2.2.1
 kivymd>=2.0.0
 requests>=2.30.0
 pillow
-
-# Если используешь датчики/железо на Pi, например:
-# adafruit-ccs811
-# busio
-# board
+adafruit-circuitpython-bme280
+adafruit-circuitpython-ccs811

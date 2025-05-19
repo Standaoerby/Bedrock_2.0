@@ -30,8 +30,6 @@ class HomeScreen(MDScreen):
         """Update the current date and day of week"""
         now = datetime.now()
         self.current_date = now.strftime("%d %B, %A")  # "15 May, Thursday"
-
-
     
     def update_alarm(self):
         app = self.get_app()
@@ -46,11 +44,18 @@ class HomeScreen(MDScreen):
     def toggle_alarm(self):
         """Toggle the alarm active state on button press"""
         app = self.get_app()
+        # The click sound is already played by the button's on_press event
+        # Don't play it again here
+        
         alarm = app.alarm_service.get_alarm()
         if alarm:
             alarm["enabled"] = not alarm.get("enabled", False)
             app.alarm_service.set_alarm(alarm)
             self.update_alarm()
+            
+            # Play success sound only when alarm is enabled
+            if alarm["enabled"]:
+                app.play_sound("success")
 
     def update_weather(self):
         app = self.get_app()
@@ -98,7 +103,7 @@ class HomeScreen(MDScreen):
         self._clock_ev = Clock.schedule_interval(lambda dt: self.update_clock(), 1)
 
     def on_leave(self):
-        # Останавливаем таймер при уходе со страницы
+        # Stop the timer when leaving the page
         if hasattr(self, '_clock_ev'):
             self._clock_ev.cancel()
 

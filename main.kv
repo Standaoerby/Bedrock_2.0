@@ -6,24 +6,28 @@
 #:include pages/schedule.kv
 #:include pages/weather.kv
 #:include pages/pigs.kv
+#:include pages/settings.kv
 
 <ThemedLabel@Label>:
     font_name: app.theme_config["font_name"]
     color: app.theme_config["font_color"]
-    font_size: app.theme_config.get("widget_font_size", "20sp")
+    font_size: app.scale_font(app.theme_config.get("widget_font_size", 20))
 
 <MenuButton@Button>:
     background_normal: app.theme_config["menu_button_normal"]
     background_down: app.theme_config.get("menu_button_active", app.theme_config["menu_button_normal"])
     color: app.theme_config["menu_selected_color"] if self.screen_name == app.current_screen else app.theme_config["menu_unselected_color"]
     font_name: app.theme_config["font_name"]
-    font_size: str(app.theme_config.get("menu_button_font_size", 30)) + "sp"
+    font_size: app.scale_font(app.theme_config.get("menu_button_font_size", 30))
     size_hint_x: None
     size_hint_y: None
-    width: app.theme_config.get("menu_button_size", [192,64])[0]
-    height: app.theme_config.get("menu_button_size", [192,64])[1]
-    padding: app.theme_config.get("menu_button_padding", [0,0,0,0])
+    width: app.scale_size(app.theme_config.get("menu_button_size", [192,64])[0])
+    height: app.scale_size(app.theme_config.get("menu_button_size", [192,64])[1])
+    padding: [app.scale_size(p) for p in app.theme_config.get("menu_button_padding", [0,0,0,0])]
     screen_name: ""
+    on_press: 
+        app.play_sound("click")
+        app.menu_navigation = True
     on_release:
         app.root.ids.screen_manager.current = self.screen_name
 
@@ -31,9 +35,10 @@
     background_normal: app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
     background_down: app.theme_config.get("button_active", "atlas://data/images/defaulttheme/button_pressed")
     font_name: app.theme_config["font_name"]
-    font_size: app.theme_config.get("widget_font_size", "20sp")
+    font_size: app.scale_font(app.theme_config.get("widget_font_size", 20))
     size_hint_y: None
-    height: app.theme_config.get("widget_heights", {}).get("button", "48dp")
+    height: app.ui_metrics['widget_height']
+    on_press: app.play_sound("click")
 
 <ThemedPanel@BoxLayout>:
     canvas.before:
@@ -44,43 +49,76 @@
             size: self.size
             radius: [app.theme_config.get("panel_radius", 16)]
 
+# Основной макет - FloatLayout для наложения фона, меню и контента
 FloatLayout:
-    # Контейнер для всех экранов (во весь экран)
-    MDScreenManager:
-        id: screen_manager
-        pos_hint: {"x": 0, "y": 0}
+    # Общий фон для всего приложения
+    Image:
+        id: background_image
+        source: app.theme_config["background_image"]
+        allow_stretch: True
+        keep_ratio: False
         size_hint: 1, 1
-        HomeScreen:
-            name: "home"
-        AlarmScreen:
-            name: "alarm"
-        ScheduleScreen:
-            name: "schedule"
-        WeatherScreen:
-            name: "weather"
-        PigsScreen:
-            name: "pigs"
-
-    # Меню (прозрачный контейнер поверх всего)
+        pos_hint: {"center_x": 0.5, "center_y": 0.5}
+    
+    # Вертикальный макет для меню и контента
     BoxLayout:
-        orientation: "horizontal"
-        size_hint: (1, None)
-        height: app.theme_config.get("menu_button_size", [180,60])[1] + 16
-        pos_hint: {"top": 1}
-        spacing: app.theme_config.get("spacing", "10dp")
-        padding: 0, "4dp", 0, "4dp"  # Удалили боковые отступы
-        MenuButton:
-            text: "Home"
-            screen_name: "home"
-        MenuButton:
-            text: "Alarm"
-            screen_name: "alarm"
-        MenuButton:
-            text: "School"
-            screen_name: "schedule"
-        MenuButton:
-            text: "Climate"
-            screen_name: "weather"
-        MenuButton:
-            text: "Pigs"
-            screen_name: "pigs"
+        orientation: 'vertical'
+        size_hint: 1, 1
+        
+        # Меню вверху с фиксированной высотой
+        BoxLayout:
+            id: menu_container
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.ui_metrics['menu_height'] + app.ui_metrics['menu_padding'] * 2
+            padding: app.ui_metrics['menu_padding']
+            # Не задаем цвет фона - полностью прозрачный
+            
+            # Центрирование и ограничение ширины меню
+            AnchorLayout:
+                anchor_x: 'center'
+                anchor_y: 'center'
+                
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint: None, None
+                    width: min(1024 - app.ui_metrics['menu_padding'] * 2, Window.width - app.ui_metrics['menu_padding'] * 2)
+                    height: app.ui_metrics['menu_height']
+                    spacing: app.ui_metrics['widget_spacing']
+                    
+                    MenuButton:
+                        text: "Home"
+                        screen_name: "home"
+                    MenuButton:
+                        text: "Alarm"
+                        screen_name: "alarm"
+                    MenuButton:
+                        text: "School"
+                        screen_name: "schedule"
+                    MenuButton:
+                        text: "Climate"
+                        screen_name: "weather"
+                    MenuButton:
+                        text: "Pigs"
+                        screen_name: "pigs"
+                    MenuButton:
+                        text: ">"
+                        screen_name: "settings"
+                        size_hint_x: None
+                        width: app.scale_size(app.theme_config.get("menu_button_size", [180,60])[1])
+        
+        # Контент (экраны) занимает оставшееся пространство
+        MDScreenManager:
+            id: screen_manager
+            HomeScreen:
+                name: "home"
+            AlarmScreen:
+                name: "alarm"
+            ScheduleScreen:
+                name: "schedule"
+            WeatherScreen:
+                name: "weather"
+            PigsScreen:
+                name: "pigs"
+            SettingsScreen:
+                name: "settings"

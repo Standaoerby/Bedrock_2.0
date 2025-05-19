@@ -28,14 +28,6 @@ class ScheduleScreen(MDScreen):
     today_day = StringProperty("")
     tomorrow_date = StringProperty("")
     tomorrow_day = StringProperty("")
-    
-    def on_enter(self):
-        # Настройка свайпа для скролла
-        for scroll_view in [self.ids.today_scroll, self.ids.tomorrow_scroll]:
-            scroll_view.do_scroll_x = False
-            scroll_view.do_scroll_y = True
-            scroll_view.bar_width = 10  # Увеличиваем ширину полосы прокрутки
-            scroll_view.scroll_type = ['content']  # Прокрутка по свайпу контента
 
     def on_pre_enter(self):
         self.show_today_tomorrow()
@@ -101,10 +93,16 @@ class ScheduleScreen(MDScreen):
 
     def toggle_week_mode(self):
         """Toggle between daily and weekly views"""
+        app = self.get_app()
+        # Sound is already played by the button's on_press event in kv file
+        
         if self.week_mode:
             self.show_today_tomorrow()
         else:
             self.show_week()
+            
+        # Play a success sound when view is changed
+        app.play_sound("success")
 
     def get_app(self):
         from kivy.app import App

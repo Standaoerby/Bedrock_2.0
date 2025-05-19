@@ -1,47 +1,140 @@
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 class PigsService:
-    def __init__(self, path="config/pigs.json"):
-        self.path = path
-        self.load()
-
-    def load(self):
-        if os.path.exists(self.path):
-            with open(self.path, "r", encoding="utf-8") as f:
-                self.data = json.load(f)
-        else:
-            # Стартовые значения
-            now = datetime.now().replace(microsecond=0).isoformat()
-            self.data = {
-                "pigs": [{"name": "Пятачок"}, {"name": "Фунтик"}],
-                "bars": {
-                    "water": {"label": "Вода", "max_hours": 8, "last_reset": now},
-                    "food":  {"label": "Еда",  "max_hours": 6, "last_reset": now},
-                    "clean": {"label": "Очистка", "max_hours": 12, "last_reset": now}
+    def __init__(self, config_path="config/pigs.json"):
+        self.config_path = config_path
+        self.config = self.load_config()
+    
+    def load_config(self):
+        # Set default configuration
+        default_config = {
+            "pigs": [
+                {"name": "Korovka"},
+                {"name": "Karamelka"}
+            ],
+            "bars": {
+                "water": {
+                    "label": "Water",
+                    "max_hours": 8,
+                    "last_reset": self.get_current_time_str()
+                },
+                "food": {
+                    "label": "Food",
+                    "max_hours": 6,
+                    "last_reset": self.get_current_time_str()
+                },
+                "clean": {
+                    "label": "Cleaning",
+                    "max_hours": 12,
+                    "last_reset": self.get_current_time_str()
                 }
             }
-            self.save()
-
-    def save(self):
-        with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, ensure_ascii=False, indent=2)
-
-    def get_bar_value(self, key):
-        bar = self.data["bars"][key]
-        max_s = bar["max_hours"] * 3600
-        last = datetime.fromisoformat(bar["last_reset"])
-        now = datetime.now()
-        passed = (now - last).total_seconds()
-        value = max(0.0, 1.0 - passed / max_s)
-        return value
-
+        }
+        
+        try:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                return config
+            else:
+                # Create directory if not exists
+                os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+                
+                # Save default config
+                with open(self.config_path, 'w', encoding='utf-8') as f:
+                    json.dump(default_config, f, ensure_ascii=False, indent=2)
+                return default_config
+        except Exception as e:
+            print(f"Error loading pigs config: {e}")
+            return default_config
+    
+    def save_config(self):
+        try:
+            # Make sure directory exists
+            os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+            
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Error saving pigs config: {e}")
+    
+    def get_current_time_str(self):
+        return datetime.now().isoformat()
+    
+    def parse_iso_datetime(self, datetime_str):
+        """Parse ISO format datetime string without dateutil dependency"""
+        try:
+            # Handle fractional seconds
+            if '.' in datetime_str:
+                datetime_str = datetime_str.split('.')[0]
+                
+            # Handle timezone info
+            if '+' in datetime_str:
+                datetime_str = datetime_str.split('+')[0]
+            elif 'Z' in datetime_str:
+                datetime_str = datetime_str.replace('Z', '')
+                
+            # Parse the clean datetime string
+            dt_format = "%Y-%m-%dT%H:%M:%S"
+            return datetime.strptime(datetime_str, dt_format)
+        except Exception as e:
+            print(f"Error parsing datetime: {e}")
+            return datetime.now()
+    
+    def get_bar_percentage(self, key):
+        """
+        Calculate percentage of time remaining for a bar
+        Returns percentage from 0 to 100
+        """
+        bar_config = self.config["bars"].get(key, {})
+        max_hours = bar_config.get("max_hours", 24)
+        last_reset_str = bar_config.get("last_reset", self.get_current_time_str())
+        
+        try:
+            # Parse datetime without using dateutil
+            last_reset = self.parse_iso_datetime(last_reset_str)
+            now = datetime.now()
+            
+            # Calculate elapsed time in hours
+            elapsed_hours = (now - last_reset).total_seconds() / 3600
+            
+            # Calculate percentage remaining
+            if elapsed_hours >= max_hours:
+                return 0  # Fully depleted
+            
+            # Calculate percentage remaining (inverse of progress)
+            percentage = 100 - (elapsed_hours / max_hours * 100)
+            return max(0, min(100, percentage))  # Ensure within [0, 100] range
+            
+        except Exception as e:
+            print(f"Error calculating bar percentage: {e}")
+            return 50  # Default value on error
+    
     def get_all_values(self):
-        vals = {k: self.get_bar_value(k) for k in self.data["bars"]}
-        integral = sum(vals.values()) / len(vals)
-        return vals, integral
-
+        """
+        Get all bar values and calculate overall status
+        Returns (dict of bar percentages, overall status as 0-1 float)
+        """
+        result = {}
+        total_percentage = 0
+        
+        for key in self.config["bars"].keys():
+            percentage = self.get_bar_percentage(key)
+            result[key] = percentage
+            total_percentage += percentage
+        
+        # Average percentage across all bars
+        overall_status = total_percentage / len(self.config["bars"]) / 100
+        
+        return result, overall_status
+    
     def reset_bar(self, key):
-        self.data["bars"][key]["last_reset"] = datetime.now().replace(microsecond=0).isoformat()
-        self.save()
+        """Reset a specific bar to full"""
+        if key in self.config["bars"]:
+            self.config["bars"][key]["last_reset"] = self.get_current_time_str()
+            self.save_config()
+            print(f"Bar {key} has been reset")
+        else:
+            print(f"Error: Bar {key} not found in config")

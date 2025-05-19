@@ -27,7 +27,7 @@
   "padding_large": "32dp",
   "panel_radius": 16,
   "overlay_opacity": 1,
-  "panel_bg": [0, 0, 0, 0.3],
+  "panel_bg": [0, 0, 0, 0.2],
   
   "grid_unit": "32dp",
   "grid_unit_half": "16dp",
@@ -40,12 +40,12 @@
   
   "font_sizes": {
     "tiny": "1sp",
-    "small": "14sp",         
-    "default": "18sp",     
-    "medium": "20sp",      
-    "large": "24sp",         
-    "xlarge": "28sp",       
-    "huge": "160sp"         
+    "small": "14sp",
+    "default": "18sp",
+    "medium": "20sp",
+    "large": "24sp",
+    "xlarge": "28sp",
+    "huge": "180sp"        
   },
 
   "colors": {

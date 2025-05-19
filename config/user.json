@@ -1,6 +1,7 @@
 {
   "theme": "minecraft",
-  "theme_mode": "light",
-  "username": "Anna",
+  "theme_mode": "dark",
+  "auto_dark_mode": true,
+  "username": "Anna-Maria",
   "birthdate": "2015-05-18"
 }

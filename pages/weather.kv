@@ -1,13 +1,8 @@
 <WeatherScreen>:
     FloatLayout:
-        size_hint_y: 1
-        Image:
-            source: app.theme_config["background_image"]
-            allow_stretch: True
-            keep_ratio: False
-            size_hint: 1, 1
-            pos_hint: {"center_x": 0.5, "center_y": 0.5}
-
+        size_hint: 1, 1
+        
+        # Только оверлей для этого экрана (без фонового изображения)
         Image:
             source: app.get_overlay_image("weather")
             allow_stretch: True
@@ -15,25 +10,120 @@
             size_hint: 1, 1
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
             opacity: app.theme_config.get("overlay_opacity", 0.5)
-            
+        
         BoxLayout:
-            orientation: "vertical"
-            size_hint: 0.9, 0.8
-            pos_hint: {"center_x": 0.5, "top": 0.9}
-            spacing: app.theme_config.get("spacing_small", "15dp")
+            orientation: 'vertical'
+            padding: app.ui_metrics['content_padding']
+            spacing: app.ui_metrics['widget_spacing']
             
-            ThemedLabel:
-                id: weather_label
-                text: "Loading weather..."
-                font_size: app.theme_config.get("font_sizes", {}).get("medium", "24sp")
-                halign: "center"
-                valign: "top"
-                text_size: self.width, None
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: 0.4
+                spacing: app.ui_metrics['widget_spacing']
                 
-            ThemedButton:
-                text: "Refresh"
-                font_size: app.theme_config.get("font_sizes", {}).get("small", "18sp")
-                size_hint: 0.3, None
-                height: app.theme_config.get("widget_heights", {}).get("button_small", "40dp")
-                pos_hint: {"center_x": 0.5}
-                on_release: root.update_weather()
+                # Внешние погодные данные
+                ThemedPanel:
+                    orientation: 'vertical'
+                    padding: app.ui_metrics['content_padding']
+                    spacing: app.ui_metrics['widget_spacing']
+                    size_hint_x: 0.5
+                    
+                    ThemedLabel:
+                        text: "Weather Forecast"
+                        font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("large", 24))
+                        size_hint_y: None
+                        height: app.ui_metrics['widget_height']
+                    
+                    BoxLayout:
+                        orientation: 'vertical'
+                        spacing: app.ui_metrics['widget_spacing'] * 0.5
+                        
+                        ThemedLabel:
+                            id: current_temp
+                            text: "0°C"
+                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("title", 30))
+                            halign: 'left'
+                        
+                        ThemedLabel:
+                            id: current_condition
+                            text: "Weather condition"
+                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 20))
+                            halign: 'left'
+                        
+                        ThemedLabel:
+                            id: current_precipitation
+                            text: "Precipitation: 0%"
+                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("small", 16))
+                            halign: 'left'
+                    
+                    ThemedButton:
+                        text: "Refresh"
+                        size_hint_y: None
+                        height: app.ui_metrics['widget_height'] * 0.8
+                        on_press: root.update_weather()
+                
+                # Данные с внутренних датчиков
+                ThemedPanel:
+                    orientation: 'vertical'
+                    padding: app.ui_metrics['content_padding']
+                    spacing: app.ui_metrics['widget_spacing']
+                    size_hint_x: 0.5
+                    
+                    ThemedLabel:
+                        text: "Room Sensors"
+                        font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("large", 24))
+                        size_hint_y: None
+                        height: app.ui_metrics['widget_height']
+                    
+                    GridLayout:
+                        cols: 1
+                        spacing: app.ui_metrics['widget_spacing'] * 0.5
+                        
+                        ThemedLabel:
+                            id: sensor_temp
+                            text: "Temperature: 0°C"
+                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 18))
+                            halign: 'left'
+                        
+                        ThemedLabel:
+                            id: sensor_humidity
+                            text: "Humidity: 0%"
+                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 18))
+                            halign: 'left'
+                        
+                        ThemedLabel:
+                            id: sensor_co2
+                            text: "CO2: 0 ppm"
+                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 18))
+                            halign: 'left'
+                        
+                        ThemedLabel:
+                            id: sensor_tvoc
+                            text: "TVOC: 0 ppb"
+                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 18))
+                            halign: 'left'
+                        
+                        ThemedLabel:
+                            id: air_quality
+                            text: "Air Quality: Unknown"
+                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 18))
+                            halign: 'left'
+            
+            # Еженедельный прогноз
+            ThemedPanel:
+                orientation: 'vertical'
+                padding: app.ui_metrics['content_padding']
+                spacing: app.ui_metrics['widget_spacing']
+                size_hint_y: 0.6
+                
+                ThemedLabel:
+                    text: "Weekly Forecast"
+                    font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("large", 24))
+                    size_hint_y: None
+                    height: app.ui_metrics['widget_height']
+                
+                GridLayout:
+                    id: weekly_forecast_container
+                    cols: 1
+                    spacing: app.ui_metrics['widget_spacing'] * 0.5
+                    size_hint_y: 1
