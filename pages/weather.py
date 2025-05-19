@@ -1,5 +1,6 @@
 from kivymd.uix.screen import MDScreen
 from kivy.clock import Clock
+from datetime import datetime
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 
@@ -77,13 +78,29 @@ class WeatherScreen(MDScreen):
         # Delay display to avoid accessing ids too early
         Clock.schedule_once(lambda dt: self.display_weather(), 0)
         
-        # Start regular updates
-        self._update_ev = Clock.schedule_interval(lambda dt: self.display_weather(), 60)  # Update every minute
+        # Start regular updates - weather data every hour, sensor data every minute
+        self._weather_update_ev = Clock.schedule_interval(lambda dt: self.update_weather_data(), 3600)  # Hourly
+        self._sensor_update_ev = Clock.schedule_interval(lambda dt: self.update_sensor_data(), 60)     # Every minute
+        self._display_update_ev = Clock.schedule_interval(lambda dt: self.display_weather(), 60)       # Update display every minute
     
     def on_leave(self):
         # Stop updates when leaving screen
-        if hasattr(self, '_update_ev'):
-            self._update_ev.cancel()
+        if hasattr(self, '_weather_update_ev'):
+            self._weather_update_ev.cancel()
+        if hasattr(self, '_sensor_update_ev'):
+            self._sensor_update_ev.cancel()
+        if hasattr(self, '_display_update_ev'):
+            self._display_update_ev.cancel()
+    
+    def update_weather_data(self):
+        """Update only weather data from service"""
+        app = self.get_app()
+        app.weather_service.fetch_weather()
+    
+    def update_sensor_data(self):
+        """Update only sensor readings"""
+        app = self.get_app()
+        app.sensor_service.update_readings()
         
     def display_weather(self):
         app = self.get_app()
@@ -131,17 +148,9 @@ class WeatherScreen(MDScreen):
             weekly_container.add_widget(no_data_label)
 
     def update_weather(self):
-        """Force weather data update"""
-        app = self.get_app()
-        # Play click sound (already handled in kv file)
-        
-        # Update sensor readings
-        app.sensor_service.update_readings()
-        
-        # Update weather data
-        app.weather_service.fetch_weather()
-        
-        # Update display
+        """Force weather data update - now private, used internally only"""
+        self.update_weather_data()
+        self.update_sensor_data()
         self.display_weather()
         
     def get_app(self):

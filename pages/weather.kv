@@ -15,6 +15,8 @@
             orientation: 'vertical'
             padding: app.ui_metrics['content_padding']
             spacing: app.ui_metrics['widget_spacing']
+            pos_hint: {"center_x": 0.5, "center_y": 0.45}  # Moved up
+            size_hint: 0.9, 0.8
             
             BoxLayout:
                 orientation: 'horizontal'
@@ -37,30 +39,30 @@
                     BoxLayout:
                         orientation: 'vertical'
                         spacing: app.ui_metrics['widget_spacing'] * 0.5
+                        size_hint_y: 1  # Take up the rest of the space
                         
                         ThemedLabel:
                             id: current_temp
                             text: "0°C"
                             font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("title", 30))
                             halign: 'left'
+                            size_hint_y: 0.33
                         
                         ThemedLabel:
                             id: current_condition
                             text: "Weather condition"
                             font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 20))
                             halign: 'left'
+                            size_hint_y: 0.33
                         
                         ThemedLabel:
                             id: current_precipitation
                             text: "Precipitation: 0%"
                             font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("small", 16))
                             halign: 'left'
+                            size_hint_y: 0.34
                     
-                    ThemedButton:
-                        text: "Refresh"
-                        size_hint_y: None
-                        height: app.ui_metrics['widget_height'] * 0.8
-                        on_press: root.update_weather()
+                    # Removed refresh button
                 
                 # Данные с внутренних датчиков
                 ThemedPanel:

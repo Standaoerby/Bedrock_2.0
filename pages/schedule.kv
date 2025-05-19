@@ -14,7 +14,7 @@
         BoxLayout:
             orientation: "horizontal"
             size_hint: 0.9, 0.75  # Height unchanged
-            pos_hint: {"center_x": 0.5, "center_y": 0.5}  # Lower by 32px (from 0.55 to 0.5)
+            pos_hint: {"center_x": 0.5, "center_y": 0.45}  # Lower by 32px (from 0.55 to 0.45)
             spacing: app.theme_config.get("grid_unit", "32dp")
             opacity: 1 if not root.week_mode else 0  # Visible only in day mode
             
@@ -39,11 +39,13 @@
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
+                        effect_cls: "ScrollEffect"  # Add this for better touch behavior
+                        bar_width: 4
                         
                         ThemedLabel:
                             id: today_label
                             text: "..."
-                            font_size: "14sp"  # Smaller font (was 16sp)
+                            font_size: "28sp"  # Increased font
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
@@ -72,11 +74,13 @@
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
+                        effect_cls: "ScrollEffect"  # Add this for better touch behavior
+                        bar_width: 4
                         
                         ThemedLabel:
                             id: tomorrow_label
                             text: "..."
-                            font_size: "13sp"  # Smaller font (was 16sp)
+                            font_size: "18sp"  # Slightly increased font
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
@@ -115,11 +119,13 @@
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
+                        effect_cls: "ScrollEffect"  # Add this for better touch behavior
+                        bar_width: 4
                         
                         ThemedLabel:
                             id: monday_label
                             text: ""
-                            font_size: "14sp"
+                            font_size: "18sp"  # Increased font
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
@@ -142,11 +148,13 @@
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
+                        effect_cls: "ScrollEffect"  # Add this for better touch behavior
+                        bar_width: 4
                         
                         ThemedLabel:
                             id: tuesday_label
                             text: ""
-                            font_size: "14sp"
+                            font_size: "18sp"  # Increased font
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
@@ -169,11 +177,13 @@
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
+                        effect_cls: "ScrollEffect"  # Add this for better touch behavior
+                        bar_width: 4
                         
                         ThemedLabel:
                             id: wednesday_label
                             text: ""
-                            font_size: "14sp"
+                            font_size: "18sp"  # Increased font
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
@@ -196,11 +206,13 @@
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
+                        effect_cls: "ScrollEffect"  # Add this for better touch behavior
+                        bar_width: 4
                         
                         ThemedLabel:
                             id: thursday_label
                             text: ""
-                            font_size: "14sp"
+                            font_size: "18sp"  # Increased font
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
@@ -223,11 +235,13 @@
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
+                        effect_cls: "ScrollEffect"  # Add this for better touch behavior
+                        bar_width: 4
                         
                         ThemedLabel:
                             id: friday_label
                             text: ""
-                            font_size: "14sp"
+                            font_size: "18sp"  # Increased font
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]

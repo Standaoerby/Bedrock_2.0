@@ -14,16 +14,16 @@
         # Main content container - all UI controls go inside this
         BoxLayout:
             orientation: "vertical"
-            size_hint: 0.9, 0.8  # Reduced height to prevent overlap with menu
-            pos_hint: {"center_x": 0.5, "center_y": 0.48}  # MOVED UP significantly
-            spacing: app.theme_config.get("grid_unit_half", "16dp")  # Reduced spacing between elements
-            padding: [0, 0, 0, 0]  # Removed top padding to move content up
+            size_hint: 0.9, 0.9  # Увеличили высоту с 0.8 до 0.9
+            pos_hint: {"center_x": 0.5, "center_y": 0.35}  # Значительно подняли с 0.45 до 0.35
+            spacing: app.theme_config.get("grid_unit_half", "16dp")
+            padding: [0, 0, 0, 0]  # Removed padding to move content up
             
             # Section 1: Time and Active toggle - aligned to grid
             BoxLayout:
                 orientation: "vertical"
                 size_hint: 1, None
-                height: app.theme_config.get("grid_unit_3x", "96dp")
+                height: app.theme_config.get("grid_unit_3x", "144dp")  # Increased by 1.5x
                 padding: [0, 0, 0, 0]  # Removed padding to move content up
                 
                 # Background for time settings
@@ -85,7 +85,7 @@
                                 id: hour_label
                                 text: root.alarm_time.split(':')[0]
                                 font_size: app.theme_config.get("font_sizes", {}).get("huge", "180sp")  # MUCH LARGER font
-                                font_size: "48sp"  # Direct size specification as fallback
+                                font_size: "72sp"  # Direct size specification as fallback (1.5x)
                                 halign: "center"
                                 valign: "center"
                                 size_hint_x: 0.8
@@ -94,7 +94,7 @@
                         ThemedLabel:
                             text: ":"
                             font_size: app.theme_config.get("font_sizes", {}).get("huge", "180sp")  # MUCH LARGER font
-                            font_size: "48sp"  # Direct size specification as fallback
+                            font_size: "72sp"  # Direct size specification as fallback (1.5x)
                             halign: "center"
                             valign: "center"
                             size_hint_x: 0.06
@@ -109,7 +109,7 @@
                                 id: minute_label
                                 text: root.alarm_time.split(':')[1]
                                 font_size: app.theme_config.get("font_sizes", {}).get("huge", "180sp")  # MUCH LARGER font
-                                font_size: "48sp"  # Direct size specification as fallback
+                                font_size: "72sp"  # Direct size specification as fallback (1.5x)
                                 halign: "center"
                                 valign: "center"
                                 size_hint_x: 0.7
@@ -282,7 +282,7 @@
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint: 1, 1
-                    padding: "15dp"  # FIXED: Use direct string value instead of app.theme_config.get("padding", "15dp")
+                    padding: app.theme_config.get("padding", "15dp")   # FIXED: Using new helper method
                     
                     # Spacer for centering
                     Widget:
