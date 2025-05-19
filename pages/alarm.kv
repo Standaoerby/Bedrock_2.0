@@ -282,7 +282,7 @@
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint: 1, 1
-                    padding: app.theme_config.get("padding", "15dp")  # Restored full padding
+                    padding: "15dp"  # FIXED: Use direct string value instead of app.theme_config.get("padding", "15dp")
                     
                     # Spacer for centering
                     Widget:
@@ -325,4 +325,3 @@
                     height: app.theme_config.get("widget_heights", {}).get("button", "48dp")
                     on_press: app.play_sound("click")  # Add sound
                     on_release: root.save_alarm()
-                    
