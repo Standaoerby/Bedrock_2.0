@@ -99,6 +99,7 @@ class BedrockApp(MDApp):
         self.theme_config = load_theme_config(self.theme_name, self.theme_mode)
         
         if self.is_raspberry_pi:
+            # Обработка размеров шрифтов
             if "font_sizes" not in self.theme_config:
                 self.theme_config["font_sizes"] = {}
                 
@@ -107,12 +108,23 @@ class BedrockApp(MDApp):
             self.theme_config["font_sizes"]["large"] = "20sp"
             self.theme_config["font_sizes"]["title"] = "24sp"
             
+            # Обработка отступов - с проверкой типа
             if "padding" not in self.theme_config:
                 self.theme_config["padding"] = {}
-                
-            self.theme_config["padding"]["small"] = 4
-            self.theme_config["padding"]["medium"] = 8
-            self.theme_config["padding"]["large"] = 12
+            elif isinstance(self.theme_config["padding"], str):
+                # Если padding это строка, создаем новый словарь
+                old_padding = self.theme_config["padding"]
+                self.theme_config["padding"] = {
+                    "default": old_padding,
+                    "small": "4dp", 
+                    "medium": "8dp", 
+                    "large": "12dp"
+                }
+            else:
+                # Если padding это словарь, добавляем в него значения
+                self.theme_config["padding"]["small"] = "4dp"
+                self.theme_config["padding"]["medium"] = "8dp"
+                self.theme_config["padding"]["large"] = "12dp"
         
         # Initialize sound system
         self.sounds = {}
@@ -123,7 +135,7 @@ class BedrockApp(MDApp):
         
         # Initialize services
         self.alarm_service = AlarmService()
-        self.weather_service = WeatherService(lat=51.5390, lon=-0.1426)
+        self.weather_service = WeatherService(lat=51.5390, lon=-0.1426)  # Координаты Лондона, Камден
         self.schedule_service = ScheduleService()
         self.pigs_service = PigsService()
         self.notification_service = NotificationService()
