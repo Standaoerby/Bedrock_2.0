@@ -4,6 +4,7 @@ from datetime import datetime
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.metrics import dp
+from kivy.properties import BooleanProperty
 
 class DayForecastItem(BoxLayout):
     """Widget for displaying a single day's forecast in the weekly view"""
@@ -75,6 +76,11 @@ class DayForecastItem(BoxLayout):
         self.add_widget(precip_label)
 
 class WeatherScreen(MDScreen):
+    # Add property to track sensor status
+    sensor_available = BooleanProperty(False)
+    # Add property to identify if using mock sensors
+    using_mock_sensors = BooleanProperty(True)
+    
     def on_pre_enter(self):
         # Delay display to avoid accessing ids too early
         Clock.schedule_once(lambda dt: self.display_weather(), 0.1)
@@ -103,24 +109,73 @@ class WeatherScreen(MDScreen):
         app = self.get_app()
         app.sensor_service.update_readings()
         
+        # Update sensor availability status
+        self.sensor_available = app.sensor_service.sensor_available
+        
+        # Check if using mock sensors by looking at the service implementation
+        try:
+            # Try to access use_real_sensors or similar flag in the service
+            if hasattr(app.sensor_service, 'use_real_sensors'):
+                self.using_mock_sensors = not app.sensor_service.use_real_sensors
+            elif hasattr(app.sensor_service, 'using_mock_sensors'):
+                self.using_mock_sensors = app.sensor_service.using_mock_sensors
+            else:
+                # Look at the local variable from sensor_service.py
+                import sys
+                self.using_mock_sensors = not any(mod.startswith('adafruit_') for mod in sys.modules)
+        except Exception as e:
+            print(f"Error checking sensor type: {e}")
+            self.using_mock_sensors = True  # Default to assuming mock
+        
     def display_weather(self):
         app = self.get_app()
         weather = app.weather_service.get_weather()
         sensors = app.sensor_service.get_readings()  # Get sensor readings
         
+        # Update sensor availability status before displaying readings
+        self.sensor_available = app.sensor_service.sensor_available
+        
+        # Check for real vs mock sensors
+        try:
+            # Try to access use_real_sensors or similar flag in the service
+            if hasattr(app.sensor_service, 'use_real_sensors'):
+                self.using_mock_sensors = not app.sensor_service.use_real_sensors
+            elif hasattr(app.sensor_service, 'using_mock_sensors'):
+                self.using_mock_sensors = app.sensor_service.using_mock_sensors
+            else:
+                # Use the module existence check
+                import sys
+                self.using_mock_sensors = not any(mod.startswith('adafruit_') for mod in sys.modules)
+        except Exception as e:
+            print(f"Error checking sensor type: {e}")
+            self.using_mock_sensors = True  # Default to assuming mock
+        
         # Current weather
         cur = weather.get("current", {})
         if cur:
-            # Update current weather labels
-            self.ids.current_temp.text = f"{cur.get('temperature', 0):.1f}°C"
+            # Update current temperature with temperature value only
+            temp = cur.get('temperature', 0)
+            self.ids.current_temp.text = f"{temp:.1f}°C"
+            
+            # Set the color of temperature based on value
+            if temp < 15:
+                self.ids.current_temp.color = [1, 1, 1, 1]  # White for cold
+            else:
+                self.ids.current_temp.color = [1, 0.6, 0, 1]  # Orange for warm
+            
+            # Update condition text separately
             self.ids.current_condition.text = f"{cur.get('condition', 'Unknown')}"
-            self.ids.current_precipitation.text = f"Precipitation: {cur.get('precipitation_probability', 0)}%"
+            
+            # Update precipitation text (changed to "Rain")
+            self.ids.current_precipitation.text = f"Rain: {cur.get('precipitation_probability', 0)}%"
         
         # Update sensor data fields with real readings
         self.ids.sensor_temp.text = f"Temperature: {sensors.get('temperature', 0):.1f}°C"
         self.ids.sensor_humidity.text = f"Humidity: {sensors.get('humidity', 0):.1f}%"
-        self.ids.sensor_co2.text = f"CO2: {sensors.get('co2', 0)} ppm"
-        self.ids.sensor_tvoc.text = f"TVOC: {sensors.get('tvoc', 0)} ppb"
+        
+        # Combined CO2 and TVOC on one line
+        self.ids.sensor_combined.text = f"CO2: {sensors.get('co2', 0)} ppm, TVOC: {sensors.get('tvoc', 0)} ppb"
+        
         self.ids.air_quality.text = f"Air Quality: {sensors.get('air_quality', 'Unknown')}"
         
         # Weekly forecast

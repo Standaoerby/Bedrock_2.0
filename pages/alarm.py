@@ -65,9 +65,27 @@ class AlarmScreen(MDScreen):
         self.ids.hour_label.text = hours
         self.ids.minute_label.text = minutes
         
-        # Update other UI elements
-        self.ids.active_checkbox.active = self.alarm_active
+        # Update the active button
+        if hasattr(self.ids, 'active_button'):
+            self.ids.active_button.text = "ON" if self.alarm_active else "OFF"
+            # Update color based on state
+            app = self.get_app()
+            if self.alarm_active:
+                self.ids.active_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
+            else:
+                self.ids.active_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
         
+        # Update fadein button (replacing checkbox)
+        if hasattr(self.ids, 'fadein_button'):
+            self.ids.fadein_button.text = "ON" if self.alarm_fadein else "OFF"
+            # Update color based on state
+            app = self.get_app()
+            if self.alarm_fadein:
+                self.ids.fadein_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
+            else:
+                self.ids.fadein_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
+        
+        # Update day buttons
         for day in DAYS_EN:
             btn_id = f"repeat_{day.lower()}"
             if btn_id in self.ids:
@@ -75,9 +93,6 @@ class AlarmScreen(MDScreen):
         
         if hasattr(self.ids, 'ringtone_spinner'):
             self.ids.ringtone_spinner.text = self.selected_ringtone
-        
-        if hasattr(self.ids, 'fadein_checkbox'):
-            self.ids.fadein_checkbox.active = self.alarm_fadein
         
         # Reset play button state
         if hasattr(self.ids, 'play_button'):
@@ -113,8 +128,15 @@ class AlarmScreen(MDScreen):
         self.ids.minute_label.text = f"{new_minute:02d}"
 
     def on_active_toggled(self, active):
-        # Play sound (already added in kv file)
+        # Play sound for feedback
+        app = self.get_app()
+        # The click sound is already played by the button's on_press event
+        # Only play success sound when turning ON
+        if active and not self.alarm_active:
+            app.play_sound("success")
+        
         self.alarm_active = active
+        self.update_ui()
 
     def toggle_repeat(self, day, state):
         # Play sound (already added in kv file)
@@ -167,8 +189,15 @@ class AlarmScreen(MDScreen):
             self.current_sound = None
 
     def on_fadein_toggled(self, active):
-        # Play sound (already added in kv file)
+        # Now handles the ON/OFF button toggle instead of checkbox
+        app = self.get_app()
+        
+        # Play success sound when turning ON
+        if active and not self.alarm_fadein:
+            app.play_sound("success")
+        
         self.alarm_fadein = active
+        self.update_ui()
 
     def get_app(self):
         from kivy.app import App

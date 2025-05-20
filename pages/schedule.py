@@ -96,8 +96,8 @@ class ScheduleScreen(MDScreen):
                     # Highlighted background for current day
                     Color(0.3, 0.3, 0.1, 0.8)
                 else:
-                    # Normal background for other days
-                    Color(0.1, 0.1, 0.1, 0.8)
+                    # Normal background for other days - LIGHTENED
+                    Color(0.2, 0.2, 0.2, 0.8)  # Changed from 0.1,0.1,0.1,0.8
                 rect = Rectangle(pos=container.pos, size=container.size)
             
             # Create closure for binding

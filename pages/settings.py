@@ -21,6 +21,7 @@ class SettingsScreen(MDScreen):
         self.scan_available_themes()
         self.load_settings()
         self.check_dark_mode_availability()
+        self.update_dark_mode_button()
     
     def scan_available_themes(self):
         """Сканирует директорию themes/ для поиска доступных тем"""
@@ -58,9 +59,22 @@ class SettingsScreen(MDScreen):
         self.dark_mode_available = os.path.exists(dark_path) and os.path.isdir(dark_path)
         print(f"Темный режим для темы '{self.current_theme}': {'доступен' if self.dark_mode_available else 'недоступен'}")
         
-        # Обновляем UI элемент, если он существует
-        if hasattr(self.ids, "dark_mode_checkbox"):
-            self.ids.dark_mode_checkbox.disabled = not self.dark_mode_available
+        # If dark mode is not available, force disable it
+        if not self.dark_mode_available:
+            self.dark_mode_enabled = False
+    
+    def update_dark_mode_button(self):
+        """Update the dark mode button UI"""
+        if hasattr(self.ids, "dark_mode_button"):
+            self.ids.dark_mode_button.text = "ON" if self.dark_mode_enabled else "OFF"
+            self.ids.dark_mode_button.disabled = not self.dark_mode_available
+            # Update color based on state
+            app = self.get_app()
+            if app:
+                if self.dark_mode_enabled:
+                    self.ids.dark_mode_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
+                else:
+                    self.ids.dark_mode_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
     
     def load_settings(self):
         """Загружает настройки из файла конфигурации"""
@@ -91,6 +105,11 @@ class SettingsScreen(MDScreen):
     def save_all_settings(self):
         """Сохранить все настройки в файл"""
         try:
+            # Play UI sound
+            app = self.get_app()
+            if app:
+                app.play_sound("success")
+            
             # Получаем значения из полей ввода (они могли измениться)
             if hasattr(self.ids, 'username_input'):
                 self.username = self.ids.username_input.text
@@ -142,6 +161,7 @@ class SettingsScreen(MDScreen):
         if theme != self.current_theme:
             self.current_theme = theme
             self.check_dark_mode_availability()
+            self.update_dark_mode_button()
             
             # Если выбрана тема без темного режима, отключаем опцию
             if not self.dark_mode_available:
@@ -149,8 +169,12 @@ class SettingsScreen(MDScreen):
     
     def toggle_dark_mode(self, enabled):
         """Включить/выключить темный режим"""
+        app = self.get_app()
         if self.dark_mode_available:
             self.dark_mode_enabled = enabled
+            if enabled:
+                app.play_sound("success")
+            self.update_dark_mode_button()
         else:
             self.dark_mode_enabled = False
     

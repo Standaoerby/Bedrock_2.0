@@ -11,30 +11,33 @@
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
             opacity: app.theme_config.get("overlay_opacity", 0.5)
 
-        # Main content container
+        # Main content container - EXPANDED VERTICALLY
         BoxLayout:
             orientation: "vertical"
-            size_hint: 0.9, 0.8
-            pos_hint: {"center_x": 0.5, "center_y": 0.45}
-            spacing: app.theme_config.get("grid_unit_half", "16dp")
+            size_hint: 0.95, 0.95  # Increased from 0.9 to 0.95 height
+            pos_hint: {"center_x": 0.5, "center_y": 0.48}  # Shifted down by moving center_y from 0.5 to 0.48
+            spacing: app.theme_config.get("grid_unit_quarter", "8dp")  # Reduced spacing between sections
             padding: [0, 0, 0, 0]
             
-            # Section 1: Time and Active toggle
+            # Section 1: Time and Active toggle - EXPANDED SIGNIFICANTLY
             ThemedPanel:
                 orientation: "vertical"
-                size_hint: 1, None
-                height: app.theme_config.get("grid_unit_3x", "96dp")
+                size_hint: 1, 0.48  # Reduced by 20% (from 0.6 to 0.48)
                 padding: app.theme_config.get("grid_unit_half", "16dp")
                 
+                # Use GridLayout with rows to better control alignment
                 GridLayout:
                     cols: 3
+                    # Center the entire time setup horizontally
+                    size_hint_x: 0.9  # Add some margin on both sides
+                    pos_hint: {"center_x": 0.5}  # Center it
                     spacing: [app.theme_config.get("grid_unit", "32dp"), 0]
-                    size_hint: 1, 1
+                    size_hint_y: 1
                     
                     ThemedLabel:
                         text: "Time"
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
-                        size_hint_x: 0.1
+                        font_size: app.theme_config.get("font_sizes", {}).get("xlarge", "34sp")
+                        size_hint_x: 0.15
                         halign: "left"
                         valign: "center"
         
@@ -42,97 +45,107 @@
                     BoxLayout:
                         orientation: "horizontal"
                         size_hint_x: 0.65
+                        padding: [0, 0, 0, 0]  # No padding to ensure symmetry
                         spacing: app.theme_config.get("grid_unit_half", "16dp")
                         
                         # Hours (with buttons +/-)
                         BoxLayout:
                             orientation: "horizontal"
                             size_hint_x: 0.47
+                            spacing: "16dp"  # Increased spacing between buttons and digits
                             
-                            # Buttons column
+                            # Buttons column - NARROWER
                             BoxLayout:
                                 orientation: "vertical"
-                                size_hint_x: 0.3
+                                size_hint_x: 0.25
                                 
                                 ThemedButton:
                                     text: "+"
                                     size_hint_y: 0.5
+                                    font_size: "26sp"
                                     on_release: root.increment_hour()
                                 
                                 ThemedButton:
                                     text: "-"
                                     size_hint_y: 0.5
+                                    font_size: "26sp"
                                     on_release: root.decrement_hour()
                             
                             # Hour display
                             ThemedLabel:
                                 id: hour_label
                                 text: root.alarm_time.split(':')[0]
-                                font_size: "60sp"
-                                halign: "center"
+                                font_size: "110sp"
+                                halign: "right"
                                 valign: "center"
-                                size_hint_x: 0.7
+                                size_hint_x: 0.75
                         
                         # Separator
                         ThemedLabel:
                             text: ":"
-                            font_size: "60sp"
+                            font_size: "80sp"
                             halign: "center"
                             valign: "center"
-                            size_hint_x: 0.06
+                            size_hint_x: 0.04
                         
                         # Minutes (with buttons +/-)
                         BoxLayout:
                             orientation: "horizontal"
                             size_hint_x: 0.47
+                            spacing: "0dp"  # No spacing to ensure symmetry
                             
                             # Minute display
                             ThemedLabel:
                                 id: minute_label
                                 text: root.alarm_time.split(':')[1]
-                                font_size: "60sp"
+                                font_size: "110sp"
                                 halign: "center"
                                 valign: "center"
-                                size_hint_x: 0.7
+                                size_hint_x: 0.75
                             
-                            # Buttons column
+                            # Buttons column - NARROWER
                             BoxLayout:
                                 orientation: "vertical"
-                                size_hint_x: 0.3
+                                size_hint_x: 0.25
                                 
                                 ThemedButton:
                                     text: "+"
                                     size_hint_y: 0.5
+                                    font_size: "26sp"
                                     on_release: root.increment_minute()
                                 
                                 ThemedButton:
                                     text: "-"
                                     size_hint_y: 0.5
+                                    font_size: "26sp"
                                     on_release: root.decrement_minute()
         
-                    # Active toggle
-                    BoxLayout:
-                        orientation: "horizontal"
-                        size_hint_x: 0.25
+                    # Active toggle button wrapped in AnchorLayout for perfect centering
+                    AnchorLayout:
+                        anchor_x: "center"
+                        anchor_y: "center"
+                        size_hint_x: 0.2
                         
-                        ThemedLabel:
-                            text: "Active"
-                            font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
-                            size_hint_x: 0.65
-                            halign: "right"
-                            valign: "center"
-                            
-                        CheckBox:
-                            id: active_checkbox
-                            active: root.alarm_active
-                            size_hint_x: 0.35
-                            on_active: root.on_active_toggled(self.active)
+                        Button:
+                            id: active_button
+                            text: "ON" if root.alarm_active else "OFF"
+                            size_hint_x: 1
+                            size_hint_y: None
+                            height: "70dp"
+                            font_name: app.theme_config["font_name"]
+                            font_size: "32sp"
+                            color: app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1]) if root.alarm_active else app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
+                            background_normal: app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
+                            background_down: app.theme_config.get("button_active", "atlas://data/images/defaulttheme/button_pressed")
+                            on_press: app.play_sound("click")
+                            on_release: root.on_active_toggled(not root.alarm_active)
             
-            # Section 2: Days of week
+            # Section 2: Days of week - MADE BUTTONS TALLER AND MORE SQUARE
             BoxLayout:
                 orientation: "vertical"
                 size_hint: 1, None
-                height: app.theme_config.get("grid_unit_1.5x", "48dp")
+                height: "80dp"  # Increased significantly
+                padding: [0, "10dp", 0, "10dp"]  # Added padding top and bottom
                 
                 GridLayout:
                     cols: 7
@@ -193,7 +206,7 @@
             BoxLayout:
                 orientation: "horizontal"
                 size_hint: 1, None
-                height: app.theme_config.get("grid_unit_1.5x", "48dp")
+                height: "60dp"  # Increased
                 spacing: app.theme_config.get("grid_unit_half", "16dp")
                 padding: [app.theme_config.get("grid_unit_half", "16dp"), 0, 0, 0]
                 
@@ -224,54 +237,62 @@
                     font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
                     on_state: root.toggle_play_ringtone(self.state)
     
-            # Section 4: Fade-in option
-            ThemedPanel:
-                orientation: "vertical"
+            # Section 4 & 5: Combined Fade-in and Save in one row
+            BoxLayout:
+                orientation: "horizontal"
                 size_hint: 1, None
-                height: app.theme_config.get("grid_unit_1.5x", "48dp")
+                height: "100dp"  # Increased height for more space
+                padding: ["20dp", "15dp", "20dp", "15dp"]  # Added bottom padding
+                spacing: "20dp"  # Space between fade-in and save button
                 
-                # Centered content for fade-in
-                BoxLayout:
-                    orientation: "horizontal"
-                    size_hint: 1, 1
-                    padding: app.theme_config.get("padding", "15dp")
-                    
-                    # Spacing
-                    Widget:
-                        size_hint_x: 0.3
-                    
-                    BoxLayout:
+                # Left side: Fade-in
+                AnchorLayout:
+                    anchor_x: "left"
+                    anchor_y: "center"  # Vertically center the panel
+                    size_hint: 0.6, 1
+                
+                    ThemedPanel:
                         orientation: "horizontal"
-                        size_hint_x: 0.4
-                        spacing: app.theme_config.get("spacing", "10dp")
+                        size_hint: 1, None
+                        height: "60dp"  # Increased height
+                        padding: ["15dp", "5dp", "15dp", "5dp"]
                         
-                        CheckBox:
-                            id: fadein_checkbox
-                            active: root.alarm_fadein
-                            size_hint_x: None
-                            width: app.theme_config.get("grid_unit", "32dp")
-                            on_active: root.on_fadein_toggled(self.active)
-                        
+                        # Fade-in label
                         ThemedLabel:
-                            text: "Fade-in volume"
+                            text: "Fade-in volume:"
                             font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
-                            halign: "left"
+                            halign: "right"
                             valign: "center"
-                    
-                    # Spacing
-                    Widget:
-                        size_hint_x: 0.3
-    
-            # Section 5: Save button
-            AnchorLayout:
-                anchor_x: "center"
-                anchor_y: "center"
-                size_hint: 1, None
-                height: app.theme_config.get("grid_unit_1.5x", "48dp")
+                            size_hint_x: 0.7
+                        
+                        # Spacing
+                        Widget:
+                            size_hint_x: 0.02  # Reduced spacing
+                        
+                        # ON/OFF button instead of checkbox
+                        Button:
+                            id: fadein_button
+                            text: "ON" if root.alarm_fadein else "OFF"
+                            size_hint_x: 0.18  # Narrower
+                            size_hint_y: 0.8  # Higher
+                            pos_hint: {"center_y": 0.6}  # Positioned higher
+                            font_name: app.theme_config["font_name"]
+                            font_size: "20sp"
+                            color: app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1]) if root.alarm_fadein else app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
+                            background_normal: app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
+                            background_down: app.theme_config.get("button_active", "atlas://data/images/defaulttheme/button_pressed")
+                            on_press: app.play_sound("click")
+                            on_release: root.on_fadein_toggled(not root.alarm_fadein)
                 
-                ThemedButton:
-                    text: "Save"
-                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
-                    size_hint: 0.3, None
-                    height: app.theme_config.get("widget_heights", {}).get("button", "48dp")
-                    on_release: root.save_alarm()
+                # Right side: Save button
+                AnchorLayout:
+                    anchor_x: "right"
+                    anchor_y: "center"  # Vertically center the button
+                    size_hint: 0.4, 1
+                    
+                    ThemedButton:
+                        text: "Save"
+                        font_size: app.theme_config.get("font_sizes", {}).get("large", "24sp")
+                        size_hint: 0.9, None  # Takes 90% of the parent width
+                        height: "60dp"  # Increased to match fade-in panel
+                        on_release: root.save_alarm()

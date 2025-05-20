@@ -1,61 +1,53 @@
 {
   "current": {
-    "time": "2025-05-19T20:30",
-    "temperature": 15.9,
+    "time": "2025-05-20T02:45",
+    "temperature": 10.4,
     "condition": "Clear Sky",
     "precipitation_probability": 0
   },
   "forecast_5h": {
-    "temperature": 15.2,
+    "temperature": 10.3,
     "condition": "Clear Sky",
     "precipitation_probability": 0
   },
   "weekly_forecast": [
     {
-      "day": "Mon",
-      "date": "2025-05-19",
-      "temp_max": 19.3,
-      "temp_min": 10.0,
+      "day": "Tue",
+      "date": "2025-05-20",
+      "temp_max": 21.2,
+      "temp_min": 9.2,
       "condition": "Cloudy",
       "precipitation_probability": 0
     },
     {
-      "day": "Tue",
-      "date": "2025-05-20",
-      "temp_max": 21.2,
-      "temp_min": 9.5,
-      "condition": "Cloudy",
-      "precipitation_probability": 3
-    },
-    {
       "day": "Wed",
       "date": "2025-05-21",
-      "temp_max": 18.7,
-      "temp_min": 12.7,
-      "condition": "Slight Rain Showers",
-      "precipitation_probability": 50
+      "temp_max": 19.1,
+      "temp_min": 11.8,
+      "condition": "Thunderstorm",
+      "precipitation_probability": 55
     },
     {
       "day": "Thu",
       "date": "2025-05-22",
-      "temp_max": 13.5,
-      "temp_min": 7.9,
-      "condition": "Slight Rain",
-      "precipitation_probability": 22
+      "temp_max": 16.5,
+      "temp_min": 7.4,
+      "condition": "Cloudy",
+      "precipitation_probability": 4
     },
     {
       "day": "Fri",
       "date": "2025-05-23",
-      "temp_max": 17.9,
-      "temp_min": 6.5,
+      "temp_max": 18.1,
+      "temp_min": 7.1,
       "condition": "Cloudy",
-      "precipitation_probability": 17
+      "precipitation_probability": 10
     },
     {
       "day": "Sat",
       "date": "2025-05-24",
-      "temp_max": 15.9,
-      "temp_min": 11.1,
+      "temp_max": 16.5,
+      "temp_min": 11.8,
       "condition": "Slight Rain Showers",
       "precipitation_probability": 58
     },
@@ -66,7 +58,15 @@
       "temp_min": 10.9,
       "condition": "Cloudy",
       "precipitation_probability": 60
+    },
+    {
+      "day": "Mon",
+      "date": "2025-05-26",
+      "temp_max": 15.4,
+      "temp_min": 11.0,
+      "condition": "Slight Rain Showers",
+      "precipitation_probability": 33
     }
   ],
-  "updated": "2025-05-19T20:42:25.963140"
+  "updated": "2025-05-20T02:46:33.871145"
 }
