@@ -1,6 +1,10 @@
-kivy>=2.2.1
-kivymd>=2.0.0
+kivy>=2.3.0
+kivymd2
 requests>=2.30.0
 pillow
-adafruit-circuitpython-bme280
-adafruit-circuitpython-ccs811
+adafruit-circuitpython-ahtx0
+adafruit-circuitpython-ens160
+adafruit-blinka
+smbus2
+RPi.GPIO
+gpiozero

@@ -6,10 +6,12 @@
         Image:
             source: app.get_overlay_image("weather")
             allow_stretch: True
-            keep_ratio: False
-            size_hint: 1, 1
-            pos_hint: {"center_x": 0.5, "center_y":.5}
-            opacity: app.theme_config.get("overlay_opacity", 0.5)
+            keep_ratio: True  # Changed to True to maintain aspect ratio
+            size_hint: None, None  # Using explicit sizes instead of size_hint
+            width: self.parent.width
+            height: self.parent.height
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            # opacity: app.theme_config.get("overlay_opacity", 0.5)
         
         BoxLayout:
             orientation: 'vertical'
