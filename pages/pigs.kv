@@ -2,7 +2,7 @@
     FloatLayout:
         size_hint: 1, 1
 
-        # Только оверлей для этого экрана (без фонового изображения)
+        # Screen overlay
         Image:
             source: app.get_overlay_image("pigs")
             allow_stretch: True
@@ -22,19 +22,19 @@
             ThemedPanel:
                 orientation: "vertical"
                 size_hint_x: 0.4
-                padding: app.theme_config.get("grid_unit_half", "16dp")
-                spacing: app.theme_config.get("grid_unit", "32dp")  # Space between sections
+                padding: app.theme_config.get("padding", "15dp")
+                spacing: app.theme_config.get("grid_unit", "32dp")
                 
                 # Water section
                 BoxLayout:
                     orientation: "vertical"
                     size_hint_y: 0.33
-                    spacing: app.theme_config.get("grid_unit_half", "16dp")  # Space between elements
+                    spacing: app.theme_config.get("grid_unit_half", "16dp")
                     
                     # Water label
                     ThemedLabel:
                         text: "Water"
-                        font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
+                        font_size: app.theme_config.get("font_sizes", {}).get("large", "24sp")
                         size_hint_y: None
                         height: app.theme_config.get("grid_unit", "32dp")
                         halign: "left"
@@ -46,27 +46,19 @@
                         orientation: "horizontal"
                         spacing: app.theme_config.get("grid_unit_half", "16dp")
                         
-                        # Custom water progress bar - MUCH TALLER
+                        # Custom water progress bar
                         CustomProgressBar:
                             id: water_bar
                             size_hint_x: 0.65
                             size_hint_y: None
-                            height: "30dp"  # MUCH TALLER
+                            height: "30dp"
                             bar_color: [0, 0.6, 0.8, 0.8]  # Blue for water
-                            canvas.before:
-                                Color:
-                                    rgba: 0.15, 0.15, 0.15, 0.5  # Dark background
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [4]
                         
                         # Water button
                         ThemedButton:
                             text: "Done"
                             size_hint_x: 0.35
                             height: "40dp"
-                            on_press: app.play_sound("click")
                             on_release: root.reset_bar("water")
                 
                 # Food section
@@ -78,7 +70,7 @@
                     # Food label
                     ThemedLabel:
                         text: "Food"
-                        font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
+                        font_size: app.theme_config.get("font_sizes", {}).get("large", "24sp")
                         size_hint_y: None
                         height: app.theme_config.get("grid_unit", "32dp")
                         halign: "left"
@@ -90,27 +82,19 @@
                         orientation: "horizontal"
                         spacing: app.theme_config.get("grid_unit_half", "16dp")
                         
-                        # Custom food progress bar - MUCH TALLER
+                        # Custom food progress bar
                         CustomProgressBar:
                             id: food_bar
                             size_hint_x: 0.65
                             size_hint_y: None
-                            height: "30dp"  # MUCH TALLER
+                            height: "30dp"
                             bar_color: [0.8, 0.4, 0, 0.8]  # Orange/brown for food
-                            canvas.before:
-                                Color:
-                                    rgba: 0.15, 0.15, 0.15, 0.5
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [4]
                         
                         # Food button
                         ThemedButton:
                             text: "Done"
                             size_hint_x: 0.35
                             height: "40dp"
-                            on_press: app.play_sound("click")
                             on_release: root.reset_bar("food")
                 
                 # Cleaning section
@@ -122,7 +106,7 @@
                     # Cleaning label
                     ThemedLabel:
                         text: "Cleaning"
-                        font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
+                        font_size: app.theme_config.get("font_sizes", {}).get("large", "24sp")
                         size_hint_y: None
                         height: app.theme_config.get("grid_unit", "32dp")
                         halign: "left"
@@ -134,36 +118,28 @@
                         orientation: "horizontal"
                         spacing: app.theme_config.get("grid_unit_half", "16dp")
                         
-                        # Custom cleaning progress bar - MUCH TALLER
+                        # Custom cleaning progress bar
                         CustomProgressBar:
                             id: clean_bar
                             size_hint_x: 0.65
                             size_hint_y: None
-                            height: "30dp"  # MUCH TALLER
+                            height: "30dp"
                             bar_color: [0, 0.8, 0.2, 0.8]  # Green for cleaning
-                            canvas.before:
-                                Color:
-                                    rgba: 0.15, 0.15, 0.15, 0.5
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [4]
                         
                         # Cleaning button
                         ThemedButton:
                             text: "Done"
                             size_hint_x: 0.35
                             height: "40dp"
-                            on_press: app.play_sound("click")
                             on_release: root.reset_bar("clean")
             
             # Right panel with pig image
             ThemedPanel:
                 orientation: "vertical"
                 size_hint_x: 0.6
-                padding: app.theme_config.get("grid_unit_half", "16dp")
+                padding: app.theme_config.get("padding", "15dp")
                 
-                # Pig image (fills the panel)
+                # Pig image
                 Image:
                     id: pigs_image
                     source: "assets/images/pigs_1.png"

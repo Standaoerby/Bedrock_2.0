@@ -2,7 +2,7 @@
     FloatLayout:
         size_hint: 1, 1
         
-        # Только оверлей для этого экрана (без фонового изображения)
+        # Screen overlay
         Image:
             source: app.get_overlay_image("weather")
             allow_stretch: True
@@ -13,119 +13,139 @@
         
         BoxLayout:
             orientation: 'vertical'
-            padding: app.ui_metrics['content_padding']
-            spacing: app.ui_metrics['widget_spacing']
-            pos_hint: {"center_x": 0.5, "center_y": 0.45}  # Moved up
+            padding: "15dp"
+            spacing: "10dp"
+            pos_hint: {"center_x": 0.5, "center_y": 0.45}
             size_hint: 0.9, 0.8
             
             BoxLayout:
                 orientation: 'horizontal'
                 size_hint_y: 0.4
-                spacing: app.ui_metrics['widget_spacing']
+                spacing: "10dp"
                 
-                # Внешние погодные данные
+                # External weather data
                 ThemedPanel:
                     orientation: 'vertical'
-                    padding: app.ui_metrics['content_padding']
-                    spacing: app.ui_metrics['widget_spacing']
+                    padding: "15dp"
+                    spacing: "10dp"
                     size_hint_x: 0.5
                     
                     ThemedLabel:
                         text: "Weather Forecast"
-                        font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("large", 24))
+                        font_size: "24sp"
                         size_hint_y: None
-                        height: app.ui_metrics['widget_height']
+                        height: "48dp"
                     
                     BoxLayout:
                         orientation: 'vertical'
-                        spacing: app.ui_metrics['widget_spacing'] * 0.5
-                        size_hint_y: 1  # Take up the rest of the space
+                        spacing: "5dp"
+                        size_hint_y: 1
                         
                         ThemedLabel:
                             id: current_temp
                             text: "0°C"
-                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("title", 30))
+                            font_size: "28sp"
                             halign: 'left'
                             size_hint_y: 0.33
                         
                         ThemedLabel:
                             id: current_condition
                             text: "Weather condition"
-                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 20))
+                            font_size: "20sp"
                             halign: 'left'
                             size_hint_y: 0.33
                         
                         ThemedLabel:
                             id: current_precipitation
                             text: "Precipitation: 0%"
-                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("small", 16))
+                            font_size: "16sp"
                             halign: 'left'
                             size_hint_y: 0.34
-                    
-                    # Removed refresh button
                 
-                # Данные с внутренних датчиков
+                # Internal sensor data
                 ThemedPanel:
                     orientation: 'vertical'
-                    padding: app.ui_metrics['content_padding']
-                    spacing: app.ui_metrics['widget_spacing']
+                    padding: "15dp"
+                    spacing: "10dp"
                     size_hint_x: 0.5
                     
                     ThemedLabel:
                         text: "Room Sensors"
-                        font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("large", 24))
+                        font_size: "24sp"
                         size_hint_y: None
-                        height: app.ui_metrics['widget_height']
+                        height: "48dp"
                     
                     GridLayout:
                         cols: 1
-                        spacing: app.ui_metrics['widget_spacing'] * 0.5
+                        spacing: "5dp"
                         
                         ThemedLabel:
                             id: sensor_temp
                             text: "Temperature: 0°C"
-                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 18))
+                            font_size: "20sp"
                             halign: 'left'
                         
                         ThemedLabel:
                             id: sensor_humidity
                             text: "Humidity: 0%"
-                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 18))
+                            font_size: "20sp"
                             halign: 'left'
                         
                         ThemedLabel:
                             id: sensor_co2
                             text: "CO2: 0 ppm"
-                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 18))
+                            font_size: "20sp"
                             halign: 'left'
                         
                         ThemedLabel:
                             id: sensor_tvoc
                             text: "TVOC: 0 ppb"
-                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 18))
+                            font_size: "20sp"
                             halign: 'left'
                         
                         ThemedLabel:
                             id: air_quality
                             text: "Air Quality: Unknown"
-                            font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("medium", 18))
+                            font_size: "20sp"
                             halign: 'left'
             
-            # Еженедельный прогноз
+            # Weekly forecast with improved scrolling
             ThemedPanel:
                 orientation: 'vertical'
-                padding: app.ui_metrics['content_padding']
-                spacing: app.ui_metrics['widget_spacing']
+                padding: "15dp"
+                spacing: "10dp"
                 size_hint_y: 0.6
                 
                 ThemedLabel:
                     text: "Weekly Forecast"
-                    font_size: app.scale_font(app.theme_config.get("font_sizes", {}).get("large", 24))
+                    font_size: "24sp"
                     size_hint_y: None
-                    height: app.ui_metrics['widget_height']
+                    height: "48dp"
                 
-                GridLayout:
-                    id: weekly_forecast_container
-                    cols: 1
-                    spacing: app.ui_metrics['widget_spacing'] * 0.5
-                    size_hint_y: 1
+                # Background color for scroll area
+                BoxLayout:
+                    canvas.before:
+                        Color:
+                            rgba: [0.15, 0.15, 0.15, 0.3]
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+                    
+                    # Improved ScrollView for weekly forecast
+                    ScrollView:
+                        id: weekly_scroll
+                        do_scroll_x: False
+                        do_scroll_y: True
+                        scroll_type: ['content', 'bars']
+                        bar_width: "15dp"
+                        bar_color: [0.7, 0.7, 0.7, 0.9]
+                        bar_inactive_color: [0.5, 0.5, 0.5, 0.5]
+                        effect_cls: "DampedScrollEffect"
+                        
+                        BoxLayout:
+                            id: weekly_forecast_container
+                            orientation: "vertical"
+                            size_hint_y: None
+                            height: self.minimum_height
+                            spacing: "10dp"
+                            padding: "10dp"

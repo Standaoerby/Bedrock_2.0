@@ -3,6 +3,7 @@ from kivy.clock import Clock
 from datetime import datetime
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
+from kivy.metrics import dp
 
 class DayForecastItem(BoxLayout):
     """Widget for displaying a single day's forecast in the weekly view"""
@@ -10,8 +11,8 @@ class DayForecastItem(BoxLayout):
         super(DayForecastItem, self).__init__(**kwargs)
         self.orientation = "horizontal"
         self.size_hint_y = None
-        self.height = 36  # Slightly reduced height for each day row
-        self.spacing = 8
+        self.height = dp(50)  # Increased height for better touch targets
+        self.spacing = dp(8)
         
         # Get app for theme access
         from kivy.app import App
@@ -32,10 +33,10 @@ class DayForecastItem(BoxLayout):
         day_label = Label(
             text=day_name,
             font_name=app.theme_config["font_name"],
-            font_size=app.theme_config.get("font_sizes", {}).get("small", "14sp"),
+            font_size="18sp",  # Larger font for touch
             halign="left",
             size_hint_x=0.15,
-            color=day_color  # Apply weekday/weekend color
+            color=day_color
         )
         
         # Max temperature only
@@ -43,8 +44,8 @@ class DayForecastItem(BoxLayout):
         temp_label = Label(
             text=f"{temp_max:.1f}°C",
             font_name=app.theme_config["font_name"],
-            font_size=app.theme_config.get("font_sizes", {}).get("small", "14sp"),
-            halign="left",  # Left-aligned
+            font_size="18sp",  # Larger font for touch
+            halign="left",
             size_hint_x=0.2
         )
         
@@ -52,8 +53,8 @@ class DayForecastItem(BoxLayout):
         condition_label = Label(
             text=day_data.get("condition", ""),
             font_name=app.theme_config["font_name"],
-            font_size=app.theme_config.get("font_sizes", {}).get("small", "14sp"),
-            halign="left",  # Left-aligned
+            font_size="18sp",  # Larger font for touch
+            halign="left",
             size_hint_x=0.4
         )
         
@@ -62,8 +63,8 @@ class DayForecastItem(BoxLayout):
         precip_label = Label(
             text=f"{precip}%",
             font_name=app.theme_config["font_name"],
-            font_size=app.theme_config.get("font_sizes", {}).get("small", "14sp"),
-            halign="left",  # Left-aligned
+            font_size="18sp",  # Larger font for touch
+            halign="left",
             size_hint_x=0.25
         )
         
@@ -76,7 +77,7 @@ class DayForecastItem(BoxLayout):
 class WeatherScreen(MDScreen):
     def on_pre_enter(self):
         # Delay display to avoid accessing ids too early
-        Clock.schedule_once(lambda dt: self.display_weather(), 0)
+        Clock.schedule_once(lambda dt: self.display_weather(), 0.1)
         
         # Start regular updates - weather data every hour, sensor data every minute
         self._weather_update_ev = Clock.schedule_interval(lambda dt: self.update_weather_data(), 3600)  # Hourly
@@ -134,21 +135,44 @@ class WeatherScreen(MDScreen):
             for day_data in weekly_forecast:
                 day_item = DayForecastItem(day_data)
                 weekly_container.add_widget(day_item)
+            
+            # Ensure minimum height for scrolling
+            if len(weekly_forecast) < 7:  # Add padding if fewer than 7 days
+                padding_height = (7 - len(weekly_forecast)) * dp(50)
+                padding = BoxLayout(size_hint_y=None, height=padding_height)
+                weekly_container.add_widget(padding)
         else:
             # No weekly data available
             no_data_label = Label(
                 text="No weekly forecast data available",
                 font_name=app.theme_config["font_name"],
-                font_size=app.theme_config.get("font_sizes", {}).get("medium", "20sp"),
+                font_size="24sp",
                 halign="center",
                 valign="center",
                 size_hint_y=None,
-                height=60
+                height=dp(100)
             )
             weekly_container.add_widget(no_data_label)
+            
+            # Add padding to ensure scrollability
+            padding = BoxLayout(size_hint_y=None, height=dp(200))
+            weekly_container.add_widget(padding)
+        
+        # Force layout update
+        Clock.schedule_once(lambda dt: self._update_scroll_size(), 0.2)
+
+    def _update_scroll_size(self):
+        """Ensure ScrollView content is properly sized"""
+        if hasattr(self.ids, 'weekly_forecast_container'):
+            container = self.ids.weekly_forecast_container
+            
+            # Make sure content is taller than viewport
+            min_height = dp(300)
+            if container.height < min_height:
+                container.height = min_height
 
     def update_weather(self):
-        """Force weather data update - now private, used internally only"""
+        """Force weather data update"""
         self.update_weather_data()
         self.update_sensor_data()
         self.display_weather()

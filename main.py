@@ -12,22 +12,18 @@ from services.sensor_service import SensorService
 from classes.marquee import MarqueeLabel
 from kivy.core.audio import SoundLoader
 import os
-import platform
 import time
 import json
 import re
 
 # Configure environment variables for Raspberry Pi
-# These will be modified for Windows in the build method
 os.environ['KIVY_GL_BACKEND'] = 'sdl2'
 os.environ['KIVY_WINDOW'] = 'sdl2'
-os.environ['KIVY_GRAPHICS'] = 'gles'
-os.environ['KIVY_BCM_DISPMANX_ID'] = '0'
-os.environ['KIVY_WINDOW'] = 'egl_rpi'
-os.environ['KIVY_DPI'] = '96'
-os.environ['KIVY_METRICS_DENSITY'] = '1'
 
+# Register font
 LabelBase.register(name="Minecraftia", fn_regular="assets/fonts/Minecraftia-Regular.ttf")
+
+# Import screens after font registration
 from pages.home import HomeScreen
 from pages.alarm import AlarmScreen
 from pages.weather import WeatherScreen
@@ -44,25 +40,19 @@ def load_theme_config(theme="minecraft", mode="light"):
 from kivy.config import Config
 Config.set('graphics', 'width', '1024')
 Config.set('graphics', 'height', '600')
-Config.set('graphics', 'fullscreen', '0')
-Config.set('graphics', 'show_cursor', '0')
+Config.set('graphics', 'fullscreen', '0')  # Set to '1' for Pi deployment
+Config.set('graphics', 'show_cursor', '1')  # Set to '0' for Pi deployment
 
 class BedrockApp(MDApp):
     current_screen = StringProperty("home")
     menu_navigation = BooleanProperty(False)
     
-    # Параметры масштабирования для различных платформ
-    is_raspberry_pi = BooleanProperty(platform.system() != 'Windows')
+    # Fixed scaling parameters - no platform detection
     ui_scale = NumericProperty(1.0)
     font_scale = NumericProperty(1.0)
     padding_scale = NumericProperty(1.0)
     
-    # Основные параметры размещения
-    menu_height = NumericProperty(70)
-    menu_padding = NumericProperty(10)
-    content_padding = NumericProperty(15)
-    
-    # Общие значения для всех экранов
+    # Common UI metrics
     ui_metrics = DictProperty({
         'menu_height': 70,
         'menu_padding': 10,
@@ -73,69 +63,23 @@ class BedrockApp(MDApp):
     })
 
     def build(self):
-        # Применяем различные настройки для разных платформ
-        if platform.system() == 'Windows':
-            for key in ['KIVY_GL_BACKEND', 'KIVY_WINDOW', 'KIVY_GRAPHICS', 'KIVY_BCM_DISPMANX_ID']:
-                if key in os.environ:
-                    del os.environ[key]
-            print("Running on Windows - adjusted environment settings")
-            
-            self.ui_scale = 1.0
-            self.font_scale = 1.0
-            self.padding_scale = 1.0
-        else:
-            print(f"Running on {platform.system()} - using Raspberry Pi settings")
-            
-            self.ui_scale = 0.9
-            self.font_scale = 0.85
-            self.padding_scale = 0.8
-            
-            Config.set('graphics', 'fullscreen', '1')
-
-        self._update_ui_metrics()
-
+        # Ensure directories exist
+        self.ensure_directories()
+        
+        # Load theme
         self.theme_name = "minecraft"
         self.theme_mode = "light"
         self.theme_config = load_theme_config(self.theme_name, self.theme_mode)
-        
-        if self.is_raspberry_pi:
-            # Обработка размеров шрифтов
-            if "font_sizes" not in self.theme_config:
-                self.theme_config["font_sizes"] = {}
-                
-            self.theme_config["font_sizes"]["small"] = "14sp"
-            self.theme_config["font_sizes"]["medium"] = "16sp"
-            self.theme_config["font_sizes"]["large"] = "20sp"
-            self.theme_config["font_sizes"]["title"] = "24sp"
-            
-            # Обработка отступов - с проверкой типа
-            if "padding" not in self.theme_config:
-                self.theme_config["padding"] = {}
-            elif isinstance(self.theme_config["padding"], str):
-                # Если padding это строка, создаем новый словарь
-                old_padding = self.theme_config["padding"]
-                self.theme_config["padding"] = {
-                    "default": old_padding,
-                    "small": "4dp", 
-                    "medium": "8dp", 
-                    "large": "12dp"
-                }
-            else:
-                # Если padding это словарь, добавляем в него значения
-                self.theme_config["padding"]["small"] = "4dp"
-                self.theme_config["padding"]["medium"] = "8dp"
-                self.theme_config["padding"]["large"] = "12dp"
         
         # Initialize sound system
         self.sounds = {}
         self.last_sound_time = 0
         self.last_sound_name = ""
-        self.ensure_directories()
         self.load_sounds()
         
         # Initialize services
         self.alarm_service = AlarmService()
-        self.weather_service = WeatherService(lat=51.5390, lon=-0.1426)  # Координаты Лондона, Камден
+        self.weather_service = WeatherService(lat=51.5390, lon=-0.1426)  # Camden, London coordinates
         self.schedule_service = ScheduleService()
         self.pigs_service = PigsService()
         self.notification_service = NotificationService()
@@ -144,31 +88,14 @@ class BedrockApp(MDApp):
         
         return Builder.load_file('main.kv')
 
-    def _update_ui_metrics(self):
-        """Обновляет метрики UI с учетом масштабирования"""
-        self.ui_metrics = {
-            'menu_height': int(70 * self.ui_scale),
-            'menu_padding': int(10 * self.padding_scale),
-            'content_padding': int(15 * self.padding_scale),
-            'widget_spacing': int(10 * self.padding_scale),
-            'widget_height': int(48 * self.ui_scale),
-            'small_widget_height': int(36 * self.ui_scale),
-        }
-        
-        self.menu_height = self.ui_metrics['menu_height']
-        self.menu_padding = self.ui_metrics['menu_padding']
-        self.content_padding = self.ui_metrics['content_padding']
-
     def scale_font(self, size):
-        """Масштабирует размер шрифта в зависимости от платформы"""
+        """Scale font size"""
         if isinstance(size, str):
-            # Если размер шрифта задан строкой (например, "20sp")
             match = re.match(r'(\d+)(\w+)', size)
             if match:
                 value = float(match.group(1))
                 unit = match.group(2)
                 return f"{int(value * self.font_scale)}{unit}"
-        # Если это число
         try:
             return f"{int(float(size) * self.font_scale)}sp"
         except (ValueError, TypeError):
@@ -176,19 +103,17 @@ class BedrockApp(MDApp):
             return "14sp"
 
     def scale_size(self, size):
-        """Масштабирует размеры виджетов в зависимости от платформы"""
+        """Scale widget size"""
         if isinstance(size, (list, tuple)):
             return [self.scale_size(item) for item in size]
         
         if isinstance(size, str):
-            # Если размер задан строкой (например, "48dp")
             match = re.match(r'(\d+)(\w+)', size)
             if match:
                 value = float(match.group(1))
                 unit = match.group(2)
                 return f"{int(value * self.ui_scale)}{unit}"
         
-        # Если это число или что-то другое
         try:
             return int(float(size) * self.ui_scale)
         except (TypeError, ValueError):
@@ -209,7 +134,6 @@ class BedrockApp(MDApp):
         ]
         for dir_path in dirs:
             os.makedirs(dir_path, exist_ok=True)
-            print(f"Ensured directory exists: {dir_path}")
     
     def load_sounds(self):
         """Load sound effects"""

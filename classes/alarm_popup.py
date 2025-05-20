@@ -4,7 +4,6 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.core.audio import SoundLoader
-from kivy.animation import Animation
 from kivy.clock import Clock
 import os
 

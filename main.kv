@@ -11,19 +11,19 @@
 <ThemedLabel@Label>:
     font_name: app.theme_config["font_name"]
     color: app.theme_config["font_color"]
-    font_size: app.scale_font(app.theme_config.get("widget_font_size", 20))
+    font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
 
 <MenuButton@Button>:
     background_normal: app.theme_config["menu_button_normal"]
     background_down: app.theme_config.get("menu_button_active", app.theme_config["menu_button_normal"])
     color: app.theme_config["menu_selected_color"] if self.screen_name == app.current_screen else app.theme_config["menu_unselected_color"]
     font_name: app.theme_config["font_name"]
-    font_size: app.scale_font(app.theme_config.get("menu_button_font_size", 30))
+    font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
     size_hint_x: None
     size_hint_y: None
-    width: app.scale_size(app.theme_config.get("menu_button_size", [192,64])[0])
-    height: app.scale_size(app.theme_config.get("menu_button_size", [192,64])[1])
-    padding: [app.scale_size(p) for p in app.theme_config.get("menu_button_padding", [0,0,0,0])]
+    width: app.scale_size(app.theme_config.get("menu_button_size", [180,60])[0])
+    height: app.scale_size(app.theme_config.get("menu_button_size", [180,60])[1])
+    padding: [0, 0, 0, 0]
     screen_name: ""
     on_press: 
         app.play_sound("click")
@@ -35,7 +35,7 @@
     background_normal: app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
     background_down: app.theme_config.get("button_active", "atlas://data/images/defaulttheme/button_pressed")
     font_name: app.theme_config["font_name"]
-    font_size: app.scale_font(app.theme_config.get("widget_font_size", 20))
+    font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
     size_hint_y: None
     height: app.ui_metrics['widget_height']
     on_press: app.play_sound("click")
@@ -49,32 +49,29 @@
             size: self.size
             radius: [app.theme_config.get("panel_radius", 16)]
 
-# Основной макет - FloatLayout для наложения фона, меню и контента
+# Main layout - FloatLayout for background, menu and content
 FloatLayout:
-    # Общий фон для всего приложения
+    # Application background
     Image:
         id: background_image
         source: app.theme_config["background_image"]
-        allow_stretch: True
-        keep_ratio: False
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y": 0.5}
     
-    # Вертикальный макет для меню и контента
+    # Vertical layout for menu and content
     BoxLayout:
         orientation: 'vertical'
         size_hint: 1, 1
         
-        # Меню вверху с фиксированной высотой
+        # Menu at the top with fixed height
         BoxLayout:
             id: menu_container
             orientation: 'horizontal'
             size_hint_y: None
             height: app.ui_metrics['menu_height'] + app.ui_metrics['menu_padding'] * 2
             padding: app.ui_metrics['menu_padding']
-            # Не задаем цвет фона - полностью прозрачный
             
-            # Центрирование и ограничение ширины меню
+            # Center and limit menu width
             AnchorLayout:
                 anchor_x: 'center'
                 anchor_y: 'center'
@@ -105,9 +102,9 @@ FloatLayout:
                         text: ">"
                         screen_name: "settings"
                         size_hint_x: None
-                        width: app.scale_size(app.theme_config.get("menu_button_size", [180,60])[1])
+                        width: app.scale_size(60)
         
-        # Контент (экраны) занимает оставшееся пространство
+        # Content (screens) takes remaining space
         MDScreenManager:
             id: screen_manager
             HomeScreen:

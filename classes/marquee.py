@@ -17,13 +17,13 @@ class MarqueeLabel(Label):
         self.text = self.full_text
         if self._marquee_ev:
             self._marquee_ev.cancel()
-        # Проверка: нужна ли анимация
+        # Check if animation is needed
         if self.texture_size[0] > self.width:
             self._marquee_ev = Clock.schedule_interval(self._animate, 1/30.)
 
     def _animate(self, dt):
-        self.scroll_x -= 1.5  # Скорость пикс/кадр, можешь поменять
-        # Если вся строка ушла влево — сброс
+        self.scroll_x -= 1.5  # Speed in pixels/frame
+        # Reset when text is completely off-screen
         if abs(self.scroll_x) > self.texture_size[0]:
             self.scroll_x = self.width
         self.canvas.ask_update()
@@ -32,8 +32,7 @@ class MarqueeLabel(Label):
         self.refresh_text()
 
     def refresh_text(self):
-        # Этот метод просто пересобирает текст при каждом кадре (делает видимость прокрутки)
-        # По сути, ты задаёшь отступ по x через canvas.translate
+        # This method updates the canvas to create the scrolling effect
         self.canvas.before.clear()
         with self.canvas.before:
             from kivy.graphics import PushMatrix, Translate

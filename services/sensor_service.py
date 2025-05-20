@@ -1,14 +1,11 @@
 """
-Сервис для работы с датчиками ENS160+AHT21
-Поддерживает реальные датчики на Raspberry Pi и заглушки на Windows
+Service for working with sensors (ENS160+AHT21)
+Supports real sensors on Raspberry Pi and mock sensors for development
 """
 import time
-import platform
 from threading import Thread
-import sys
-import os
 
-# Встроенные заглушки, которые будут использованы если ничего другого не доступно
+# Built-in mock sensor classes
 class DummyBoard:
     SCL = "SCL"
     SDA = "SDA"
@@ -17,13 +14,19 @@ class DummyI2C:
     def __init__(self, scl, sda):
         print(f"Dummy I2C initialized (SCL: {scl}, SDA: {sda})")
 
-class DummyENS160:
-    """Встроенная заглушка для ENS160 датчика"""
+class DummySensor:
+    """Base class for dummy sensors"""
+    def __init__(self, address):
+        self.address = address
+        print(f"Dummy sensor initialized at address 0x{address:02x}")
+
+class DummyENS160(DummySensor):
+    """Built-in mock for ENS160 sensor"""
     def __init__(self, i2c, address=0x68):
+        super().__init__(address)
         self._eco2 = 800
         self._tvoc = 250
         self._aqi = 2
-        print(f"Dummy ENS160 initialized at address 0x{address:02x}")
     
     @property
     def eCO2(self):
@@ -46,12 +49,12 @@ class DummyENS160:
             self._aqi = random.randint(1, 5)
         return self._aqi
 
-class DummyAHTx0:
-    """Встроенная заглушка для AHT21 датчика"""
+class DummyAHTx0(DummySensor):
+    """Built-in mock for AHT21 sensor"""
     def __init__(self, i2c, address=0x38):
+        super().__init__(address)
         self._temperature = 22.5
         self._humidity = 45.0
-        print(f"Dummy AHT21 initialized at address 0x{address:02x}")
         
     @property
     def temperature(self):
@@ -66,75 +69,55 @@ class DummyAHTx0:
         self._humidity += random.uniform(-1.0, 1.0)
         self._humidity = max(30.0, min(self._humidity, 70.0))
         return self._humidity
-        
-# Функции-адаптеры для встроенных заглушек
-def dummy_ENS160(i2c, address=0x68):
-    return DummyENS160(i2c, address)
 
-def dummy_AHTx0(i2c, address=0x38):
-    return DummyAHTx0(i2c, address)
-
-# Определяем, какие библиотеки загружать в зависимости от платформы
-use_real_sensors = False
-if platform.system() == 'Windows':
-    # На Windows используем заглушки
-    print("Running on Windows - using built-in mock sensors")
+# Try to import real libraries, use mocks if not available
+try:
+    import board
+    import busio
+    import adafruit_ens160
+    import adafruit_ahtx0
+    use_real_sensors = True
+    print("Successfully loaded real sensor libraries")
+except Exception as e:
+    print(f"Error importing sensor libraries: {e}")
+    print("Using mock sensors instead")
+    
+    # Use built-in mocks
     board = DummyBoard()
     busio = DummyI2C
-    adafruit_ens160 = dummy_ENS160
-    adafruit_ahtx0 = dummy_AHTx0
-else:
-    # На Raspberry Pi пробуем использовать реальные библиотеки
-    print("Running on Raspberry Pi - trying to use real sensors")
-    try:
-        import board
-        import busio
-        import adafruit_ens160
-        import adafruit_ahtx0
-        use_real_sensors = True
-        print("Successfully loaded real sensor libraries")
-    except Exception as e:
-        print(f"Error importing sensor libraries: {e}")
-        print("Please install required libraries:")
-        print("sudo apt-get install -y python3-lgpio")
-        print("sudo pip3 install adafruit-blinka adafruit-circuitpython-ens160 adafruit-circuitpython-ahtx0")
-        print("Using built-in mock sensors instead")
-        
-        # Используем встроенные заглушки
-        board = DummyBoard()
-        busio = DummyI2C
-        adafruit_ens160 = dummy_ENS160
-        adafruit_ahtx0 = dummy_AHTx0
+    adafruit_ens160 = DummyENS160
+    adafruit_ahtx0 = DummyAHTx0
+    use_real_sensors = False
 
 class SensorService:
-    """Сервис для работы с датчиками окружающей среды"""
+    """Service for environmental sensors"""
     
     def __init__(self):
-        """Инициализация сервиса датчиков"""
-        # Инициализация переменных
+        """Initialize the sensor service"""
+        # Initialize variables
         self.sensor_available = False
         self.ens = None
         self.aht = None
         self.running = False
         self.thread = None
         self._readings = {
-            'temperature': 0,
-            'humidity': 0,
-            'co2': 0,
-            'tvoc': 0,
-            'air_quality': 'Unknown'
+            'temperature': 22.5,
+            'humidity': 45.0,
+            'co2': 800,
+            'tvoc': 250,
+            'air_quality': 'Good'
         }
     
     def start(self):
-        """Инициализирует датчики и запускает поток обновления"""
+        """Initialize sensors and start update thread"""
         try:
-            # Инициализация I2C
+            # Initialize I2C
             if use_real_sensors:
                 self.i2c = busio.I2C(board.SCL, board.SDA)
             else:
                 self.i2c = busio(board.SCL, board.SDA)
             
-            # Инициализация датчиков
+            # Initialize sensors
             if use_real_sensors:
                 self.ens = adafruit_ens160.ENS160(self.i2c, address=0x68)
                 self.aht = adafruit_ahtx0.AHTx0(self.i2c, address=0x38)
@@ -144,10 +127,10 @@ class SensorService:
                 
             self.sensor_available = True
             
-            # Первичное чтение данных
+            # Initial reading
             self.update_readings()
             
-            # Запуск фонового потока для регулярного обновления
+            # Start background thread
             self.running = True
             self.thread = Thread(target=self._background_update, daemon=True)
             self.thread.start()
@@ -158,33 +141,33 @@ class SensorService:
             self.sensor_available = False
     
     def stop(self):
-        """Останавливает поток обновления и освобождает ресурсы"""
+        """Stop the update thread and free resources"""
         self.running = False
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=1.0)
         print("Sensor service stopped")
     
     def _background_update(self):
-        """Фоновый процесс для обновления данных датчиков"""
+        """Background process for sensor data updates"""
         while self.running:
             try:
                 self.update_readings()
             except Exception as e:
                 print(f"Error in background sensor update: {e}")
-            # Пауза между обновлениями данных
-            time.sleep(30)  # Обновление каждые 30 секунд
+            # Pause between updates
+            time.sleep(30)  # Update every 30 seconds
     
     def update_readings(self):
-        """Обновляет данные с датчиков"""
+        """Update data from sensors"""
         if not self.sensor_available:
             return
             
         try:
-            # Чтение ENS160
+            # Read ENS160
             self._readings['co2'] = self.ens.eCO2
             self._readings['tvoc'] = self.ens.TVOC
             
-            # Конвертация AQI в текстовое значение
+            # Convert AQI to text value
             aqi = self.ens.AQI
             if aqi == 1:
                 self._readings['air_quality'] = "Excellent"
@@ -199,11 +182,11 @@ class SensorService:
             else:
                 self._readings['air_quality'] = f"Unknown ({aqi})"
             
-            # Чтение AHT21
+            # Read AHT21
             self._readings['temperature'] = self.aht.temperature
             self._readings['humidity'] = self.aht.relative_humidity
             
-            # Отладочный вывод текущих значений
+            # Debug output
             print(f"Sensor readings: Temp={self._readings['temperature']:.1f}°C, "
                   f"Humidity={self._readings['humidity']:.1f}%, "
                   f"CO2={self._readings['co2']} ppm, "
@@ -214,5 +197,5 @@ class SensorService:
             print(f"Error reading sensors: {e}")
     
     def get_readings(self):
-        """Возвращает последние показания датчиков"""
-        return self._readings.copy()  # Возвращаем копию, чтобы избежать проблем с многопоточностью
+        """Return the latest sensor readings"""
+        return self._readings.copy()  # Return a copy to avoid threading issues
