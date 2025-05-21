@@ -13,6 +13,7 @@ from services.sensor_service import SensorService
 from services.sound_service import SoundService
 from classes.marquee import MarqueeLabel
 import os
+import sys
 import time
 import json
 import re
