@@ -1,19 +1,18 @@
 """
-Service for working with environmental sensors (ENS160+AHT21)
+Service for working with sensors (ENS160+AHT21)
 Supports real sensors on Raspberry Pi and mock sensors for development
 """
 import time
 import os
 import sys
-import importlib.util
 from threading import Thread
 import logging
 
-# Set up logging
+# Configure logging
 logger = logging.getLogger("SensorService")
 
 # Define constants for I2C addresses
-ENS160_ADDRESS = 0x68
+ENS160_ADDRESS = 0x53  # Исправлено с 0x68 на 0x53 для вашего конкретного датчика
 AHT21_ADDRESS = 0x38
 
 # Air quality levels mapping
@@ -25,212 +24,195 @@ AIR_QUALITY_LEVELS = {
     5: "Unhealthy"
 }
 
-class HardwareDetector:
-    """Utilities to detect and initialize hardware sensors"""
+# Built-in mock sensor classes for development
+class DummyBoard:
+    SCL = "SCL"
+    SDA = "SDA"
+
+class DummyI2C:
+    def __init__(self, scl, sda):
+        logger.info(f"Dummy I2C initialized (SCL: {scl}, SDA: {sda})")
+
+    def writeto(self, address, data):
+        pass
+
+class DummySensor:
+    """Base class for dummy sensors"""
+    def __init__(self, address):
+        self.address = address
+        logger.info(f"Dummy sensor initialized at address 0x{address:02x}")
+
+class DummyENS160(DummySensor):
+    """Built-in mock for ENS160 sensor"""
+    def __init__(self, i2c, address=ENS160_ADDRESS):
+        super().__init__(address)
+        self._eco2 = 800
+        self._tvoc = 250
+        self._aqi = 2
     
-    @staticmethod
-    def is_raspberry_pi():
-        """Check if we're running on a Raspberry Pi"""
-        try:
-            # Check for Raspberry Pi-specific file
-            with open('/proc/device-tree/model', 'r') as f:
-                model = f.read()
-                return 'raspberry pi' in model.lower()
-        except:
-            # Check for ARM architecture as fallback
-            return os.uname().machine.startswith('arm')
+    @property
+    def eCO2(self):
+        import random
+        self._eco2 += random.randint(-25, 25)
+        self._eco2 = max(400, min(self._eco2, 1500))
+        return self._eco2
     
-    @staticmethod
-    def has_real_sensors():
-        """Check if the real sensor libraries are available"""
-        # Check if we should force mock mode via environment variable
-        if os.environ.get('USE_MOCK_SENSORS') == '1':
-            logger.info("Using mock sensors (forced by environment variable)")
-            return False
-            
-        # Check if we're on a Pi first
-        if not HardwareDetector.is_raspberry_pi():
-            logger.info("Not running on Raspberry Pi, using mock sensors")
-            return False
-            
-        # Check for required libraries
-        required_libs = ['adafruit_ens160', 'adafruit_ahtx0', 'board', 'busio']
-        for lib in required_libs:
-            if importlib.util.find_spec(lib) is None:
-                logger.warning(f"Required library {lib} not found, using mock sensors")
-                return False
-                
-        # Check for I2C device
-        if not os.path.exists('/dev/i2c-1'):
-            logger.warning("I2C device not found, using mock sensors")
-            return False
-            
-        logger.info("Real sensor hardware and libraries detected")
-        return True
+    @property
+    def TVOC(self):
+        import random
+        self._tvoc += random.randint(-15, 15)
+        self._tvoc = max(50, min(self._tvoc, 500))
+        return self._tvoc
     
-    @staticmethod
-    def initialize_i2c():
-        """Initialize I2C interface with proper error handling
+    @property
+    def AQI(self):
+        import random
+        if random.random() < 0.05:
+            self._aqi = random.randint(1, 5)
+        return self._aqi
+
+class DummyAHTx0(DummySensor):
+    """Built-in mock for AHT21 sensor"""
+    def __init__(self, i2c, address=AHT21_ADDRESS):
+        super().__init__(address)
+        self._temperature = 22.5
+        self._humidity = 45.0
         
-        Returns:
-            tuple: (i2c_interface, success_flag)
-        """
-        logger.info("Initializing I2C interface")
+    @property
+    def temperature(self):
+        import random
+        self._temperature += random.uniform(-0.3, 0.3)
+        self._temperature = max(18.0, min(self._temperature, 28.0))
+        return self._temperature
         
-        # Try multiple initialization methods for different hardware configs
+    @property
+    def relative_humidity(self):
+        import random
+        self._humidity += random.uniform(-1.0, 1.0)
+        self._humidity = max(30.0, min(self._humidity, 70.0))
+        return self._humidity
+
+# Try to set up real libraries based on available hardware
+def setup_i2c(retry_count=5, retry_delay=2.0):
+    """Set up I2C interface for the current platform with retry mechanism
+    
+    Args:
+        retry_count: Number of times to retry if initialization fails
+        retry_delay: Initial delay between retries in seconds (doubles with each retry)
+    
+    Returns:
+        tuple: (i2c_interface, is_real_hardware)
+    """
+    # Check if we should force mock mode (for testing)
+    if os.environ.get('USE_MOCK_SENSORS') == '1':
+        logger.info("Using mock sensors (forced by environment variable)")
+        return None, False
+    
+    # Check if I2C device exists before trying to access it
+    if not os.path.exists('/dev/i2c-1') and not os.path.exists('/dev/i2c-0'):
+        logger.warning("No I2C device files found in /dev. Is I2C enabled?")
+        
+        # On Raspberry Pi, try to set permissions and ensure I2C is enabled
+        if os.path.exists('/usr/bin/raspi-config'):
+            logger.info("Trying to enable I2C...")
+            try:
+                # Enable I2C via raspi-config (nonint = non-interactive mode)
+                os.system('sudo raspi-config nonint do_i2c 0')
+                # Set permissions
+                os.system('sudo chmod 666 /dev/i2c-1 2>/dev/null || sudo chmod 666 /dev/i2c-0 2>/dev/null')
+                logger.info("I2C should now be enabled. Continuing setup...")
+            except Exception as e:
+                logger.error(f"Failed to enable I2C: {e}")
+    
+    # Setup with retry mechanism
+    current_retry = 0
+    current_delay = retry_delay
+    
+    while current_retry <= retry_count:
         try:
+            if current_retry > 0:
+                logger.info(f"I2C initialization retry {current_retry}/{retry_count} (delay: {current_delay:.1f}s)")
+                time.sleep(current_delay)
+                # Double the delay for next attempt (exponential backoff)
+                current_delay *= 2
+            
+            # Method 1: Traditional board with SCL/SDA pins
             import board
             import busio
-            
-            methods = [
-                # Method 1: Traditional board with SCL/SDA pins
-                lambda: (busio.I2C(board.SCL, board.SDA), "board.SCL/board.SDA"),
+            try:
+                logger.info("Trying I2C Method 1: board.SCL/board.SDA")
+                i2c = busio.I2C(board.SCL, board.SDA)
+                logger.info("I2C initialized using board.SCL/board.SDA")
+                return i2c, True
+            except (AttributeError, ValueError) as e:
+                logger.warning(f"Method 1 failed: {e}")
                 
-                # Method 2: Direct GPIO pin numbers (Raspberry Pi)
-                lambda: (busio.I2C(board.D3, board.D2), "GPIO pins 3 and 2"),
-                
-                # Method 3: Use generic I2C device 
-                lambda: (HardwareDetector._get_generic_i2c(), "generic I2C device")
-            ]
-            
-            # Try each method
-            for i, (method, desc) in enumerate(methods, 1):
+                # Method 2: Direct GPIO pin numbers (for Raspberry Pi 5)
                 try:
-                    logger.info(f"Trying I2C Method {i}: {desc}")
-                    i2c = method()
-                    if i2c:
-                        logger.info(f"I2C initialized successfully using {desc}")
-                        return i2c, True
+                    logger.info("Trying I2C Method 2: Direct GPIO pins (3=SCL, 2=SDA)")
+                    i2c = busio.I2C(3, 2)  # GPIO3=SCL, GPIO2=SDA
+                    logger.info("I2C initialized using direct GPIO pins 3 and 2")
+                    return i2c, True
                 except Exception as e:
-                    logger.warning(f"Method {i} failed: {e}")
-            
-            logger.error("All I2C initialization methods failed")
-            return None, False
-            
-        except ImportError as e:
-            logger.error(f"Required libraries not available: {e}")
-            return None, False
-    
-    @staticmethod
-    def _get_generic_i2c():
-        """Try to get a generic I2C interface (method 3)"""
-        try:
-            from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
-            return I2C(1)  # /dev/i2c-1
-        except:
-            return None
-    
-    @staticmethod
-    def scan_i2c(i2c):
-        """Scan I2C bus for devices and log found addresses"""
-        if not i2c:
-            logger.warning("Cannot scan I2C: no interface provided")
-            return []
-            
-        logger.info("Scanning I2C bus for devices...")
-        devices = []
-        
-        try:
-            for address in range(0x00, 0x80):
-                try:
-                    i2c.writeto(address, b'')
-                    devices.append(address)
-                except Exception:
-                    pass
-            
-            if devices:
-                logger.info(f"Found {len(devices)} I2C devices at addresses: " + 
-                            ", ".join([f"0x{addr:02X}" for addr in devices]))
-                
-                # Check for our sensors
-                if ENS160_ADDRESS in devices:
-                    logger.info(f"ENS160 found at address 0x{ENS160_ADDRESS:02X}")
-                else:
-                    logger.warning(f"ENS160 not found at address 0x{ENS160_ADDRESS:02X}")
+                    logger.warning(f"Method 2 failed: {e}")
                     
-                if AHT21_ADDRESS in devices:
-                    logger.info(f"AHT21 found at address 0x{AHT21_ADDRESS:02X}")
-                else:
-                    logger.warning(f"AHT21 not found at address 0x{AHT21_ADDRESS:02X}")
-            else:
-                logger.warning("No I2C devices found! Check your wiring")
-                
+                    # Method 3: Use adafruit_blinka to access /dev/i2c-1 directly
+                    for i2c_dev in ['/dev/i2c-1', '/dev/i2c-0']:
+                        if os.path.exists(i2c_dev):
+                            try:
+                                logger.info(f"Trying I2C Method 3: Direct I2C device access ({i2c_dev})")
+                                from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
+                                i2c = I2C(int(i2c_dev.split('-')[1]))  # Extract number from device path
+                                logger.info(f"I2C initialized using generic Linux I2C device {i2c_dev}")
+                                return i2c, True
+                            except Exception as e:
+                                logger.warning(f"Method 3 failed with {i2c_dev}: {e}")
+                                
+        except ImportError as e:
+            logger.error(f"Error importing required libraries: {e}")
+            # Import error is fatal, no need to retry
+            return None, False
         except Exception as e:
-            logger.error(f"Error scanning I2C: {e}")
-            
-        return devices
+            logger.error(f"Unexpected error during I2C setup (attempt {current_retry}): {e}")
+        
+        # Increment retry counter
+        current_retry += 1
+    
+    # If all methods and retries fail, use mock mode
+    logger.warning(f"All I2C initialization methods failed after {retry_count} retries. Falling back to mock sensors mode.")
+    return None, False
 
-class MockSensors:
-    """Mock sensor implementations for development and testing"""
+# Initialize global variables with retry mechanism
+# These will be initialized once at module import time
+try:
+    # Wait a moment before first attempt to let system stabilize (important for autostart)
+    logger.info("Sensor service initializing, waiting for I2C bus to be ready...")
+    time.sleep(2)
     
-    class I2C:
-        """Mock I2C interface"""
-        def __init__(self, scl, sda):
-            logger.info(f"Mock I2C initialized (SCL: {scl}, SDA: {sda})")
-            
-        def writeto(self, address, data):
-            """Mock write to I2C device"""
-            pass
+    # Initialize I2C with retry mechanism
+    i2c_interface, use_real_sensors = setup_i2c(retry_count=5, retry_delay=2.0)
     
-    class ENS160:
-        """Mock ENS160 sensor (CO2, TVOC, AQI)"""
-        def __init__(self, i2c, address=ENS160_ADDRESS):
-            self._eco2 = 800  # ppm, normal level
-            self._tvoc = 250  # ppb, normal level
-            self._aqi = 2     # Good (1-5)
-            logger.info(f"Mock ENS160 initialized at address 0x{address:02X}")
+    if use_real_sensors:
+        import adafruit_ens160
+        import adafruit_ahtx0
+        logger.info("Successfully loaded real sensor libraries")
+    else:
+        # Set up mock objects
+        board = DummyBoard()
+        busio = DummyI2C
+        adafruit_ens160 = DummyENS160
+        adafruit_ahtx0 = DummyAHTx0
+        logger.info("Using mock sensors (hardware unavailable)")
         
-        @property
-        def eCO2(self):
-            """Equivalent CO2 in ppm"""
-            import random
-            # Add random variation to simulate live data
-            self._eco2 += random.randint(-25, 25)
-            # Keep within realistic range
-            self._eco2 = max(400, min(self._eco2, 1500))
-            return self._eco2
-        
-        @property
-        def TVOC(self):
-            """Total Volatile Organic Compounds in ppb"""
-            import random
-            self._tvoc += random.randint(-15, 15)
-            self._tvoc = max(50, min(self._tvoc, 500))
-            return self._tvoc
-        
-        @property
-        def AQI(self):
-            """Air Quality Index (1-5)"""
-            import random
-            # Occasionally change AQI to simulate air quality changes
-            if random.random() < 0.05:  # 5% chance
-                self._aqi = random.randint(1, 5)
-            return self._aqi
-    
-    class AHTx0:
-        """Mock AHT21 sensor (temperature and humidity)"""
-        def __init__(self, i2c, address=AHT21_ADDRESS):
-            self._temperature = 22.5  # °C
-            self._humidity = 45.0     # %
-            logger.info(f"Mock AHT21 initialized at address 0x{address:02X}")
-            
-        @property
-        def temperature(self):
-            """Temperature in Celsius"""
-            import random
-            # Small random changes in temperature
-            self._temperature += random.uniform(-0.3, 0.3)
-            # Keep within realistic home range
-            self._temperature = max(18.0, min(self._temperature, 28.0))
-            return self._temperature
-            
-        @property
-        def relative_humidity(self):
-            """Relative humidity in percentage"""
-            import random
-            self._humidity += random.uniform(-1.0, 1.0)
-            self._humidity = max(30.0, min(self._humidity, 70.0))
-            return self._humidity
+except Exception as e:
+    logger.error(f"Error during sensor initialization: {e}")
+    # Fall back to mocks
+    board = DummyBoard()
+    busio = DummyI2C
+    adafruit_ens160 = DummyENS160
+    adafruit_ahtx0 = DummyAHTx0
+    use_real_sensors = False
+    logger.info("Using mock sensors due to initialization error")
 
 class SensorService:
     """Service for environmental sensors"""
@@ -244,8 +226,6 @@ class SensorService:
         self.i2c = None
         self.running = False
         self.thread = None
-        
-        # Default readings
         self._readings = {
             'temperature': 22.5,
             'humidity': 45.0,
@@ -253,29 +233,29 @@ class SensorService:
             'tvoc': 250,
             'air_quality': 'Good'
         }
-        
-        # Detect hardware
-        self.use_real_sensors = HardwareDetector.has_real_sensors()
-        
-        # Public flag for UI to check
-        self.using_mock_sensors = not self.use_real_sensors
-        
-        # Log hardware detection result
-        if self.use_real_sensors:
-            logger.info("Using real sensor hardware")
-        else:
-            logger.info("Using mock sensors")
+        # Store the mock status for UI to check
+        self.using_mock_sensors = not use_real_sensors
     
     def start(self):
         """Initialize sensors and start update thread"""
         try:
-            # Initialize sensors
-            if self.use_real_sensors:
-                self._initialize_real_sensors()
-            else:
-                self._initialize_mock_sensors()
+            if use_real_sensors:
+                # Real hardware mode - use the already initialized I2C interface
+                self.i2c = i2c_interface
                 
-            # Initial readings
+                # Detect I2C devices
+                self._scan_i2c()
+                
+                # Initialize sensors with retry mechanism
+                self._initialize_sensors()
+            else:
+                # Mock mode
+                self.i2c = busio(board.SCL, board.SDA)
+                self.ens = adafruit_ens160(self.i2c, address=ENS160_ADDRESS)
+                self.aht = adafruit_ahtx0(self.i2c, address=AHT21_ADDRESS)
+                self.sensor_available = True
+            
+            # Initial reading
             self.update_readings()
             
             # Start background thread
@@ -284,73 +264,96 @@ class SensorService:
             self.thread.start()
             
             logger.info("Sensor service started successfully")
-            
         except Exception as e:
-            logger.error(f"Error initializing sensors: {e}", exc_info=True)
+            logger.error(f"Error initializing sensors: {e}")
             self.sensor_available = False
-            self.using_mock_sensors = True
     
-    def _initialize_real_sensors(self):
-        """Initialize real hardware sensors"""
-        try:
-            # Get I2C interface
-            self.i2c, success = HardwareDetector.initialize_i2c()
-            if not success or not self.i2c:
-                logger.error("Failed to initialize I2C, falling back to mock sensors")
-                self._initialize_mock_sensors()
-                return
+    def _initialize_sensors(self, retry_count=3, retry_delay=1.0):
+        """Initialize sensors with retry mechanism"""
+        current_retry = 0
+        current_delay = retry_delay
+        last_error = None
+        
+        while current_retry <= retry_count:
+            try:
+                if current_retry > 0:
+                    logger.info(f"Sensor initialization retry {current_retry}/{retry_count} (delay: {current_delay:.1f}s)")
+                    time.sleep(current_delay)
+                    # Double the delay for next attempt (exponential backoff)
+                    current_delay *= 2
                 
-            # Scan for devices
-            devices = HardwareDetector.scan_i2c(self.i2c)
-            
-            # Import sensor libraries
-            import adafruit_ens160
-            import adafruit_ahtx0
-            
-            # Initialize sensors
-            self.ens = adafruit_ens160.ENS160(self.i2c, address=ENS160_ADDRESS)
-            self.aht = adafruit_ahtx0.AHTx0(self.i2c, address=AHT21_ADDRESS)
-            
-            # Set flag based on presence of expected devices
-            self.sensor_available = (ENS160_ADDRESS in devices and AHT21_ADDRESS in devices)
-            
-            if not self.sensor_available:
-                logger.warning("Not all sensors were found on I2C bus")
+                # Initialize ENS160 sensor
+                logger.info(f"Initializing ENS160 at address 0x{ENS160_ADDRESS:02X}")
+                self.ens = adafruit_ens160.ENS160(self.i2c, address=ENS160_ADDRESS)
                 
-        except Exception as e:
-            logger.error(f"Error initializing real sensors: {e}", exc_info=True)
-            # Fall back to mock sensors
-            self._initialize_mock_sensors()
+                # Initialize AHT21 sensor
+                logger.info(f"Initializing AHT21 at address 0x{AHT21_ADDRESS:02X}")
+                self.aht = adafruit_ahtx0.AHTx0(self.i2c, address=AHT21_ADDRESS)
+                
+                # Verify sensors are working by reading a value
+                # This will raise an exception if there are communication problems
+                logger.info("Verifying sensors by reading values...")
+                _ = self.ens.AQI  # Read a value to verify sensor works
+                _ = self.aht.temperature  # Read a value to verify sensor works
+                
+                # If we get here, initialization was successful
+                self.sensor_available = True
+                logger.info("Sensors initialized successfully")
+                return True
+                
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Sensor initialization failed (attempt {current_retry}): {e}")
+            
+            # Increment retry counter
+            current_retry += 1
+        
+        # If all retries failed, log error and return false
+        logger.error(f"Failed to initialize sensors after {retry_count} retries: {last_error}")
+        self.sensor_available = False
+        return False
     
-    def _initialize_mock_sensors(self):
-        """Initialize mock sensors for development"""
+    def _scan_i2c(self):
+        """Scan I2C bus and print detected devices"""
+        if not use_real_sensors:
+            return
+            
         try:
-            # Create mock interface and sensors
-            self.i2c = MockSensors.I2C("SCL", "SDA")
-            self.ens = MockSensors.ENS160(self.i2c, address=ENS160_ADDRESS)
-            self.aht = MockSensors.AHTx0(self.i2c, address=AHT21_ADDRESS)
+            logger.info("Scanning I2C bus for devices...")
+            addresses = []
             
-            # Even with mocks, sensors are available
-            self.sensor_available = True
-            self.using_mock_sensors = True
+            for address in range(0x00, 0x80):
+                try:
+                    self.i2c.writeto(address, b'')
+                    addresses.append(address)
+                except Exception:
+                    pass
             
-            logger.info("Mock sensors initialized successfully")
-            
+            if addresses:
+                logger.info(f"Found {len(addresses)} I2C devices at addresses:")
+                for address in addresses:
+                    logger.info(f"0x{address:02X}")
+                    
+                # Check for our sensors
+                if ENS160_ADDRESS in addresses:
+                    logger.info(f"ENS160 found at address 0x{ENS160_ADDRESS:02X}")
+                else:
+                    logger.warning(f"WARNING: ENS160 not found at address 0x{ENS160_ADDRESS:02X}")
+                    
+                if AHT21_ADDRESS in addresses:
+                    logger.info(f"AHT21 found at address 0x{AHT21_ADDRESS:02X}")
+                else:
+                    logger.warning(f"WARNING: AHT21 not found at address 0x{AHT21_ADDRESS:02X}")
+            else:
+                logger.warning("No I2C devices found! Check your wiring")
         except Exception as e:
-            logger.error(f"Error initializing mock sensors: {e}", exc_info=True)
-            self.sensor_available = False
+            logger.error(f"Error scanning I2C: {e}")
     
     def stop(self):
         """Stop the update thread and free resources"""
         self.running = False
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=1.0)
-        
-        # Clean up resources
-        self.ens = None
-        self.aht = None
-        self.i2c = None
-        
         logger.info("Sensor service stopped")
     
     def _background_update(self):
@@ -360,8 +363,7 @@ class SensorService:
                 self.update_readings()
             except Exception as e:
                 logger.error(f"Error in background sensor update: {e}")
-            
-            # Wait between updates
+            # Pause between updates
             time.sleep(30)  # Update every 30 seconds
     
     def update_readings(self):
@@ -395,31 +397,3 @@ class SensorService:
     def get_readings(self):
         """Return the latest sensor readings"""
         return self._readings.copy()  # Return a copy to avoid threading issues
-
-
-# Simple self-test if file is run directly
-if __name__ == "__main__":
-    # Configure logging for standalone test
-    logging.basicConfig(level=logging.INFO, 
-                       format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    print("Sensor Service - Self Test")
-    service = SensorService()
-    service.start()
-    
-    try:
-        # Display readings for 30 seconds
-        start_time = time.time()
-        while time.time() - start_time < 30:
-            readings = service.get_readings()
-            print(f"\rTemp: {readings['temperature']:.1f}°C, "
-                  f"Humidity: {readings['humidity']:.1f}%, "
-                  f"CO2: {readings['co2']} ppm, "
-                  f"TVOC: {readings['tvoc']} ppb, "
-                  f"Quality: {readings['air_quality']}", end="")
-            time.sleep(1)
-        print("\nTest complete")
-    except KeyboardInterrupt:
-        print("\nTest interrupted")
-    finally:
-        service.stop()

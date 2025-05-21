@@ -5,6 +5,10 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.metrics import dp
 from kivy.properties import BooleanProperty
+import logging
+
+# Настройка логирования
+logger = logging.getLogger("WeatherScreen")
 
 class DayForecastItem(BoxLayout):
     """Widget for displaying a single day's forecast in the weekly view"""
@@ -82,16 +86,22 @@ class WeatherScreen(MDScreen):
     using_mock_sensors = BooleanProperty(True)
     
     def on_pre_enter(self):
-        # Delay display to avoid accessing ids too early
-        Clock.schedule_once(lambda dt: self.display_weather(), 0.1)
+        # Принудительное обновление всех данных сразу при входе на экран
+        logger.info("Entering WeatherScreen - forcing data update")
+        self.update_sensor_data()
+        self.update_weather_data()
+        self.display_weather()
         
-        # Start regular updates - weather data every hour, sensor data every minute
+        # Start regular updates - weather data every hour, sensor data every 10 seconds, display every 10 seconds
         self._weather_update_ev = Clock.schedule_interval(lambda dt: self.update_weather_data(), 3600)  # Hourly
-        self._sensor_update_ev = Clock.schedule_interval(lambda dt: self.update_sensor_data(), 60)     # Every minute
-        self._display_update_ev = Clock.schedule_interval(lambda dt: self.display_weather(), 60)       # Update display every minute
+        self._sensor_update_ev = Clock.schedule_interval(lambda dt: self.update_sensor_data(), 10)     # Every 10 seconds
+        self._display_update_ev = Clock.schedule_interval(lambda dt: self.display_weather(), 10)       # Update display every 10 seconds
+        
+        logger.info("Update timers initialized")
     
     def on_leave(self):
         # Stop updates when leaving screen
+        logger.info("Leaving WeatherScreen - stopping update timers")
         if hasattr(self, '_weather_update_ev'):
             self._weather_update_ev.cancel()
         if hasattr(self, '_sensor_update_ev'):
@@ -103,65 +113,56 @@ class WeatherScreen(MDScreen):
         """Update only weather data from service"""
         app = self.get_app()
         if hasattr(app, 'weather_service') and app.weather_service:
+            logger.debug("Fetching weather data")
             app.weather_service.fetch_weather()
     
     def update_sensor_data(self):
         """Update only sensor readings"""
         app = self.get_app()
         if hasattr(app, 'sensor_service') and app.sensor_service:
+            logger.debug("Updating sensor readings")
+            
+            # Явно вызываем обновление показаний датчиков
             app.sensor_service.update_readings()
             
-            # Update sensor availability status
+            # Получаем статус датчиков из сервиса
             self.sensor_available = app.sensor_service.sensor_available
             
-            # Check if using mock sensors by looking at the service implementation
-            try:
-                # Try to access use_real_sensors or similar flag in the service
-                if hasattr(app.sensor_service, 'use_real_sensors'):
-                    self.using_mock_sensors = not app.sensor_service.use_real_sensors
-                elif hasattr(app.sensor_service, 'using_mock_sensors'):
-                    self.using_mock_sensors = app.sensor_service.using_mock_sensors
-                else:
-                    # Look at the local variable from sensor_service.py
-                    import sys
-                    self.using_mock_sensors = not any(mod.startswith('adafruit_') for mod in sys.modules)
-            except Exception as e:
-                print(f"Error checking sensor type: {e}")
-                self.using_mock_sensors = True  # Default to assuming mock
+            # Определяем, используются ли заглушки, напрямую из сервиса
+            if hasattr(app.sensor_service, 'using_mock_sensors'):
+                # Наиболее прямой и надежный способ
+                self.using_mock_sensors = app.sensor_service.using_mock_sensors
+                logger.debug(f"Using mock sensors: {self.using_mock_sensors}")
+            else:
+                # Запасной вариант
+                self.using_mock_sensors = True
+                logger.warning("Could not determine sensor type, assuming mock sensors")
         else:
             # No sensor service available
             self.sensor_available = False
             self.using_mock_sensors = True
+            logger.warning("No sensor service available")
         
     def display_weather(self):
+        """Display weather and sensor data on the screen"""
         app = self.get_app()
         weather = app.weather_service.get_weather() if hasattr(app, 'weather_service') and app.weather_service else {}
         
         # Get sensor readings with proper null checks
         sensors = {}
         if hasattr(app, 'sensor_service') and app.sensor_service:
+            # Получаем показания с датчиков
             sensors = app.sensor_service.get_readings()
+            logger.debug(f"Got sensor readings: {sensors}")
+            
             # Update sensor availability status
             self.sensor_available = app.sensor_service.sensor_available
-            
-            # Check for real vs mock sensors
-            try:
-                # Try to access use_real_sensors or similar flag in the service
-                if hasattr(app.sensor_service, 'use_real_sensors'):
-                    self.using_mock_sensors = not app.sensor_service.use_real_sensors
-                elif hasattr(app.sensor_service, 'using_mock_sensors'):
-                    self.using_mock_sensors = app.sensor_service.using_mock_sensors
-                else:
-                    # Use the module existence check
-                    import sys
-                    self.using_mock_sensors = not any(mod.startswith('adafruit_') for mod in sys.modules)
-            except Exception as e:
-                print(f"Error checking sensor type: {e}")
-                self.using_mock_sensors = True  # Default to assuming mock
+            self.using_mock_sensors = app.sensor_service.using_mock_sensors
         else:
             # No sensor service available
             self.sensor_available = False
             self.using_mock_sensors = True
+            logger.warning("No sensor service available")
         
         # Current weather
         cur = weather.get("current", {})
@@ -182,14 +183,33 @@ class WeatherScreen(MDScreen):
             # Update precipitation text (changed to "Rain")
             self.ids.current_precipitation.text = f"Rain: {cur.get('precipitation_probability', 0)}%"
         
-        # Update sensor data fields with real readings
-        self.ids.sensor_temp.text = f"Temperature: {sensors.get('temperature', 0):.1f}°C"
-        self.ids.sensor_humidity.text = f"Humidity: {sensors.get('humidity', 0):.1f}%"
+        # Обновляем показания датчиков даже если они недоступны (будут отображаться нули)
+        temp_value = sensors.get('temperature', 0)
+        self.ids.sensor_temp.text = f"Temperature: {temp_value:.1f}°C"
+        
+        humidity_value = sensors.get('humidity', 0)
+        self.ids.sensor_humidity.text = f"Humidity: {humidity_value:.1f}%"
+        
+        # Добавляем индикацию статуса датчиков (реальные или заглушки)
+        sensor_status = ""
+        if not self.sensor_available:
+            sensor_status = " [OFFLINE]"
+        elif self.using_mock_sensors:
+            sensor_status = " [MOCK]"
+        else:
+            sensor_status = " [REAL]"
+            
+        # Добавляем статус к температуре
+        self.ids.sensor_temp.text += sensor_status
         
         # Combined CO2 and TVOC on one line
-        self.ids.sensor_combined.text = f"CO2: {sensors.get('co2', 0)} ppm, TVOC: {sensors.get('tvoc', 0)} ppb"
+        co2_value = sensors.get('co2', 0)
+        tvoc_value = sensors.get('tvoc', 0)
+        self.ids.sensor_combined.text = f"CO2: {co2_value} ppm, TVOC: {tvoc_value} ppb"
         
-        self.ids.air_quality.text = f"Air Quality: {sensors.get('air_quality', 'Unknown')}"
+        # Air quality display
+        air_quality = sensors.get('air_quality', 'Unknown')
+        self.ids.air_quality.text = f"Air Quality: {air_quality}"
         
         # Weekly forecast
         weekly_forecast = weather.get("weekly_forecast", [])
@@ -240,7 +260,8 @@ class WeatherScreen(MDScreen):
                 container.height = min_height
 
     def update_weather(self):
-        """Force weather data update"""
+        """Force weather data update - публичный метод для ручного обновления"""
+        logger.info("Manual refresh requested")
         self.update_weather_data()
         self.update_sensor_data()
         self.display_weather()

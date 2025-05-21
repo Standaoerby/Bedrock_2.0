@@ -2,6 +2,10 @@ from kivymd.uix.screen import MDScreen
 from kivy.clock import Clock
 from datetime import datetime
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty
+import logging
+
+# Добавляем логирование
+logger = logging.getLogger("HomeScreen")
 
 class HomeScreen(MDScreen):
     current_alarm_time = StringProperty("--:--")
@@ -17,18 +21,35 @@ class HomeScreen(MDScreen):
     _retry_count = NumericProperty(0)
 
     def on_pre_enter(self):
-        # Use longer delay for post_init on Pi
-        Clock.schedule_once(lambda dt: self.post_init(), 1.0)  # Give more time
+        logger.info("Entering HomeScreen - initializing")
+        self._clock_initialized = False  # Сбрасываем флаг инициализации часов
+        
+        # Обновляем дату и данные немедленно
+        self.update_date()
         self.update_alarm()
         self.update_weather()
         self.update_notification()
-        self.update_date()
+        
+        # Инициализируем часы сразу
+        Clock.schedule_once(self.initialize_clock, 0.1)
         
         # Schedule regular updates
         Clock.schedule_interval(lambda dt: self.update_alarm(), 300)
         Clock.schedule_interval(lambda dt: self.update_weather(), 900)
         Clock.schedule_interval(lambda dt: self.update_notification(), 30)
         Clock.schedule_interval(lambda dt: self.update_date(), 300)
+    
+    def initialize_clock(self, dt):
+        """Улучшенная инициализация часов"""
+        logger.info("Initializing clock")
+        
+        # Обновляем часы сразу
+        self.update_clock(None)
+        
+        # Запускаем таймер для обновления часов каждую секунду
+        self._clock_ev = Clock.schedule_interval(self.update_clock, 1)
+        self._clock_initialized = True
+        logger.info("Clock initialization complete")
     
     def update_date(self):
         """Update the current date and day of week"""
@@ -100,56 +121,38 @@ class HomeScreen(MDScreen):
     def get_app(self):
         from kivy.app import App
         return App.get_running_app()
-        
-    def post_init(self):
-        print("HomeScreen post_init called")
-        self._retry_count = 0
-        available_ids = list(self.ids.keys()) if hasattr(self, 'ids') and self.ids else []
-        print(f"IDS HomeScreen (post): {available_ids}")
-        
-        # Give more attempts to initialize the clock
-        self._try_init_clock()
-        
-    def _try_init_clock(self):
-        if self._clock_initialized:
-            return
-            
-        available_ids = list(self.ids.keys()) if hasattr(self, 'ids') and self.ids else []
-        has_widgets = hasattr(self, 'ids') and self.ids and 'clock_label' in self.ids
-        
-        if has_widgets:
-            print("Clock widgets found, initializing clock")
-            # Update the clock immediately
-            self.update_clock()
-            # Start the regular updates
-            self._clock_ev = Clock.schedule_interval(lambda dt: self.update_clock(), 1)
-            self._clock_initialized = True
-        else:
-            self._retry_count += 1
-            if self._retry_count <= 10:  # Try 10 times (over 5 seconds)
-                print(f"Clock widgets not found (attempt {self._retry_count}/10), retrying... Available: {available_ids}")
-                # Schedule another attempt
-                Clock.schedule_once(lambda dt: self._try_init_clock(), 0.5)
-            else:
-                print("Failed to initialize clock after 10 attempts")
-
+    
     def on_leave(self):
-        # Stop the timer when leaving the page
+        # Останавливаем таймер часов при выходе с экрана
+        logger.info("Leaving HomeScreen - cleaning up")
         if hasattr(self, '_clock_ev'):
             self._clock_ev.cancel()
+            logger.info("Clock timer canceled")
+            
+        # Сбрасываем флаг инициализации часов
+        self._clock_initialized = False
 
-    def update_clock(self):
+    def update_clock(self, dt):
+        """Обновление часов с проверкой наличия виджетов"""
         now = datetime.now().strftime("%H:%M")
+        
         try:
+            # Проверяем наличие элементов UI
             if hasattr(self, 'ids') and self.ids and 'clock_label' in self.ids:
+                # Обновляем текст часов
                 self.ids.clock_label.text = now
+                
+                # Обновляем тень часов, если она есть
                 if 'clock_shadow_label' in self.ids:
                     self.ids.clock_shadow_label.text = now
-                # Mark as initialized once successful
-                self._clock_initialized = True
-            elif not self._clock_initialized:
-                # Only print warning during initialization
+                    
+                # Журналируем обновление раз в минуту (чтобы не засорять логи)
+                if now.endswith(':00'):
+                    logger.debug(f"Clock updated: {now}")
+            else:
+                # Если виджеты не найдены, выводим предупреждение
+                logger.warning("Clock widgets not found in ids")
                 available_ids = list(self.ids.keys()) if hasattr(self, 'ids') and self.ids else []
-                print(f"Warning: Clock widgets not ready yet. Available ids: {available_ids}")
+                logger.warning(f"Available ids: {available_ids}")
         except Exception as e:
-            print(f"Error updating clock: {e}")
+            logger.error(f"Error updating clock: {e}")

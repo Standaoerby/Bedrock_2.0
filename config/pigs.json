@@ -11,17 +11,17 @@
     "water": {
       "label": "Water",
       "max_hours": 8,
-      "last_reset": "2025-05-21T03:13:16.227556"
+      "last_reset": "2025-05-21T11:16:37.740545"
     },
     "food": {
       "label": "Food",
       "max_hours": 6,
-      "last_reset": "2025-05-21T03:13:15.362969"
+      "last_reset": "2025-05-21T11:16:38.417900"
     },
     "clean": {
       "label": "Cleaning",
       "max_hours": 12,
-      "last_reset": "2025-05-21T03:13:17.111897"
+      "last_reset": "2025-05-21T11:16:38.959946"
     }
   }
 }

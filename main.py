@@ -3,10 +3,8 @@ from kivy.lang import Builder
 from kivymd.app import MDApp
 from kivymd.uix.pickers.timepicker import MDTimePickerInput
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
-from kivy.factory import Factory
-from kivy.clock import Clock
-from kivy.core.audio import SoundLoader
 from services.alarm_service import AlarmService
+from classes.alarm_clock import AlarmClock
 from services.weather_service import WeatherService
 from services.schedule_service import ScheduleService
 from services.pigs_service import PigsService
@@ -20,16 +18,21 @@ import re
 import threading
 import traceback
 
-# Import utility modules
-from utils.logging_config import configure_logging
-from utils.error_handler import ErrorHandler
-
-# Initialize logging and error handling first
-configure_logging()
-ErrorHandler.init()
+# Initialize pygame for sound support
+try:
+    import pygame
+    pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+    pygame_available = True
+except ImportError:
+    pygame_available = False
+    print("WARNING: Pygame not available, sound will be disabled")
+except Exception as e:
+    pygame_available = False
+    print(f"WARNING: Could not initialize pygame mixer: {e}")
 
 # Настройка и включение отладки
 import logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("BedrockApp")
 logger.setLevel(logging.DEBUG)
 
@@ -37,44 +40,7 @@ logger.setLevel(logging.DEBUG)
 import sys
 logger.info(f"Python version: {sys.version}")
 logger.info(f"Running on platform: {sys.platform}")
-
-def is_raspbian():
-    """Check if we're running on Raspberry Pi with Raspbian"""
-    try:
-        with open('/proc/device-tree/model', 'r') as f:
-            if 'raspberry pi' in f.read().lower():
-                return True
-    except:
-        pass
-    
-    try:
-        # Check for specific ARM processor used by Raspberry Pi
-        with open('/proc/cpuinfo', 'r') as f:
-            if any(line.startswith('Hardware') and 'BCM' in line for line in f):
-                return True
-    except:
-        pass
-        
-    return False
-
-# Add specific configuration for Raspberry Pi
-if is_raspbian():
-    logger.info("Running on Raspberry Pi, applying specific optimizations")
-    os.environ['GST_GL_API'] = 'gles2'  # Use GLES2 on Raspberry Pi
-    os.environ['GST_GL_PLATFORM'] = 'egl'  # Use EGL on Raspberry Pi
-
-# Initialize GStreamer for sound
-try:
-    # Инициализация GStreamer для звука
-    import gi
-    gi.require_version('Gst', '1.0')
-    from gi.repository import Gst  # type: ignore
-    Gst.init(None)
-    logger.info("GStreamer initialized successfully")
-except ImportError:
-    logger.warning("GStreamer Python bindings not found. Sound may not work correctly.")
-except Exception as e:
-    logger.warning(f"Failed to initialize GStreamer: {e}")
+logger.info(f"Pygame available: {pygame_available}")
 
 # Отладочная информация о модулях
 logger.info("Importing modules...")
@@ -84,52 +50,18 @@ with open('bedrock_startup_log.txt', 'w') as log_file:
     log_file.write(f"Starting app at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
     log_file.write(f"Python version: {sys.version}\n")
     log_file.write(f"Platform: {sys.platform}\n")
-
-# Force more synchronous widget building on Pi
-from kivy.config import Config
-Config.set('kivy', 'exit_on_escape', '0')
-Config.set('kivy', 'log_level', 'debug')  # More detailed logging
-Config.set('kivy', 'window_icon', '')  # Prevent icon issues
-Config.set('kivy', 'build_force_sync', '1')  # Force sync widget building
+    log_file.write(f"Pygame available: {pygame_available}\n")
 
 # Configure environment variables - these work with the launch script
 os.environ['KIVY_GL_BACKEND'] = 'sdl2'
 os.environ['KIVY_WINDOW'] = 'sdl2'
 os.environ['SDL_VIDEO_FULLSCREEN_HEAD'] = '0'
 
-# Raspberry Pi specific settings - updated for better compatibility
+# Raspberry Pi specific settings - use SDL2 rather than EGL for better compatibility
 if sys.platform.startswith('linux'):
-    os.environ['KIVY_WINDOW'] = 'sdl2'  # Use SDL2 window provider
-    os.environ['KIVY_GL_BACKEND'] = 'sdl2'  # Try SDL2 GL backend instead of gl
+    os.environ['KIVY_WINDOW'] = 'sdl2'
+    os.environ['KIVY_GL_BACKEND'] = 'sdl2'
     os.environ['KIVY_LOG_LEVEL'] = 'debug'
-    # Give window manager more time to initialize
-    os.environ['KIVY_WAIT_FOR_WINDOW'] = '1'
-    # Set GL pipeline to reduce memory usage
-    os.environ['KIVY_GL_PIPELINE'] = 'sdl2'
-    # Use GStreamer for audio
-    os.environ['KIVY_AUDIO'] = 'gstplayer'
-
-# Import Config BEFORE anything creates a Window 
-Config.set('graphics', 'width', '1024')
-Config.set('graphics', 'height', '600')
-Config.set('graphics', 'position', 'custom')
-Config.set('graphics', 'left', '0')
-Config.set('graphics', 'top', '0')
-Config.set('graphics', 'borderless', '0')
-Config.set('graphics', 'fullscreen', '0')
-Config.set('graphics', 'window_state', 'visible')
-Config.set('graphics', 'resizable', '0')    
-Config.set('graphics', 'show_cursor', '0')
-
-# Fix for 'No section: audio' error
-try:
-    # Make sure the audio section exists before setting values
-    Config.adddefaultsection('audio')
-    Config.set('audio', 'enable_mpg123', '0')  # Disable non-GStreamer backends
-    Config.set('audio', 'enable_ffpyplayer', '0')  # Disable non-GStreamer backends
-    Config.set('audio', 'gstplayer_rpi_fix', '1')  # Enable Raspberry Pi fix for GStreamer
-except Exception as e:
-    logger.warning(f"Could not configure audio settings: {e}")
 
 # Register font
 logger.info("Registering fonts...")
@@ -193,6 +125,19 @@ def safe_kv_load():
         logger.error(f"Error in safe_kv_load: {e}")
         # Try direct loading as fallback
         return Builder.load_file('main.kv')
+    
+# Import Config BEFORE anything creates a Window 
+from kivy.config import Config
+Config.set('graphics', 'width', '1024')
+Config.set('graphics', 'height', '600')
+Config.set('graphics', 'position', 'custom')
+Config.set('graphics', 'left', '0')
+Config.set('graphics', 'top', '0')
+Config.set('graphics', 'borderless', '0')
+Config.set('graphics', 'fullscreen', '0')
+Config.set('graphics', 'window_state', 'visible')
+Config.set('graphics', 'resizable', '0')    
+Config.set('graphics', 'show_cursor', '0')
 
 # Отловим возможную ошибку импорта kivymd перед классом BedrockApp
 try:
@@ -203,6 +148,79 @@ except Exception as e:
     with open('bedrock_startup_log.txt', 'a') as log_file:
         log_file.write(f"KivyMD import error: {e}\n")
         log_file.write(traceback.format_exc())
+
+# Define a PyGameSound class to wrap pygame.mixer.Sound
+class PyGameSound:
+    """A wrapper class for pygame.mixer.Sound to match SoundLoader API"""
+    def __init__(self, source):
+        self.source = source
+        self._sound = pygame.mixer.Sound(source) if pygame_available else None
+        self._channel = None
+        self._volume = 1.0
+        self._loop = 0  # 0 = no loop, -1 = infinite loop
+        self._state = 'stop'
+        self.length = 1.0  # Default length in seconds
+    
+    @property
+    def volume(self):
+        return self._volume
+    
+    @volume.setter
+    def volume(self, value):
+        self._volume = max(0.0, min(1.0, value))
+        if pygame_available and self._sound:
+            self._sound.set_volume(self._volume)
+    
+    @property
+    def state(self):
+        # Update state if playing on a channel
+        if pygame_available and self._channel and self._channel.get_busy():
+            self._state = 'playing'
+        else:
+            self._state = 'stop'
+        return self._state
+    
+    @property
+    def loop(self):
+        return self._loop
+    
+    @loop.setter
+    def loop(self, value):
+        self._loop = -1 if value else 0
+    
+    def play(self):
+        if pygame_available and self._sound:
+            try:
+                # Play on a new channel - pygame gives us back the Channel object
+                self._channel = self._sound.play(loops=self._loop)
+                if self._channel:
+                    self._channel.set_volume(self._volume)
+                self._state = 'playing'
+            except Exception as e:
+                logger.error(f"Error playing sound: {e}")
+    
+    def stop(self):
+        if pygame_available and self._channel:
+            try:
+                self._channel.stop()
+                self._state = 'stop'
+            except Exception as e:
+                logger.error(f"Error stopping sound: {e}")
+
+# A replacement for Kivy's SoundLoader that uses pygame
+class PygameSoundLoader:
+    """A replacement for Kivy's SoundLoader that uses pygame"""
+    @staticmethod
+    def load(filename):
+        try:
+            if not pygame_available:
+                logger.warning("Pygame not available, cannot load sound")
+                return None
+                
+            return PyGameSound(filename)
+        except Exception as e:
+            logger.error(f"Error loading sound {filename}: {e}")
+            return None
 
 class BedrockApp(MDApp):
     current_screen = StringProperty("home")
@@ -224,15 +242,6 @@ class BedrockApp(MDApp):
     })
 
     def __init__(self, **kwargs):
-        # Initialize services to None to avoid attribute errors
-        self.alarm_service = None
-        self.weather_service = None  
-        self.schedule_service = None
-        self.pigs_service = None
-        self.notification_service = None
-        self.sensor_service = None
-        self._init_sensor_thread = None
-        
         # Initialize theme_config BEFORE parent init to ensure it's available for KV loading
         self.theme_name = "minecraft"
         self.theme_mode = "light"
@@ -252,7 +261,7 @@ class BedrockApp(MDApp):
                 "overlay_images": {}
             }
         
-        # Initialize empty sounds dict and sound state
+        # Initialize sounds and other early properties
         self.sounds = {}
         self.last_sound_time = 0
         self.last_sound_name = ""
@@ -267,16 +276,13 @@ class BedrockApp(MDApp):
         self.ensure_directories()
         logger.info("Directories checked")
         
-        # Check GStreamer availability
-        self.check_gstreamer()
-        
         # Theme is already loaded in __init__
         logger.info("Theme already loaded")
         
         # Initialize sound system
         try:
             self.load_sounds()
-            logger.info("Sounds loaded successfully")
+            logger.info("Sounds loaded")
         except Exception as e:
             logger.error(f"Error loading sounds: {e}")
             with open('bedrock_startup_log.txt', 'a') as log_file:
@@ -292,6 +298,9 @@ class BedrockApp(MDApp):
             self.pigs_service = PigsService()
             self.notification_service = NotificationService()
             
+            # Инициализация AlarmClock
+            self.alarm_clock = AlarmClock(self)
+            
             # Инициализируем датчики в отдельном потоке
             self.sensor_service = SensorService()
             self._init_sensor_thread = threading.Thread(target=self._init_sensors_async, daemon=True)
@@ -302,65 +311,13 @@ class BedrockApp(MDApp):
             with open('bedrock_startup_log.txt', 'a') as log_file:
                 log_file.write(f"Service initialization error: {e}\n")
                 log_file.write(traceback.format_exc())
-        
-        # Load the UI
-        try:
-            from kivy.core.window import Window
-            logger.info("Setting window properties")
-            Window.size = (1024, 600)
-            Window.left = 0
-            Window.top = 0
-            logger.info(f"Window size set to: {Window.size}, position: ({Window.left}, {Window.top})")
-            
-            # Use the safe KV loader
-            logger.info("Loading UI from KV file...")
-            ui = safe_kv_load()
-            
-            # Add diagnostics to verify KV loading
-            try:
-                def _check_kv_loaded(dt):
-                    print("===== KV DIAGNOSTICS =====")
-                    try:
-                        if hasattr(self.root, 'ids') and hasattr(self.root.ids, 'screen_manager'):
-                            print(f"Main screen manager: {self.root.ids.screen_manager}")
-                            for screen_name in ["home", "alarm", "schedule", "weather", "pigs", "settings"]:
-                                try:
-                                    screen = self.root.ids.screen_manager.get_screen(screen_name)
-                                    print(f"{screen_name} screen: {screen}, ids: {list(screen.ids.keys()) if hasattr(screen, 'ids') else 'None'}")
-                                except Exception as e:
-                                    print(f"{screen_name} screen error: {e}")
-                        else:
-                            print(f"Root: {self.root}")
-                            if hasattr(self.root, 'ids'):
-                                print(f"Root IDs: {self.root.ids}")
-                        print("========================")
-                    except Exception as e:
-                        print(f"Diagnostics error: {e}")
-                        
-                # Run diagnostics after a delay
-                Clock.schedule_once(_check_kv_loaded, 1.0)
-            except Exception as e:
-                print(f"Failed to schedule diagnostics: {e}")
-                
-            return ui
-        except Exception as e:
-            logger.error(f"Error loading UI: {e}")
-            with open('bedrock_startup_log.txt', 'a') as log_file:
-                log_file.write(f"UI loading error: {e}\n")
-                log_file.write(traceback.format_exc())
-            # Return a basic error UI
-            from kivy.uix.label import Label
-            return Label(text=f"Error loading UI:\n{str(e)}", font_size='24sp')
 
     def _init_sensors_async(self):
         """Initialize sensors in a background thread to avoid blocking UI"""
         try:
             logger.info("Starting sensor service in background thread...")
-            if hasattr(self, 'sensor_service') and self.sensor_service:
-                self.sensor_service.start()
-                logger.info("Sensor service started successfully")
-            else:
-                logger.warning("Cannot start sensor service - not initialized")
+            self.sensor_service.start()
+            logger.info("Sensor service started successfully")
         except Exception as e:
             logger.error(f"Error starting sensor service: {e}")
             with open('bedrock_startup_log.txt', 'a') as log_file:
@@ -410,69 +367,142 @@ class BedrockApp(MDApp):
             "cache",
             "config",
             "pages",
-            "utils",  # Added for utility modules
-            "logs"    # Added for logs
+            "logs"  # Added for logging
         ]
         for dir_path in dirs:
             os.makedirs(dir_path, exist_ok=True)
     
-    def check_gstreamer(self):
-        """Check if GStreamer is available and working"""
-        try:
-            import gi
-            gi.require_version('Gst', '1.0')
-            from gi.repository import Gst  # type: ignore
-            
-            if not hasattr(gi.repository, 'Gst') or not Gst.is_initialized():
-                logger.warning("GStreamer is not initialized, sound may not work correctly")
-                return False
-                    
-            # Try to create a simple pipeline to verify GStreamer works
-            pipeline_str = 'audiotestsrc num-buffers=1 ! audioconvert ! autoaudiosink'
-            pipeline = Gst.parse_launch(pipeline_str)
-            if not pipeline:
-                logger.warning("Could not create GStreamer test pipeline")
-                return False
-                    
-            logger.info("GStreamer is available and working")
-            return True
-        except Exception as e:
-            logger.warning(f"GStreamer check failed: {e}")
-            return False
-    
     def load_sounds(self):
-        """Load sound effects using GStreamer"""
+        """Load sound effects using pygame with enhanced error handling"""
         sound_files = {
-            "click": ["assets/sounds/click.ogg"],
-            "success": ["assets/sounds/success.ogg"],
-            "error": ["assets/sounds/error.ogg"]
+            "click": ["assets/sounds/click.ogg", "assets/sounds/click.wav", "assets/sounds/click.mp3"],
+            "success": ["assets/sounds/success.ogg", "assets/sounds/success.wav", "assets/sounds/success.mp3"],
+            "error": ["assets/sounds/error.ogg", "assets/sounds/error.wav", "assets/sounds/error.mp3"]
         }
+        
+        # Ensure sound directories exist
+        os.makedirs("assets/sounds", exist_ok=True)
+        
+        # Log sound directory status
+        sound_dir = "assets/sounds"
+        if not os.path.exists(sound_dir):
+            logger.error(f"Sound directory {sound_dir} does not exist!")
+        else:
+            # List files in sound directory for debugging
+            try:
+                files = os.listdir(sound_dir)
+                logger.info(f"Files in {sound_dir}: {files}")
+            except Exception as e:
+                logger.error(f"Error listing sound directory: {e}")
+        
+        if not pygame_available:
+            logger.warning("Pygame not available, cannot load sounds")
+            return
         
         try:
             # Try to load each sound
             for sound_name, paths in sound_files.items():
                 # Try each path until one works
+                loaded = False
                 for path in paths:
+                    abs_path = os.path.abspath(path)
                     if os.path.exists(path):
                         try:
-                            sound = SoundLoader.load(path)
+                            logger.info(f"Attempting to load sound {sound_name} from {path}")
+                            sound = PygameSoundLoader.load(path)
                             if sound:
                                 self.sounds[sound_name] = sound
-                                logger.info(f"Loaded sound: {sound_name} from {path}")
+                                logger.info(f"Successfully loaded sound: {sound_name} from {path}")
+                                loaded = True
                                 break
                         except Exception as e:
                             logger.warning(f"Failed to load sound {sound_name} from {path}: {e}")
+                    else:
+                        logger.warning(f"Sound file not found: {path} (absolute: {abs_path})")
                 
-                if sound_name not in self.sounds:
+                if not loaded:
                     logger.warning(f"Could not load sound: {sound_name}, no valid paths found")
             
             logger.info(f"Loaded {len(self.sounds)} sounds")
+            
+            # Generate test sounds if no sound files were found
+            if not self.sounds and pygame_available:
+                logger.warning("No sounds were loaded. Generating test sounds.")
+                self._generate_test_sounds()
+                
         except Exception as e:
             logger.error(f"Error in load_sounds: {e}")
+            logger.error(traceback.format_exc())
+
+    def _generate_test_sounds(self):
+        """Generate test sounds when no sound files are found"""
+        if not pygame_available:
+            logger.warning("Pygame not available, cannot generate test sounds")
+            return
+            
+        try:
+            import numpy as np
+            
+            # Create directory for generated sounds
+            os.makedirs("assets/sounds", exist_ok=True)
+            
+            # Generate click sound (short beep)
+            sample_rate = 44100
+            duration = 0.1  # 100ms
+            freq = 1000  # 1000Hz beep
+            
+            # Generate sine wave for click
+            t = np.linspace(0, duration, int(sample_rate * duration), False)
+            click_data = np.sin(2 * np.pi * freq * t) * 32767
+            click_data = click_data.astype(np.int16)
+            
+            # Create file paths
+            click_path = "assets/sounds/click.wav"
+            success_path = "assets/sounds/success.wav"
+            error_path = "assets/sounds/error.wav"
+            
+            # Save test sounds using pygame
+            try:
+                sound = pygame.mixer.Sound(buffer=click_data)
+                pygame.mixer.Sound.save(sound, click_path)
+                self.sounds["click"] = PygameSoundLoader.load(click_path)
+                logger.info("Generated click sound")
+                
+                # Success sound - ascending beep
+                freq_success = np.linspace(800, 1600, int(sample_rate * 0.3))
+                t_success = np.linspace(0, 0.3, int(sample_rate * 0.3), False)
+                success_data = np.sin(2 * np.pi * freq_success * t_success / sample_rate) * 32767
+                success_data = success_data.astype(np.int16)
+                sound = pygame.mixer.Sound(buffer=success_data)
+                pygame.mixer.Sound.save(sound, success_path)
+                self.sounds["success"] = PygameSoundLoader.load(success_path)
+                logger.info("Generated success sound")
+                
+                # Error sound - descending beep
+                freq_error = np.linspace(1600, 400, int(sample_rate * 0.3))
+                t_error = np.linspace(0, 0.3, int(sample_rate * 0.3), False)
+                error_data = np.sin(2 * np.pi * freq_error * t_error / sample_rate) * 32767
+                error_data = error_data.astype(np.int16)
+                sound = pygame.mixer.Sound(buffer=error_data)
+                pygame.mixer.Sound.save(sound, error_path)
+                self.sounds["error"] = PygameSoundLoader.load(error_path)
+                logger.info("Generated error sound")
+            except Exception as e:
+                logger.error(f"Error generating sound files: {e}")
+                
+            logger.info("Generated test sounds successfully")
+        except ImportError:
+            logger.error("NumPy not available, cannot generate test sounds")
+        except Exception as e:
+            logger.error(f"Failed to generate test sounds: {e}")
             logger.error(traceback.format_exc())
     
     def play_sound(self, sound_name="click"):
         """Play a sound by name with simple debounce and recovery on errors"""
+        if not pygame_available:
+            logger.debug(f"Cannot play sound {sound_name}: pygame not available")
+            return
+            
         current_time = time.time()
         
         # Debounce - avoid playing sounds too rapidly
@@ -494,7 +524,7 @@ class BedrockApp(MDApp):
                     sound.play()
                 else:
                     # If original is playing, try to load and play a new instance
-                    new_sound = SoundLoader.load(source)
+                    new_sound = PygameSoundLoader.load(source)
                     if new_sound:
                         new_sound.play()
             except Exception as e:
@@ -504,7 +534,7 @@ class BedrockApp(MDApp):
                 try:
                     # Reload sound
                     if os.path.exists(self.sounds[sound_name].source):
-                        self.sounds[sound_name] = SoundLoader.load(self.sounds[sound_name].source)
+                        self.sounds[sound_name] = PygameSoundLoader.load(self.sounds[sound_name].source)
                         logger.info(f"Reloaded sound: {sound_name}")
                 except:
                     pass
@@ -521,11 +551,8 @@ class BedrockApp(MDApp):
     def on_start(self):
         logger.info("App starting...")
         try:
-            if hasattr(self, 'root') and hasattr(self.root, 'ids') and hasattr(self.root.ids, 'screen_manager'):
-                self.root.ids.screen_manager.bind(current=self._update_current_screen)
-                logger.info("Screen manager bound successfully")
-            else:
-                logger.warning("Could not bind screen manager - not found")
+            self.root.ids.screen_manager.bind(current=self._update_current_screen)
+            logger.info("Screen manager bound successfully")
         except Exception as e:
             logger.error(f"Error in on_start: {e}")
             with open('bedrock_startup_log.txt', 'a') as log_file:
@@ -535,7 +562,7 @@ class BedrockApp(MDApp):
     def on_stop(self):
         """Clean up when the application exits"""
         logger.info("App stopping...")
-        if hasattr(self, 'sensor_service') and self.sensor_service:
+        if hasattr(self, 'sensor_service'):
             try:
                 self.sensor_service.stop()
                 logger.info("Sensor service stopped")
@@ -551,6 +578,14 @@ class BedrockApp(MDApp):
                 except:
                     pass
             self.sounds.clear()
+            
+            # Quit pygame mixer
+            if pygame_available:
+                try:
+                    pygame.mixer.quit()
+                    logger.info("Pygame mixer stopped")
+                except:
+                    pass
         except Exception as e:
             logger.error(f"Error cleaning up sounds: {e}")
 

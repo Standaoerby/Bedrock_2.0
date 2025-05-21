@@ -3,13 +3,70 @@ from kivy.properties import StringProperty, ObjectProperty, NumericProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
-from kivy.core.audio import SoundLoader
 from kivy.clock import Clock
 import os
 import traceback
 import logging
+import pygame
 
 logger = logging.getLogger("AlarmPopup")
+
+# Define a pygame Sound wrapper to match the SoundLoader API
+class PyGameSound:
+    """A wrapper class for pygame.mixer.Sound to match SoundLoader API"""
+    def __init__(self, source):
+        self.source = source
+        self._sound = pygame.mixer.Sound(source)
+        self._channel = None
+        self._volume = 1.0
+        self._loop = 0  # 0 = no loop, -1 = infinite loop
+        self._state = 'stop'
+    
+    @property
+    def volume(self):
+        return self._volume
+    
+    @volume.setter
+    def volume(self, value):
+        self._volume = max(0.0, min(1.0, value))
+        if self._sound:
+            self._sound.set_volume(self._volume)
+    
+    @property
+    def state(self):
+        # Update state if playing on a channel
+        if self._channel and self._channel.get_busy():
+            self._state = 'playing'
+        else:
+            self._state = 'stop'
+        return self._state
+    
+    @property
+    def loop(self):
+        return self._loop
+    
+    @loop.setter
+    def loop(self, value):
+        self._loop = -1 if value else 0
+    
+    def play(self):
+        if self._sound:
+            try:
+                # Play on a new channel - pygame gives us back the Channel object
+                self._channel = self._sound.play(loops=self._loop)
+                if self._channel:
+                    self._channel.set_volume(self._volume)
+                self._state = 'playing'
+            except Exception as e:
+                logger.error(f"Error playing sound: {e}")
+    
+    def stop(self):
+        if self._channel:
+            try:
+                self._channel.stop()
+                self._state = 'stop'
+            except Exception as e:
+                logger.error(f"Error stopping sound: {e}")
 
 class AlarmPopup(ModalView):
     """Popup that shows when alarm goes off"""
@@ -78,7 +135,8 @@ class AlarmPopup(ModalView):
                 logger.warning(f"Ringtone file not found: {path}")
                 return
                 
-            self.sound = SoundLoader.load(path)
+            # Load sound using pygame
+            self.sound = PyGameSound(path)
             if not self.sound:
                 logger.warning(f"Failed to load ringtone: {path}")
                 return

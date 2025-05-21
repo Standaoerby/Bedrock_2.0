@@ -1,6 +1,5 @@
 from kivymd.uix.screen import MDScreen
 from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
-from kivy.core.audio import SoundLoader
 import os
 import re
 import logging
@@ -20,6 +19,8 @@ class AlarmScreen(MDScreen):
     current_sound = ObjectProperty(None, allownone=True)  # Store the sound object
 
     def on_pre_enter(self):
+        # Убедимся, что нет активного звука с предыдущего использования экрана
+        self.stop_ringtone()
         self.load_ringtones()
         self.load_alarm_config()
         self.update_ui()
@@ -28,9 +29,9 @@ class AlarmScreen(MDScreen):
         folder = "media/ringtones"
         if os.path.exists(folder):
             try:
-                # Поддерживаем форматы, которые поддерживает GStreamer
+                # Поддерживаем форматы, которые поддерживает pygame
                 self.ringtone_list = [f for f in os.listdir(folder) 
-                    if f.lower().endswith((".mp3", ".ogg", ".wav", ".flac", ".aac"))]
+                    if f.lower().endswith((".mp3", ".ogg", ".wav"))]
                 if self.selected_ringtone not in self.ringtone_list and self.ringtone_list:
                     self.selected_ringtone = self.ringtone_list[0]
                 logger.info(f"Loaded {len(self.ringtone_list)} ringtones from {folder}")
@@ -200,7 +201,7 @@ class AlarmScreen(MDScreen):
             self.ids.play_button.text = 'Play'
 
     def play_ringtone(self):
-        """Play the selected ringtone"""
+        """Play the selected ringtone using pygame directly"""
         # Stop any currently playing sound
         self.stop_ringtone()
         
@@ -210,17 +211,29 @@ class AlarmScreen(MDScreen):
             
             if not os.path.exists(path):
                 logger.warning(f"Ringtone file not found: {path}")
+                # Если файл не найден, просто играем стандартный звук
+                app = self.get_app()
+                app.play_sound("click")
                 return
                 
-            self.current_sound = SoundLoader.load(path)
-            if not self.current_sound:
-                logger.warning(f"Failed to load ringtone: {path}")
-                return
+            # Используем pygame напрямую - это самый надежный способ
+            try:
+                import pygame
+                # Проверяем, инициализирован ли mixer
+                if not pygame.mixer.get_init():
+                    logger.info("Pygame mixer not initialized, initializing...")
+                    pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
                 
-            # Play at normal volume (no fade)
-            self.current_sound.volume = 1.0
-            self.current_sound.play()
-            logger.info(f"Playing ringtone preview: {path}")
+                # Создаем и воспроизводим звук
+                self.current_sound = pygame.mixer.Sound(path)
+                self.current_sound.play()
+                logger.info(f"Playing ringtone preview with pygame: {path}")
+            except Exception as pygame_error:
+                logger.error(f"Pygame error: {pygame_error}")
+                # Если произошла ошибка с pygame, используем метод приложения
+                app = self.get_app()
+                app.play_sound("success")  # Воспроизводим стандартный звук
+
         except Exception as e:
             logger.error(f"Error playing ringtone: {e}")
             logger.error(traceback.format_exc())
@@ -233,8 +246,21 @@ class AlarmScreen(MDScreen):
         """Stop the currently playing ringtone"""
         try:
             if self.current_sound:
-                if self.current_sound.state != 'stop':
-                    self.current_sound.stop()
+                try:
+                    # Стандартный способ остановки звука pygame
+                    if hasattr(self.current_sound, 'stop'):
+                        self.current_sound.stop()
+                except Exception as e:
+                    logger.warning(f"Error with standard stop: {e}")
+                    # Запасной вариант - остановить все каналы
+                    try:
+                        import pygame
+                        if pygame.mixer.get_init():
+                            pygame.mixer.stop()
+                    except Exception as e2:
+                        logger.error(f"Failed to stop mixer: {e2}")
+                
+                # Очищаем ссылку на звук
                 self.current_sound = None
                 logger.info("Stopped ringtone preview")
         except Exception as e:
@@ -258,10 +284,13 @@ class AlarmScreen(MDScreen):
         
     def on_leave(self):
         """Clean up when leaving the screen"""
+        # Остановить любой воспроизводимый звук при уходе с экрана
         self.stop_ringtone()
+        # Сбросить состояние кнопки воспроизведения
         if hasattr(self.ids, 'play_button'):
             self.ids.play_button.state = 'normal'
             self.ids.play_button.text = 'Play'
+        logger.info("Leaving alarm screen, resources cleaned up")
             
     def test_alarm(self):
         """Test the alarm by triggering it immediately (for debugging)"""
