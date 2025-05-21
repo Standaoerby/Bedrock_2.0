@@ -10,6 +10,7 @@ from services.schedule_service import ScheduleService
 from services.pigs_service import PigsService
 from services.notifications_service import NotificationService
 from services.sensor_service import SensorService
+from services.sound_service import SoundService
 from classes.marquee import MarqueeLabel
 import os
 import time
@@ -162,15 +163,17 @@ def safe_kv_load():
         # Try direct loading as fallback
         return Builder.load_file('main.kv')
     
-# Import Config BEFORE anything creates a Window 
+# Импорт Config ПЕРЕД всем, что создает окно
 from kivy.config import Config
+
+# Настройка разрешения и отображения
 Config.set('graphics', 'width', '1024')
 Config.set('graphics', 'height', '600')
 Config.set('graphics', 'position', 'custom')
 Config.set('graphics', 'left', '0')
 Config.set('graphics', 'top', '0')
-Config.set('graphics', 'borderless', '0')
-Config.set('graphics', 'fullscreen', '0')
+Config.set('graphics', 'borderless', '1')  # Включаем безрамочный режим
+Config.set('graphics', 'fullscreen', '1')  # Включаем полноэкранный режим
 Config.set('graphics', 'window_state', 'visible')
 Config.set('graphics', 'resizable', '0')    
 Config.set('graphics', 'show_cursor', '0')
@@ -315,10 +318,8 @@ class BedrockApp(MDApp):
                 "overlay_images": {}
             }
         
-        # Initialize sounds and other early properties
-        self.sounds = {}
-        self.last_sound_time = 0
-        self.last_sound_name = ""
+        # Initialize sound service
+        self.sound_service = SoundService()
         
         # Call parent init after our initializations
         super(BedrockApp, self).__init__(**kwargs)
@@ -333,15 +334,8 @@ class BedrockApp(MDApp):
         # Theme is already loaded in __init__
         logger.info("Theme already loaded")
         
-        # Initialize sound system
-        try:
-            self.load_sounds()
-            logger.info("Sounds loaded")
-        except Exception as e:
-            logger.error(f"Error loading sounds: {e}")
-            with open('bedrock_startup_log.txt', 'a') as log_file:
-                log_file.write(f"Sound loading error: {e}\n")
-                log_file.write(traceback.format_exc())
+        # Sound system already initialized in __init__
+        logger.info("Sound system already initialized")
         
         # Initialize services in отдельных потоках чтобы не блокировать UI
         logger.info("Initializing services...")
@@ -490,117 +484,11 @@ class BedrockApp(MDApp):
         except Exception as e:
             logger.error(f"Error in load_sounds: {e}")
             logger.error(traceback.format_exc())
-
-    def _generate_test_sounds(self):
-        """Generate test sounds when no sound files are found"""
-        if not pygame_available:
-            logger.warning("Pygame not available, cannot generate test sounds")
-            return
-            
-        try:
-            import numpy as np
-            
-            # Create directory for generated sounds
-            os.makedirs("assets/sounds", exist_ok=True)
-            
-            # Generate click sound (short beep)
-            sample_rate = 44100
-            duration = 0.1  # 100ms
-            freq = 1000  # 1000Hz beep
-            
-            # Generate sine wave for click
-            t = np.linspace(0, duration, int(sample_rate * duration), False)
-            click_data = np.sin(2 * np.pi * freq * t) * 32767
-            click_data = click_data.astype(np.int16)
-            
-            # Create file paths
-            click_path = "assets/sounds/click.wav"
-            success_path = "assets/sounds/success.wav"
-            error_path = "assets/sounds/error.wav"
-            
-            # Save test sounds using pygame
-            try:
-                sound = pygame.mixer.Sound(buffer=click_data)
-                pygame.mixer.Sound.save(sound, click_path)
-                self.sounds["click"] = PygameSoundLoader.load(click_path)
-                logger.info("Generated click sound")
-                
-                # Success sound - ascending beep
-                freq_success = np.linspace(800, 1600, int(sample_rate * 0.3))
-                t_success = np.linspace(0, 0.3, int(sample_rate * 0.3), False)
-                success_data = np.sin(2 * np.pi * freq_success * t_success / sample_rate) * 32767
-                success_data = success_data.astype(np.int16)
-                sound = pygame.mixer.Sound(buffer=success_data)
-                pygame.mixer.Sound.save(sound, success_path)
-                self.sounds["success"] = PygameSoundLoader.load(success_path)
-                logger.info("Generated success sound")
-                
-                # Error sound - descending beep
-                freq_error = np.linspace(1600, 400, int(sample_rate * 0.3))
-                t_error = np.linspace(0, 0.3, int(sample_rate * 0.3), False)
-                error_data = np.sin(2 * np.pi * freq_error * t_error / sample_rate) * 32767
-                error_data = error_data.astype(np.int16)
-                sound = pygame.mixer.Sound(buffer=error_data)
-                pygame.mixer.Sound.save(sound, error_path)
-                self.sounds["error"] = PygameSoundLoader.load(error_path)
-                logger.info("Generated error sound")
-            except Exception as e:
-                logger.error(f"Error generating sound files: {e}")
-                
-            logger.info("Generated test sounds successfully")
-        except ImportError:
-            logger.error("NumPy not available, cannot generate test sounds")
-        except Exception as e:
-            logger.error(f"Failed to generate test sounds: {e}")
-            logger.error(traceback.format_exc())
     
+   
     def play_sound(self, sound_name="click"):
-        """Play a sound by name with simple debounce and recovery on errors"""
-        if not pygame_available:
-            logger.debug(f"Cannot play sound {sound_name}: pygame not available")
-            return
-            
-        current_time = time.time()
-        
-        # Debounce - avoid playing sounds too rapidly
-        if sound_name == self.last_sound_name and (current_time - self.last_sound_time) < 0.05:
-            return
-            
-        self.last_sound_time = current_time
-        self.last_sound_name = sound_name
-        
-        # Play the sound if it's loaded
-        if sound_name in self.sounds:
-            try:
-                # Check if the sound is actually loaded
-                sound = self.sounds[sound_name]
-                if not sound or not sound._sound:
-                    logger.warning(f"Sound {sound_name} is not properly loaded")
-                    return
-                    
-                # For small UI sounds, try to just play the original if available
-                if sound.state == 'stop':
-                    sound.play()
-                else:
-                    # If original is playing, try to load and play a new instance
-                    new_sound = PygameSoundLoader.load(sound.source)
-                    if new_sound and new_sound._sound:
-                        new_sound.play()
-                    else:
-                        logger.warning(f"Failed to create new instance of sound {sound_name}")
-            except Exception as e:
-                logger.warning(f"Error playing sound {sound_name}: {e}")
-                
-                # Try to reload the sound if error occurred
-                try:
-                    # Reload sound
-                    if os.path.exists(self.sounds[sound_name].source):
-                        self.sounds[sound_name] = PygameSoundLoader.load(self.sounds[sound_name].source)
-                        logger.info(f"Reloaded sound: {sound_name}")
-                except Exception as reload_error:
-                    logger.error(f"Error reloading sound {sound_name}: {reload_error}")
-        else:
-            logger.debug(f"Sound not found: {sound_name}")
+        """Переадресация к sound_service"""
+        self.sound_service.play_sound(sound_name)
 
     def get_overlay_image(self, page):
         return self.theme_config["overlay_images"].get(page, "")
@@ -630,25 +518,13 @@ class BedrockApp(MDApp):
             except Exception as e:
                 logger.error(f"Error stopping sensor service: {e}")
                 
-        # Cleanup sounds
-        try:
-            for sound_name, sound in self.sounds.items():
-                try:
-                    if sound and sound.state != 'stop':
-                        sound.stop()
-                except:
-                    pass
-            self.sounds.clear()
-            
-            # Quit pygame mixer
-            if pygame_available:
-                try:
-                    pygame.mixer.quit()
-                    logger.info("Pygame mixer stopped")
-                except:
-                    pass
-        except Exception as e:
-            logger.error(f"Error cleaning up sounds: {e}")
+        # Cleanup sound service
+        if hasattr(self, 'sound_service'):
+            try:
+                self.sound_service.cleanup()
+                logger.info("Sound service cleaned up")
+            except Exception as e:
+                logger.error(f"Error cleaning up sound service: {e}")
 
     def _update_current_screen(self, instance, value):
         self.current_screen = value

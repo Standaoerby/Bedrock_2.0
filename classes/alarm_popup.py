@@ -141,6 +141,8 @@ class AlarmPopup(ModalView):
         self.fade_time = 30.0  # Seconds to fade from 0 to max volume
         self._fade_event = None
         
+    # Модифицированная часть AlarmPopup в classes/alarm_popup.py
+
     def start_alarm(self):
         """Start playing the alarm sound"""
         folder = "media/ringtones"
@@ -152,8 +154,17 @@ class AlarmPopup(ModalView):
                 logger.warning(f"Ringtone file not found: {path}")
                 return
                 
-            # Load sound using pygame
-            self.sound = PyGameSound(path)
+            # Get app instance
+            from kivy.app import App
+            app = App.get_running_app()
+            
+            # Use sound service to load the ringtone
+            if hasattr(app, 'sound_service'):
+                self.sound = app.sound_service.load_sound_file(path)
+            else:
+                # Fallback to direct pygame if no sound service
+                self.sound = PyGameSound(path)
+                
             if not self.sound:
                 logger.warning(f"Failed to load ringtone: {path}")
                 return

@@ -1,13 +1,13 @@
 {
   "current": {
-    "time": "2025-05-21T21:15",
-    "temperature": 13.9,
-    "condition": "Mostly Clear",
+    "time": "2025-05-21T22:30",
+    "temperature": 12.2,
+    "condition": "Clear Sky",
     "precipitation_probability": 0
   },
   "forecast_5h": {
-    "temperature": 13.0,
-    "condition": "Clear Sky",
+    "temperature": 11.7,
+    "condition": "Mostly Clear",
     "precipitation_probability": 0
   },
   "weekly_forecast": [
@@ -25,7 +25,7 @@
       "temp_max": 14.1,
       "temp_min": 8.2,
       "condition": "Slight Rain",
-      "precipitation_probability": 5
+      "precipitation_probability": 8
     },
     {
       "day": "Fri",
@@ -33,7 +33,7 @@
       "temp_max": 20.6,
       "temp_min": 8.2,
       "condition": "Cloudy",
-      "precipitation_probability": 11
+      "precipitation_probability": 3
     },
     {
       "day": "Sat",
@@ -49,7 +49,7 @@
       "temp_max": 19.7,
       "temp_min": 12.7,
       "condition": "Slight Rain",
-      "precipitation_probability": 43
+      "precipitation_probability": 63
     },
     {
       "day": "Mon",
@@ -57,7 +57,7 @@
       "temp_max": 17.1,
       "temp_min": 10.8,
       "condition": "Cloudy",
-      "precipitation_probability": 23
+      "precipitation_probability": 53
     },
     {
       "day": "Tue",
@@ -68,5 +68,5 @@
       "precipitation_probability": 37
     }
   ],
-  "updated": "2025-05-21T21:24:44.758842"
+  "updated": "2025-05-21T22:37:48.532937"
 }
