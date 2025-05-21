@@ -1,7 +1,12 @@
 from kivymd.uix.screen import MDScreen
 from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
+from kivy.core.audio import SoundLoader
 import os
 import re
+import logging
+import traceback
+
+logger = logging.getLogger("AlarmScreen")
 
 DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
@@ -22,42 +27,66 @@ class AlarmScreen(MDScreen):
     def load_ringtones(self):
         folder = "media/ringtones"
         if os.path.exists(folder):
-            self.ringtone_list = [f for f in os.listdir(folder) if f.lower().endswith(".mp3")]
-            if self.selected_ringtone not in self.ringtone_list and self.ringtone_list:
-                self.selected_ringtone = self.ringtone_list[0]
+            try:
+                self.ringtone_list = [f for f in os.listdir(folder) if f.lower().endswith((".mp3", ".ogg", ".wav"))]
+                if self.selected_ringtone not in self.ringtone_list and self.ringtone_list:
+                    self.selected_ringtone = self.ringtone_list[0]
+                logger.info(f"Loaded {len(self.ringtone_list)} ringtones from {folder}")
+            except Exception as e:
+                logger.error(f"Error loading ringtones: {e}")
+                # Fallback to defaults
+                self.ringtone_list = ["morning.mp3", "gentle.mp3", "loud.mp3", "robot.mp3"]
         else:
-            # If folder doesn't exist, use test values
+            # If folder doesn't exist, create it and use test values
+            try:
+                os.makedirs(folder, exist_ok=True)
+                logger.info(f"Created ringtones folder: {folder}")
+            except Exception as e:
+                logger.error(f"Failed to create ringtones folder: {e}")
+            
             self.ringtone_list = ["morning.mp3", "gentle.mp3", "loud.mp3", "robot.mp3"]
 
     def load_alarm_config(self):
         app = self.get_app()
         alarm = app.alarm_service.get_alarm()
         if alarm:
-            self.alarm_time = alarm.get("time", "07:30")
-            self.alarm_active = alarm.get("enabled", True)
-            repeat = alarm.get("repeat", ["Mon", "Tue", "Wed", "Thu", "Fri"])
-            if repeat and all(isinstance(x, int) for x in repeat):
-                days_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-                self.alarm_repeat = [days_map[i-1] for i in repeat if 1 <= i <= 7]
-            else:
-                self.alarm_repeat = repeat
-            self.selected_ringtone = alarm.get("ringtone", self.selected_ringtone)
-            self.alarm_fadein = alarm.get("fadein", False)
+            try:
+                self.alarm_time = alarm.get("time", "07:30")
+                self.alarm_active = alarm.get("enabled", True)
+                repeat = alarm.get("repeat", ["Mon", "Tue", "Wed", "Thu", "Fri"])
+                
+                # Handle numeric day format (compatibility with older configs)
+                if repeat and all(isinstance(x, int) for x in repeat):
+                    days_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                    self.alarm_repeat = [days_map[i-1] for i in repeat if 1 <= i <= 7]
+                else:
+                    self.alarm_repeat = repeat
+                    
+                self.selected_ringtone = alarm.get("ringtone", self.selected_ringtone)
+                self.alarm_fadein = alarm.get("fadein", False)
+                logger.info(f"Loaded alarm config: {alarm}")
+            except Exception as e:
+                logger.error(f"Error processing alarm config: {e}")
 
     def save_alarm(self):
         app = self.get_app()
-        # Play success sound when saving
-        app.play_sound("success")
-        
-        alarm = {
-            "time": self.alarm_time,
-            "enabled": self.alarm_active,
-            "repeat": self.alarm_repeat,
-            "ringtone": self.selected_ringtone,
-            "fadein": self.alarm_fadein,
-        }
-        app.alarm_service.set_alarm(alarm)
-        self.update_ui()
+        try:
+            # Play success sound when saving
+            app.play_sound("success")
+            
+            alarm = {
+                "time": self.alarm_time,
+                "enabled": self.alarm_active,
+                "repeat": self.alarm_repeat,
+                "ringtone": self.selected_ringtone,
+                "fadein": self.alarm_fadein,
+            }
+            app.alarm_service.set_alarm(alarm)
+            logger.info(f"Saved alarm config: {alarm}")
+            self.update_ui()
+        except Exception as e:
+            logger.error(f"Error saving alarm: {e}")
+            app.play_sound("error")
 
     def update_ui(self):
         # Update hours and minutes
@@ -170,22 +199,44 @@ class AlarmScreen(MDScreen):
 
     def play_ringtone(self):
         """Play the selected ringtone"""
-        from kivy.core.audio import SoundLoader
-        
         # Stop any currently playing sound
         self.stop_ringtone()
         
-        folder = "media/ringtones"
-        path = os.path.join(folder, self.selected_ringtone)
-        if os.path.exists(path):
+        try:
+            folder = "media/ringtones"
+            path = os.path.join(folder, self.selected_ringtone)
+            
+            if not os.path.exists(path):
+                logger.warning(f"Ringtone file not found: {path}")
+                return
+                
             self.current_sound = SoundLoader.load(path)
-            if self.current_sound:
-                self.current_sound.play()
+            if not self.current_sound:
+                logger.warning(f"Failed to load ringtone: {path}")
+                return
+                
+            # Play at normal volume (no fade)
+            self.current_sound.volume = 1.0
+            self.current_sound.play()
+            logger.info(f"Playing ringtone preview: {path}")
+        except Exception as e:
+            logger.error(f"Error playing ringtone: {e}")
+            logger.error(traceback.format_exc())
+            # Reset button state on error
+            if hasattr(self.ids, 'play_button'):
+                self.ids.play_button.state = 'normal'
+                self.ids.play_button.text = 'Play'
 
     def stop_ringtone(self):
         """Stop the currently playing ringtone"""
-        if self.current_sound:
-            self.current_sound.stop()
+        try:
+            if self.current_sound:
+                if self.current_sound.state != 'stop':
+                    self.current_sound.stop()
+                self.current_sound = None
+                logger.info("Stopped ringtone preview")
+        except Exception as e:
+            logger.error(f"Error stopping ringtone: {e}")
             self.current_sound = None
 
     def on_fadein_toggled(self, active):
@@ -216,12 +267,17 @@ class AlarmScreen(MDScreen):
         app.play_sound("click")  # Play UI sound
         
         if hasattr(app, 'alarm_clock'):
-            # Get current alarm settings
-            alarm = app.alarm_service.get_alarm()
-            ringtone = alarm.get("ringtone", "morning.mp3")
-            fadein = alarm.get("fadein", False)
-            
-            # Trigger the alarm with current settings
-            app.alarm_clock.trigger_alarm(ringtone, fadein)
-            return True
+            try:
+                # Get current alarm settings
+                alarm = app.alarm_service.get_alarm()
+                ringtone = alarm.get("ringtone", "morning.mp3")
+                fadein = alarm.get("fadein", False)
+                
+                # Trigger the alarm with current settings
+                app.alarm_clock.trigger_alarm(ringtone, fadein)
+                logger.info(f"Testing alarm with ringtone: {ringtone}, fadein: {fadein}")
+                return True
+            except Exception as e:
+                logger.error(f"Error testing alarm: {e}")
+        
         return False

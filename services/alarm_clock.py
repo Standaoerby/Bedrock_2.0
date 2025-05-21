@@ -1,6 +1,12 @@
 from datetime import datetime
 from kivy.clock import Clock
 from classes.alarm_popup import AlarmPopup
+import logging
+import os
+import traceback
+
+# Configure logging
+logger = logging.getLogger("AlarmClock")
 
 class AlarmClock:
     """Manages alarm checking and triggering"""
@@ -23,14 +29,23 @@ class AlarmClock:
         """Start the alarm clock service"""
         # Check every 30 seconds by default
         self.alarm_event = Clock.schedule_interval(self.check_alarm, self.check_interval)
-        print("Alarm clock service started")
+        logger.info(f"Alarm clock service started (check interval: {self.check_interval}s)")
         
     def stop(self):
         """Stop the alarm clock service"""
         if self.alarm_event:
             self.alarm_event.cancel()
             self.alarm_event = None
-        print("Alarm clock service stopped")
+        
+        # Close any active popups
+        if self.active_popup:
+            try:
+                self.active_popup.stop_alarm()
+                self.active_popup = None
+            except:
+                pass
+                
+        logger.info("Alarm clock service stopped")
         
     def check_alarm(self, dt):
         """Check if it's time to trigger the alarm"""
@@ -40,7 +55,7 @@ class AlarmClock:
         # If date changed, log it (helpful for debugging)
         if self.last_check_date != current_date:
             self.last_check_date = current_date
-            print(f"Date changed to {current_date}")
+            logger.info(f"Date changed to {current_date}")
             
         # Get current day of week (Mon, Tue, etc.)
         current_day = current_time.strftime("%a")
@@ -64,29 +79,60 @@ class AlarmClock:
             current_time_str == alarm_time and 
             current_day in alarm_repeat):
             
-            print(f"Alarm triggered! Time: {current_time_str}, Day: {current_day}")
+            # Check if ringtone file exists
+            ringtone_path = os.path.join("media/ringtones", alarm_ringtone)
+            if not os.path.exists(ringtone_path):
+                logger.warning(f"Alarm triggered but ringtone file not found: {ringtone_path}")
+                # Fall back to system sound
+                self.app.play_sound("error")
+                return
+            
+            logger.info(f"Alarm triggered! Time: {current_time_str}, Day: {current_day}, Ringtone: {alarm_ringtone}")
             self.trigger_alarm(alarm_ringtone, alarm_fadein)
             
     def trigger_alarm(self, ringtone, fadein):
         """Show alarm popup and play sound"""
-        # If there's already an active popup, don't create another one
-        if self.active_popup:
-            return
+        try:
+            # If there's already an active popup, don't create another one
+            if self.active_popup:
+                logger.warning("Alarm already active, ignoring new trigger")
+                return
+                
+            # Create and show alarm popup
+            self.active_popup = AlarmPopup(ringtone=ringtone, fadein=fadein)
+            self.active_popup.bind(on_dismiss=self._on_popup_dismiss)
+            self.active_popup.open()
             
-        # Create and show alarm popup
-        self.active_popup = AlarmPopup(ringtone=ringtone, fadein=fadein)
-        self.active_popup.bind(on_dismiss=self._on_popup_dismiss)
-        self.active_popup.open()
-        
-        # Start playing the alarm sound
-        self.active_popup.start_alarm()
+            # Start playing the alarm sound
+            self.active_popup.start_alarm()
+            
+            logger.info(f"Alarm triggered with ringtone: {ringtone}, fadein: {fadein}")
+        except Exception as e:
+            logger.error(f"Error triggering alarm: {e}")
+            logger.error(traceback.format_exc())
         
     def _on_popup_dismiss(self, instance):
         """Called when popup is dismissed"""
-        self.active_popup = None
+        try:
+            # Ensure sound is stopped
+            if self.active_popup:
+                self.active_popup.stop_alarm()
+            
+            # Clear reference
+            self.active_popup = None
+            logger.info("Alarm popup dismissed")
+        except Exception as e:
+            logger.error(f"Error in popup dismiss: {e}")
         
     def stop_alarm(self):
         """Stop the currently active alarm if any"""
         if self.active_popup:
-            self.active_popup.stop_alarm()
-            self.active_popup = None
+            try:
+                self.active_popup.stop_alarm()
+                self.active_popup = None
+                logger.info("Alarm stopped manually")
+                return True
+            except Exception as e:
+                logger.error(f"Error stopping alarm: {e}")
+                return False
+        return False

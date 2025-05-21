@@ -5,6 +5,7 @@ from kivymd.uix.pickers.timepicker import MDTimePickerInput
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
 from kivy.factory import Factory
 from kivy.clock import Clock
+from kivy.core.audio import SoundLoader
 from services.alarm_service import AlarmService
 from services.weather_service import WeatherService
 from services.schedule_service import ScheduleService
@@ -12,7 +13,6 @@ from services.pigs_service import PigsService
 from services.notifications_service import NotificationService
 from services.sensor_service import SensorService
 from classes.marquee import MarqueeLabel
-from kivy.core.audio import SoundLoader
 import os
 import time
 import json
@@ -25,100 +25,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("BedrockApp")
 logger.setLevel(logging.DEBUG)
-
-# Safe Sound Manager to prevent hanging on Raspberry Pi
-class SafeSoundManager:
-    """Sound manager that won't hang on Raspberry Pi"""
-    
-    def __init__(self):
-        self.sounds = {}
-        self.available = False
-        # Try to load SoundLoader in a safe way
-        try:
-            # Import in a try block to avoid crashes
-            from kivy.core.audio import SoundLoader
-            self.SoundLoader = SoundLoader
-            self.available = True
-        except Exception as e:
-            logger.warning(f"SafeSoundManager: Could not import SoundLoader: {e}")
-            self.SoundLoader = None
-            self.available = False
-    
-    def load_sound(self, name, paths):
-        """Try to load a sound but with a timeout to prevent hanging"""
-        if not self.available:
-            return False
-            
-        # Check if sound already loaded
-        if name in self.sounds:
-            return True
-            
-        # Find first existing path
-        sound_path = None
-        for path in paths:
-            if os.path.exists(path):
-                sound_path = path
-                break
-                
-        if not sound_path:
-            logger.warning(f"SafeSoundManager: No valid path found for sound '{name}'")
-            return False
-        
-        # Create a result container for the thread
-        result = {"sound": None, "complete": False}
-        
-        # Thread function for loading with timeout
-        def load_thread():
-            try:
-                result["sound"] = self.SoundLoader.load(sound_path)
-                result["complete"] = True
-            except Exception as e:
-                logger.error(f"SafeSoundManager: Error loading sound '{name}': {e}")
-                result["complete"] = True
-        
-        # Start loading in thread
-        thread = threading.Thread(target=load_thread)
-        thread.daemon = True
-        thread.start()
-        
-        # Wait with timeout
-        timeout = 0.5  # 500ms should be enough to load or detect a hang
-        start_time = time.time()
-        while not result["complete"] and (time.time() - start_time) < timeout:
-            time.sleep(0.05)
-        
-        # Check result
-        if not result["complete"]:
-            logger.warning(f"SafeSoundManager: Loading sound '{name}' timed out")
-            return False
-            
-        if result["sound"]:
-            self.sounds[name] = result["sound"]
-            logger.info(f"SafeSoundManager: Sound '{name}' loaded successfully")
-            return True
-        else:
-            logger.warning(f"SafeSoundManager: Failed to load sound '{name}'")
-            return False
-    
-    def load_sounds(self, sound_files):
-        """Load multiple sounds from a dictionary of {name: [paths]}"""
-        for name, paths in sound_files.items():
-            self.load_sound(name, paths)
-    
-    def play(self, name):
-        """Play a sound by name if available"""
-        if name not in self.sounds:
-            return
-            
-        sound = self.sounds.get(name)
-        if sound:
-            try:
-                # Make a copy to avoid issues with playing the same sound multiple times
-                sound_copy = self.SoundLoader.load(sound.source) if self.SoundLoader else None
-                if sound_copy:
-                    sound_copy.play()
-            except Exception as e:
-                logger.error(f"SafeSoundManager: Error playing sound '{name}': {e}")
 
 # Вывод версии Python для отладки
 import sys
@@ -137,7 +43,6 @@ with open('bedrock_startup_log.txt', 'w') as log_file:
 # Force more synchronous widget building on Pi
 from kivy.config import Config
 Config.set('kivy', 'exit_on_escape', '0')
-Config.set('graphics', 'maxfps', '30')  # Lower maximum framerate
 Config.set('kivy', 'log_level', 'debug')  # More detailed logging
 Config.set('kivy', 'window_icon', '')  # Prevent icon issues
 Config.set('kivy', 'build_force_sync', '1')  # Force sync widget building
@@ -156,8 +61,10 @@ if sys.platform.startswith('linux'):
     os.environ['KIVY_WAIT_FOR_WINDOW'] = '1'
     # Set GL pipeline to reduce memory usage
     os.environ['KIVY_GL_PIPELINE'] = 'sdl2'
-    # Disable audio for better stability on Pi
-    os.environ['KIVY_AUDIO'] = 'null'
+    # Use GStreamer for audio
+    os.environ['KIVY_AUDIO'] = 'gstplayer'
+    # Set GStreamer library path if not using standard location
+    # os.environ['GST_PLUGIN_PATH'] = '/usr/lib/arm-linux-gnueabihf/gstreamer-1.0'
 
 # Register font
 logger.info("Registering fonts...")
@@ -233,6 +140,10 @@ Config.set('graphics', 'fullscreen', '0')
 Config.set('graphics', 'window_state', 'visible')
 Config.set('graphics', 'resizable', '0')    
 Config.set('graphics', 'show_cursor', '0')
+# Configure audio - GStreamer options
+Config.set('audio', 'enable_mpg123', '0')  # Disable non-GStreamer backends
+Config.set('audio', 'enable_ffpyplayer', '0')  # Disable non-GStreamer backends
+Config.set('audio', 'gstplayer_rpi_fix', '1')  # Enable Raspberry Pi fix for GStreamer
 
 # Отловим возможную ошибку импорта kivymd перед классом BedrockApp
 try:
@@ -283,10 +194,7 @@ class BedrockApp(MDApp):
                 "overlay_images": {}
             }
         
-        # Initialize sound manager
-        self.sound_manager = SafeSoundManager()
-        
-        # Initialize empty sounds for compatibility
+        # Initialize empty sounds dict and sound state
         self.sounds = {}
         self.last_sound_time = 0
         self.last_sound_name = ""
@@ -304,10 +212,10 @@ class BedrockApp(MDApp):
         # Theme is already loaded in __init__
         logger.info("Theme already loaded")
         
-        # Initialize sound system safely
+        # Initialize sound system
         try:
             self.load_sounds()
-            logger.info("Sounds loaded safely")
+            logger.info("Sounds loaded successfully")
         except Exception as e:
             logger.error(f"Error loading sounds: {e}")
             with open('bedrock_startup_log.txt', 'a') as log_file:
@@ -443,29 +351,66 @@ class BedrockApp(MDApp):
             os.makedirs(dir_path, exist_ok=True)
     
     def load_sounds(self):
-        """Load sound effects with safe manager"""
+        """Load sound effects using GStreamer"""
         sound_files = {
             "click": ["assets/sounds/click.ogg"],
             "success": ["assets/sounds/success.ogg"],
             "error": ["assets/sounds/error.ogg"]
         }
         
-        # Use our safe sound manager
-        self.sound_manager.load_sounds(sound_files)
-        logger.info("Safe sound manager initialized")
+        try:
+            # Try to load each sound
+            for sound_name, paths in sound_files.items():
+                # Try each path until one works
+                for path in paths:
+                    if os.path.exists(path):
+                        try:
+                            sound = SoundLoader.load(path)
+                            if sound:
+                                self.sounds[sound_name] = sound
+                                logger.info(f"Loaded sound: {sound_name} from {path}")
+                                break
+                        except Exception as e:
+                            logger.warning(f"Failed to load sound {sound_name} from {path}: {e}")
+                
+                if sound_name not in self.sounds:
+                    logger.warning(f"Could not load sound: {sound_name}, no valid paths found")
+            
+            logger.info(f"Loaded {len(self.sounds)} sounds")
+        except Exception as e:
+            logger.error(f"Error in load_sounds: {e}")
+            logger.error(traceback.format_exc())
     
     def play_sound(self, sound_name="click"):
         """Play a sound by name with simple debounce"""
         current_time = time.time()
         
-        if (current_time - self.last_sound_time) < 0.05:
+        # Debounce - avoid playing sounds too rapidly
+        if sound_name == self.last_sound_name and (current_time - self.last_sound_time) < 0.05:
             return
             
         self.last_sound_time = current_time
         self.last_sound_name = sound_name
         
-        # Use our safe sound manager
-        self.sound_manager.play(sound_name)
+        # Play the sound if it's loaded
+        if sound_name in self.sounds:
+            try:
+                # Create a new instance for each play to support concurrent sounds
+                sound = self.sounds[sound_name]
+                source = sound.source
+                
+                # For small UI sounds, try to just play the original if available
+                if sound.state == 'stop':
+                    sound.play()
+                else:
+                    # If original is playing, try to load and play a new instance
+                    new_sound = SoundLoader.load(source)
+                    if new_sound:
+                        new_sound.play()
+            except Exception as e:
+                logger.warning(f"Error playing sound {sound_name}: {e}")
+        else:
+            logger.debug(f"Sound not found: {sound_name}")
 
     def get_overlay_image(self, page):
         return self.theme_config["overlay_images"].get(page, "")
@@ -494,6 +439,15 @@ class BedrockApp(MDApp):
                 logger.info("Sensor service stopped")
             except Exception as e:
                 logger.error(f"Error stopping sensor service: {e}")
+                
+        # Cleanup sounds
+        for sound_name, sound in self.sounds.items():
+            try:
+                if sound.state != 'stop':
+                    sound.stop()
+            except:
+                pass
+        self.sounds.clear()
 
     def _update_current_screen(self, instance, value):
         self.current_screen = value

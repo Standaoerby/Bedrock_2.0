@@ -1,5 +1,9 @@
 import json
 import os
+import logging
+import traceback
+
+logger = logging.getLogger("AlarmService")
 
 class AlarmService:
     def __init__(self, path="config/alarm.json"):
@@ -18,10 +22,13 @@ class AlarmService:
                         self.alarm = data[0]
                     else:
                         self.create_default_alarm()
+                
+                logger.info(f"Alarm loaded: {self.alarm}")
             else:
                 self.create_default_alarm()
         except Exception as e:
-            print(f"Ошибка при загрузке настроек будильника: {e}")
+            logger.error(f"Error loading alarm settings: {e}")
+            logger.error(traceback.format_exc())
             self.create_default_alarm()
 
     def create_default_alarm(self):
@@ -32,20 +39,22 @@ class AlarmService:
             "ringtone": "morning.mp3",
             "fadein": False
         }
-        # Убедимся, что директория config существует
+        # Make sure the config directory exists
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         self.save()
+        logger.info("Created default alarm settings")
 
     def save(self):
         try:
-            # Убедимся, что директория config существует
+            # Make sure the config directory exists
             os.makedirs(os.path.dirname(self.path), exist_ok=True)
             
             with open(self.path, "w", encoding="utf-8") as f:
                 json.dump(self.alarm, f, ensure_ascii=False, indent=2)
-            print(f"Будильник успешно сохранен: {self.alarm}")
+            logger.info(f"Alarm saved: {self.alarm}")
         except Exception as e:
-            print(f"Ошибка при сохранении настроек будильника: {e}")
+            logger.error(f"Error saving alarm settings: {e}")
+            logger.error(traceback.format_exc())
 
     def get_alarm(self):
         return self.alarm
@@ -53,3 +62,23 @@ class AlarmService:
     def set_alarm(self, alarm):
         self.alarm = alarm
         self.save()
+        
+    def verify_ringtones(self):
+        """Verify that ringtone files exist and are valid"""
+        if not self.alarm:
+            return False
+            
+        ringtone = self.alarm.get("ringtone")
+        if not ringtone:
+            return False
+            
+        # Check if ringtone file exists
+        folder = "media/ringtones"
+        path = os.path.join(folder, ringtone)
+        
+        if not os.path.exists(path):
+            logger.warning(f"Ringtone file not found: {path}")
+            return False
+            
+        # File exists
+        return True
