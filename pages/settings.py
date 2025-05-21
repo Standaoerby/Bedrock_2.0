@@ -142,7 +142,31 @@ class SettingsScreen(MDScreen):
             if app:
                 app.theme_name = self.current_theme
                 app.theme_mode = "dark" if self.dark_mode_enabled else "light"
-                app.theme_config = app.load_theme_config(app.theme_name, app.theme_mode)
+                
+                # Import the load_theme_config function from main
+                try:
+                    from main import load_theme_config
+                    app.theme_config = load_theme_config(app.theme_name, app.theme_mode)
+                except ImportError:
+                    # Fallback if import fails - recreate the theme config directly
+                    print("Не удалось импортировать load_theme_config, используем резервный способ")
+                    path = f"themes/{app.theme_name}/{app.theme_mode}/theme.json"
+                    try:
+                        with open(path, "r", encoding="utf-8") as f:
+                            app.theme_config = json.load(f)
+                    except Exception as e:
+                        print(f"Ошибка при загрузке темы: {e}")
+                        # Fallback to default theme config
+                        app.theme_config = {
+                            "background_image": "",
+                            "menu_button_normal": "",
+                            "font_name": "Minecraftia",
+                            "font_color": [1, 1, 1, 1],
+                            "menu_selected_color": [1, 1, 1, 1],
+                            "menu_unselected_color": [0.7, 0.7, 0.7, 1],
+                            "overlay_images": {}
+                        }
+                
                 print(f"Настройки приложения обновлены: {app.theme_name}, {app.theme_mode}")
                 
                 # Перезагрузка экранов для применения новой темы

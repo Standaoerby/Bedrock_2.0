@@ -20,9 +20,16 @@ import re
 import threading
 import traceback
 
+# Import utility modules
+from utils.logging_config import configure_logging
+from utils.error_handler import ErrorHandler
+
+# Initialize logging and error handling first
+configure_logging()
+ErrorHandler.init()
+
 # Настройка и включение отладки
 import logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("BedrockApp")
 logger.setLevel(logging.DEBUG)
 
@@ -30,6 +37,44 @@ logger.setLevel(logging.DEBUG)
 import sys
 logger.info(f"Python version: {sys.version}")
 logger.info(f"Running on platform: {sys.platform}")
+
+def is_raspbian():
+    """Check if we're running on Raspberry Pi with Raspbian"""
+    try:
+        with open('/proc/device-tree/model', 'r') as f:
+            if 'raspberry pi' in f.read().lower():
+                return True
+    except:
+        pass
+    
+    try:
+        # Check for specific ARM processor used by Raspberry Pi
+        with open('/proc/cpuinfo', 'r') as f:
+            if any(line.startswith('Hardware') and 'BCM' in line for line in f):
+                return True
+    except:
+        pass
+        
+    return False
+
+# Add specific configuration for Raspberry Pi
+if is_raspbian():
+    logger.info("Running on Raspberry Pi, applying specific optimizations")
+    os.environ['GST_GL_API'] = 'gles2'  # Use GLES2 on Raspberry Pi
+    os.environ['GST_GL_PLATFORM'] = 'egl'  # Use EGL on Raspberry Pi
+
+# Initialize GStreamer for sound
+try:
+    # Инициализация GStreamer для звука
+    import gi
+    gi.require_version('Gst', '1.0')
+    from gi.repository import Gst  # type: ignore
+    Gst.init(None)
+    logger.info("GStreamer initialized successfully")
+except ImportError:
+    logger.warning("GStreamer Python bindings not found. Sound may not work correctly.")
+except Exception as e:
+    logger.warning(f"Failed to initialize GStreamer: {e}")
 
 # Отладочная информация о модулях
 logger.info("Importing modules...")
@@ -63,8 +108,28 @@ if sys.platform.startswith('linux'):
     os.environ['KIVY_GL_PIPELINE'] = 'sdl2'
     # Use GStreamer for audio
     os.environ['KIVY_AUDIO'] = 'gstplayer'
-    # Set GStreamer library path if not using standard location
-    # os.environ['GST_PLUGIN_PATH'] = '/usr/lib/arm-linux-gnueabihf/gstreamer-1.0'
+
+# Import Config BEFORE anything creates a Window 
+Config.set('graphics', 'width', '1024')
+Config.set('graphics', 'height', '600')
+Config.set('graphics', 'position', 'custom')
+Config.set('graphics', 'left', '0')
+Config.set('graphics', 'top', '0')
+Config.set('graphics', 'borderless', '0')
+Config.set('graphics', 'fullscreen', '0')
+Config.set('graphics', 'window_state', 'visible')
+Config.set('graphics', 'resizable', '0')    
+Config.set('graphics', 'show_cursor', '0')
+
+# Fix for 'No section: audio' error
+try:
+    # Make sure the audio section exists before setting values
+    Config.adddefaultsection('audio')
+    Config.set('audio', 'enable_mpg123', '0')  # Disable non-GStreamer backends
+    Config.set('audio', 'enable_ffpyplayer', '0')  # Disable non-GStreamer backends
+    Config.set('audio', 'gstplayer_rpi_fix', '1')  # Enable Raspberry Pi fix for GStreamer
+except Exception as e:
+    logger.warning(f"Could not configure audio settings: {e}")
 
 # Register font
 logger.info("Registering fonts...")
@@ -128,22 +193,6 @@ def safe_kv_load():
         logger.error(f"Error in safe_kv_load: {e}")
         # Try direct loading as fallback
         return Builder.load_file('main.kv')
-    
-# Import Config BEFORE anything creates a Window 
-Config.set('graphics', 'width', '1024')
-Config.set('graphics', 'height', '600')
-Config.set('graphics', 'position', 'custom')
-Config.set('graphics', 'left', '0')
-Config.set('graphics', 'top', '0')
-Config.set('graphics', 'borderless', '0')
-Config.set('graphics', 'fullscreen', '0')
-Config.set('graphics', 'window_state', 'visible')
-Config.set('graphics', 'resizable', '0')    
-Config.set('graphics', 'show_cursor', '0')
-# Configure audio - GStreamer options
-Config.set('audio', 'enable_mpg123', '0')  # Disable non-GStreamer backends
-Config.set('audio', 'enable_ffpyplayer', '0')  # Disable non-GStreamer backends
-Config.set('audio', 'gstplayer_rpi_fix', '1')  # Enable Raspberry Pi fix for GStreamer
 
 # Отловим возможную ошибку импорта kivymd перед классом BedrockApp
 try:
@@ -175,6 +224,15 @@ class BedrockApp(MDApp):
     })
 
     def __init__(self, **kwargs):
+        # Initialize services to None to avoid attribute errors
+        self.alarm_service = None
+        self.weather_service = None  
+        self.schedule_service = None
+        self.pigs_service = None
+        self.notification_service = None
+        self.sensor_service = None
+        self._init_sensor_thread = None
+        
         # Initialize theme_config BEFORE parent init to ensure it's available for KV loading
         self.theme_name = "minecraft"
         self.theme_mode = "light"
@@ -208,6 +266,9 @@ class BedrockApp(MDApp):
         # Ensure directories exist
         self.ensure_directories()
         logger.info("Directories checked")
+        
+        # Check GStreamer availability
+        self.check_gstreamer()
         
         # Theme is already loaded in __init__
         logger.info("Theme already loaded")
@@ -295,8 +356,11 @@ class BedrockApp(MDApp):
         """Initialize sensors in a background thread to avoid blocking UI"""
         try:
             logger.info("Starting sensor service in background thread...")
-            self.sensor_service.start()
-            logger.info("Sensor service started successfully")
+            if hasattr(self, 'sensor_service') and self.sensor_service:
+                self.sensor_service.start()
+                logger.info("Sensor service started successfully")
+            else:
+                logger.warning("Cannot start sensor service - not initialized")
         except Exception as e:
             logger.error(f"Error starting sensor service: {e}")
             with open('bedrock_startup_log.txt', 'a') as log_file:
@@ -345,10 +409,36 @@ class BedrockApp(MDApp):
             "media/ringtones",
             "cache",
             "config",
-            "pages"
+            "pages",
+            "utils",  # Added for utility modules
+            "logs"    # Added for logs
         ]
         for dir_path in dirs:
             os.makedirs(dir_path, exist_ok=True)
+    
+    def check_gstreamer(self):
+        """Check if GStreamer is available and working"""
+        try:
+            import gi
+            gi.require_version('Gst', '1.0')
+            from gi.repository import Gst  # type: ignore
+            
+            if not hasattr(gi.repository, 'Gst') or not Gst.is_initialized():
+                logger.warning("GStreamer is not initialized, sound may not work correctly")
+                return False
+                    
+            # Try to create a simple pipeline to verify GStreamer works
+            pipeline_str = 'audiotestsrc num-buffers=1 ! audioconvert ! autoaudiosink'
+            pipeline = Gst.parse_launch(pipeline_str)
+            if not pipeline:
+                logger.warning("Could not create GStreamer test pipeline")
+                return False
+                    
+            logger.info("GStreamer is available and working")
+            return True
+        except Exception as e:
+            logger.warning(f"GStreamer check failed: {e}")
+            return False
     
     def load_sounds(self):
         """Load sound effects using GStreamer"""
@@ -382,7 +472,7 @@ class BedrockApp(MDApp):
             logger.error(traceback.format_exc())
     
     def play_sound(self, sound_name="click"):
-        """Play a sound by name with simple debounce"""
+        """Play a sound by name with simple debounce and recovery on errors"""
         current_time = time.time()
         
         # Debounce - avoid playing sounds too rapidly
@@ -409,6 +499,15 @@ class BedrockApp(MDApp):
                         new_sound.play()
             except Exception as e:
                 logger.warning(f"Error playing sound {sound_name}: {e}")
+                
+                # Try to reload the sound if error occurred
+                try:
+                    # Reload sound
+                    if os.path.exists(self.sounds[sound_name].source):
+                        self.sounds[sound_name] = SoundLoader.load(self.sounds[sound_name].source)
+                        logger.info(f"Reloaded sound: {sound_name}")
+                except:
+                    pass
         else:
             logger.debug(f"Sound not found: {sound_name}")
 
@@ -422,8 +521,11 @@ class BedrockApp(MDApp):
     def on_start(self):
         logger.info("App starting...")
         try:
-            self.root.ids.screen_manager.bind(current=self._update_current_screen)
-            logger.info("Screen manager bound successfully")
+            if hasattr(self, 'root') and hasattr(self.root, 'ids') and hasattr(self.root.ids, 'screen_manager'):
+                self.root.ids.screen_manager.bind(current=self._update_current_screen)
+                logger.info("Screen manager bound successfully")
+            else:
+                logger.warning("Could not bind screen manager - not found")
         except Exception as e:
             logger.error(f"Error in on_start: {e}")
             with open('bedrock_startup_log.txt', 'a') as log_file:
@@ -433,7 +535,7 @@ class BedrockApp(MDApp):
     def on_stop(self):
         """Clean up when the application exits"""
         logger.info("App stopping...")
-        if hasattr(self, 'sensor_service'):
+        if hasattr(self, 'sensor_service') and self.sensor_service:
             try:
                 self.sensor_service.stop()
                 logger.info("Sensor service stopped")
@@ -441,13 +543,16 @@ class BedrockApp(MDApp):
                 logger.error(f"Error stopping sensor service: {e}")
                 
         # Cleanup sounds
-        for sound_name, sound in self.sounds.items():
-            try:
-                if sound.state != 'stop':
-                    sound.stop()
-            except:
-                pass
-        self.sounds.clear()
+        try:
+            for sound_name, sound in self.sounds.items():
+                try:
+                    if sound and sound.state != 'stop':
+                        sound.stop()
+                except:
+                    pass
+            self.sounds.clear()
+        except Exception as e:
+            logger.error(f"Error cleaning up sounds: {e}")
 
     def _update_current_screen(self, instance, value):
         self.current_screen = value

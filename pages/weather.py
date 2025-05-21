@@ -102,53 +102,66 @@ class WeatherScreen(MDScreen):
     def update_weather_data(self):
         """Update only weather data from service"""
         app = self.get_app()
-        app.weather_service.fetch_weather()
+        if hasattr(app, 'weather_service') and app.weather_service:
+            app.weather_service.fetch_weather()
     
     def update_sensor_data(self):
         """Update only sensor readings"""
         app = self.get_app()
-        app.sensor_service.update_readings()
-        
-        # Update sensor availability status
-        self.sensor_available = app.sensor_service.sensor_available
-        
-        # Check if using mock sensors by looking at the service implementation
-        try:
-            # Try to access use_real_sensors or similar flag in the service
-            if hasattr(app.sensor_service, 'use_real_sensors'):
-                self.using_mock_sensors = not app.sensor_service.use_real_sensors
-            elif hasattr(app.sensor_service, 'using_mock_sensors'):
-                self.using_mock_sensors = app.sensor_service.using_mock_sensors
-            else:
-                # Look at the local variable from sensor_service.py
-                import sys
-                self.using_mock_sensors = not any(mod.startswith('adafruit_') for mod in sys.modules)
-        except Exception as e:
-            print(f"Error checking sensor type: {e}")
-            self.using_mock_sensors = True  # Default to assuming mock
+        if hasattr(app, 'sensor_service') and app.sensor_service:
+            app.sensor_service.update_readings()
+            
+            # Update sensor availability status
+            self.sensor_available = app.sensor_service.sensor_available
+            
+            # Check if using mock sensors by looking at the service implementation
+            try:
+                # Try to access use_real_sensors or similar flag in the service
+                if hasattr(app.sensor_service, 'use_real_sensors'):
+                    self.using_mock_sensors = not app.sensor_service.use_real_sensors
+                elif hasattr(app.sensor_service, 'using_mock_sensors'):
+                    self.using_mock_sensors = app.sensor_service.using_mock_sensors
+                else:
+                    # Look at the local variable from sensor_service.py
+                    import sys
+                    self.using_mock_sensors = not any(mod.startswith('adafruit_') for mod in sys.modules)
+            except Exception as e:
+                print(f"Error checking sensor type: {e}")
+                self.using_mock_sensors = True  # Default to assuming mock
+        else:
+            # No sensor service available
+            self.sensor_available = False
+            self.using_mock_sensors = True
         
     def display_weather(self):
         app = self.get_app()
-        weather = app.weather_service.get_weather()
-        sensors = app.sensor_service.get_readings()  # Get sensor readings
+        weather = app.weather_service.get_weather() if hasattr(app, 'weather_service') and app.weather_service else {}
         
-        # Update sensor availability status before displaying readings
-        self.sensor_available = app.sensor_service.sensor_available
-        
-        # Check for real vs mock sensors
-        try:
-            # Try to access use_real_sensors or similar flag in the service
-            if hasattr(app.sensor_service, 'use_real_sensors'):
-                self.using_mock_sensors = not app.sensor_service.use_real_sensors
-            elif hasattr(app.sensor_service, 'using_mock_sensors'):
-                self.using_mock_sensors = app.sensor_service.using_mock_sensors
-            else:
-                # Use the module existence check
-                import sys
-                self.using_mock_sensors = not any(mod.startswith('adafruit_') for mod in sys.modules)
-        except Exception as e:
-            print(f"Error checking sensor type: {e}")
-            self.using_mock_sensors = True  # Default to assuming mock
+        # Get sensor readings with proper null checks
+        sensors = {}
+        if hasattr(app, 'sensor_service') and app.sensor_service:
+            sensors = app.sensor_service.get_readings()
+            # Update sensor availability status
+            self.sensor_available = app.sensor_service.sensor_available
+            
+            # Check for real vs mock sensors
+            try:
+                # Try to access use_real_sensors or similar flag in the service
+                if hasattr(app.sensor_service, 'use_real_sensors'):
+                    self.using_mock_sensors = not app.sensor_service.use_real_sensors
+                elif hasattr(app.sensor_service, 'using_mock_sensors'):
+                    self.using_mock_sensors = app.sensor_service.using_mock_sensors
+                else:
+                    # Use the module existence check
+                    import sys
+                    self.using_mock_sensors = not any(mod.startswith('adafruit_') for mod in sys.modules)
+            except Exception as e:
+                print(f"Error checking sensor type: {e}")
+                self.using_mock_sensors = True  # Default to assuming mock
+        else:
+            # No sensor service available
+            self.sensor_available = False
+            self.using_mock_sensors = True
         
         # Current weather
         cur = weather.get("current", {})

@@ -28,7 +28,9 @@ class AlarmScreen(MDScreen):
         folder = "media/ringtones"
         if os.path.exists(folder):
             try:
-                self.ringtone_list = [f for f in os.listdir(folder) if f.lower().endswith((".mp3", ".ogg", ".wav"))]
+                # Поддерживаем форматы, которые поддерживает GStreamer
+                self.ringtone_list = [f for f in os.listdir(folder) 
+                    if f.lower().endswith((".mp3", ".ogg", ".wav", ".flac", ".aac"))]
                 if self.selected_ringtone not in self.ringtone_list and self.ringtone_list:
                     self.selected_ringtone = self.ringtone_list[0]
                 logger.info(f"Loaded {len(self.ringtone_list)} ringtones from {folder}")
