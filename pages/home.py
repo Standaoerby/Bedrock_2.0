@@ -1,7 +1,7 @@
 from kivymd.uix.screen import MDScreen
 from kivy.clock import Clock
 from datetime import datetime
-from kivy.properties import StringProperty, BooleanProperty
+from kivy.properties import StringProperty, BooleanProperty, NumericProperty
 
 class HomeScreen(MDScreen):
     current_alarm_time = StringProperty("--:--")
@@ -12,9 +12,13 @@ class HomeScreen(MDScreen):
     notification_text = StringProperty("")
     current_date = StringProperty("")
     current_day = StringProperty("")
+    # Add property to track clock initialization
+    _clock_initialized = BooleanProperty(False)
+    _retry_count = NumericProperty(0)
 
     def on_pre_enter(self):
-        Clock.schedule_once(lambda dt: self.post_init(), 0)
+        # Use longer delay for post_init on Pi
+        Clock.schedule_once(lambda dt: self.post_init(), 1.0)  # Give more time
         self.update_alarm()
         self.update_weather()
         self.update_notification()
@@ -98,9 +102,36 @@ class HomeScreen(MDScreen):
         return App.get_running_app()
         
     def post_init(self):
-        print("IDS HomeScreen (post):", self.ids)
-        self.update_clock()
-        self._clock_ev = Clock.schedule_interval(lambda dt: self.update_clock(), 1)
+        print("HomeScreen post_init called")
+        self._retry_count = 0
+        available_ids = list(self.ids.keys()) if hasattr(self, 'ids') and self.ids else []
+        print(f"IDS HomeScreen (post): {available_ids}")
+        
+        # Give more attempts to initialize the clock
+        self._try_init_clock()
+        
+    def _try_init_clock(self):
+        if self._clock_initialized:
+            return
+            
+        available_ids = list(self.ids.keys()) if hasattr(self, 'ids') and self.ids else []
+        has_widgets = hasattr(self, 'ids') and self.ids and 'clock_label' in self.ids
+        
+        if has_widgets:
+            print("Clock widgets found, initializing clock")
+            # Update the clock immediately
+            self.update_clock()
+            # Start the regular updates
+            self._clock_ev = Clock.schedule_interval(lambda dt: self.update_clock(), 1)
+            self._clock_initialized = True
+        else:
+            self._retry_count += 1
+            if self._retry_count <= 10:  # Try 10 times (over 5 seconds)
+                print(f"Clock widgets not found (attempt {self._retry_count}/10), retrying... Available: {available_ids}")
+                # Schedule another attempt
+                Clock.schedule_once(lambda dt: self._try_init_clock(), 0.5)
+            else:
+                print("Failed to initialize clock after 10 attempts")
 
     def on_leave(self):
         # Stop the timer when leaving the page
@@ -109,4 +140,16 @@ class HomeScreen(MDScreen):
 
     def update_clock(self):
         now = datetime.now().strftime("%H:%M")
-        self.ids.clock_label.text = now
+        try:
+            if hasattr(self, 'ids') and self.ids and 'clock_label' in self.ids:
+                self.ids.clock_label.text = now
+                if 'clock_shadow_label' in self.ids:
+                    self.ids.clock_shadow_label.text = now
+                # Mark as initialized once successful
+                self._clock_initialized = True
+            elif not self._clock_initialized:
+                # Only print warning during initialization
+                available_ids = list(self.ids.keys()) if hasattr(self, 'ids') and self.ids else []
+                print(f"Warning: Clock widgets not ready yet. Available ids: {available_ids}")
+        except Exception as e:
+            print(f"Error updating clock: {e}")

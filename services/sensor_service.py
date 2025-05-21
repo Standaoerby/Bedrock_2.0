@@ -123,11 +123,13 @@ def setup_i2c():
                         print(f"Method 3 failed: {e}")
                 
                 # Method 4: For specific hardware try Raspberry Pi-specific approach
+                # Method 4: For specific hardware try a more generic approach
                 try:
-                    from adafruit_blinka.microcontroller.bcm2xxx.pi5 import Pin
-                    print("Trying I2C Method 4: BCM2xxx specific approach for Pi 5")
-                    i2c = busio.I2C(Pin(3), Pin(2))  # Pi pins
-                    print("I2C initialized using Raspberry Pi 5 specific method")
+                    print("Trying I2C Method 4: Generic Pin approach")
+                    # Use more generic approach
+                    from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
+                    i2c = I2C(1)  # /dev/i2c-1
+                    print("I2C initialized using generic Linux I2C device - Method 4")
                     return i2c, True
                 except Exception as e:
                     print(f"Method 4 failed: {e}")
