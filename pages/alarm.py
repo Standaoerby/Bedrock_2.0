@@ -211,28 +211,63 @@ class AlarmScreen(MDScreen):
             
             if not os.path.exists(path):
                 logger.warning(f"Ringtone file not found: {path}")
-                # Если файл не найден, просто играем стандартный звук
+                # If file not found, play standard sound
                 app = self.get_app()
                 app.play_sound("click")
                 return
                 
-            # Используем pygame напрямую - это самый надежный способ
+            # Use pygame with better error handling
             try:
                 import pygame
-                # Проверяем, инициализирован ли mixer
+                # Check if mixer is initialized
                 if not pygame.mixer.get_init():
                     logger.info("Pygame mixer not initialized, initializing...")
-                    pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+                    
+                    # Try different configurations for initialization
+                    init_configs = [
+                        # Try default config first
+                        {"frequency": 44100, "size": -16, "channels": 2, "buffer": 512},
+                        # Fallback configs with more compatible settings
+                        {"frequency": 44100, "size": 16, "channels": 2, "buffer": 1024},
+                        {"frequency": 48000, "size": -16, "channels": 1, "buffer": 1024},
+                        {"frequency": 22050, "size": -16, "channels": 1, "buffer": 512},
+                        # Minimal configuration as last resort
+                        {"frequency": 22050, "size": 8, "channels": 1, "buffer": 512},
+                        # Try with no parameters as final fallback
+                        {}
+                    ]
+                    
+                    # Try each configuration until one works
+                    for config in init_configs:
+                        try:
+                            logger.info(f"Trying pygame.mixer.init with config: {config}")
+                            pygame.mixer.init(**config)
+                            logger.info(f"Successfully initialized pygame mixer with config: {config}")
+                            break
+                        except Exception as e:
+                            logger.warning(f"Failed to initialize pygame mixer with config {config}: {e}")
+                            # Try to quit mixer before trying another config
+                            try:
+                                pygame.mixer.quit()
+                            except:
+                                pass
                 
-                # Создаем и воспроизводим звук
-                self.current_sound = pygame.mixer.Sound(path)
-                self.current_sound.play()
-                logger.info(f"Playing ringtone preview with pygame: {path}")
+                # Check if mixer was successfully initialized
+                if pygame.mixer.get_init():
+                    # Create and play sound
+                    self.current_sound = pygame.mixer.Sound(path)
+                    self.current_sound.play()
+                    logger.info(f"Playing ringtone preview with pygame: {path}")
+                else:
+                    logger.error("Failed to initialize pygame mixer after multiple attempts")
+                    # Fall back to app sound
+                    app = self.get_app()
+                    app.play_sound("success")
             except Exception as pygame_error:
                 logger.error(f"Pygame error: {pygame_error}")
-                # Если произошла ошибка с pygame, используем метод приложения
+                # If error with pygame, use app method
                 app = self.get_app()
-                app.play_sound("success")  # Воспроизводим стандартный звук
+                app.play_sound("success")  # Play standard sound
 
         except Exception as e:
             logger.error(f"Error playing ringtone: {e}")

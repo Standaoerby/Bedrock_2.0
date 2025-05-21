@@ -18,23 +18,59 @@ import re
 import threading
 import traceback
 
-# Initialize pygame for sound support
-try:
-    import pygame
-    pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
-    pygame_available = True
-except ImportError:
-    pygame_available = False
-    print("WARNING: Pygame not available, sound will be disabled")
-except Exception as e:
-    pygame_available = False
-    print(f"WARNING: Could not initialize pygame mixer: {e}")
 
 # Настройка и включение отладки
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("BedrockApp")
 logger.setLevel(logging.DEBUG)
+
+# Initialize pygame for sound support
+try:
+    import pygame
+    
+    # Try multiple initialization configurations
+    pygame_available = False
+    init_configs = [
+        # Try default config first
+        {"frequency": 44100, "size": -16, "channels": 2, "buffer": 4096},
+        # Fallback configs with more compatible settings
+        {"frequency": 44100, "size": 16, "channels": 2, "buffer": 1024},
+        {"frequency": 48000, "size": -16, "channels": 1, "buffer": 1024},
+        {"frequency": 22050, "size": -16, "channels": 1, "buffer": 512},
+        # Minimal configuration as last resort
+        {"frequency": 22050, "size": 8, "channels": 1, "buffer": 512},
+        # Try with no parameters as final fallback
+        {}
+    ]
+    
+    # Try each configuration until one works
+    init_error = None
+    for config in init_configs:
+        try:
+            logger.info(f"Trying pygame.mixer.init with config: {config}")
+            pygame.mixer.init(**config)
+            pygame_available = True
+            logger.info(f"Successfully initialized pygame mixer with config: {config}")
+            break
+        except Exception as e:
+            init_error = e
+            logger.warning(f"Failed to initialize pygame mixer with config {config}: {e}")
+            # Try to quit mixer before trying another config
+            try:
+                pygame.mixer.quit()
+            except:
+                pass
+    
+    if not pygame_available:
+        logger.error(f"All pygame mixer initialization attempts failed: {init_error}")
+        print(f"WARNING: Could not initialize pygame mixer: {init_error}")
+except ImportError:
+    pygame_available = False
+    print("WARNING: Pygame not available, sound will be disabled")
+except Exception as e:
+    pygame_available = False
+    print(f"WARNING: Could not initialize pygame: {e}")
 
 # Вывод версии Python для отладки
 import sys
@@ -154,12 +190,19 @@ class PyGameSound:
     """A wrapper class for pygame.mixer.Sound to match SoundLoader API"""
     def __init__(self, source):
         self.source = source
-        self._sound = pygame.mixer.Sound(source) if pygame_available else None
+        self._sound = None
         self._channel = None
         self._volume = 1.0
         self._loop = 0  # 0 = no loop, -1 = infinite loop
         self._state = 'stop'
         self.length = 1.0  # Default length in seconds
+        
+        # Try to load the sound
+        if pygame_available:
+            try:
+                self._sound = pygame.mixer.Sound(source)
+            except Exception as e:
+                logger.error(f"Error loading sound {source}: {e}")
     
     @property
     def volume(self):
@@ -169,13 +212,23 @@ class PyGameSound:
     def volume(self, value):
         self._volume = max(0.0, min(1.0, value))
         if pygame_available and self._sound:
-            self._sound.set_volume(self._volume)
+            try:
+                self._sound.set_volume(self._volume)
+            except Exception as e:
+                logger.error(f"Error setting volume: {e}")
     
     @property
     def state(self):
         # Update state if playing on a channel
-        if pygame_available and self._channel and self._channel.get_busy():
-            self._state = 'playing'
+        if pygame_available and self._channel and hasattr(self._channel, 'get_busy'):
+            try:
+                if self._channel.get_busy():
+                    self._state = 'playing'
+                else:
+                    self._state = 'stop'
+            except Exception as e:
+                logger.error(f"Error checking channel state: {e}")
+                self._state = 'stop'
         else:
             self._state = 'stop'
         return self._state
@@ -193,14 +246,15 @@ class PyGameSound:
             try:
                 # Play on a new channel - pygame gives us back the Channel object
                 self._channel = self._sound.play(loops=self._loop)
-                if self._channel:
+                if self._channel and hasattr(self._channel, 'set_volume'):
                     self._channel.set_volume(self._volume)
                 self._state = 'playing'
             except Exception as e:
                 logger.error(f"Error playing sound: {e}")
+                self._state = 'stop'
     
     def stop(self):
-        if pygame_available and self._channel:
+        if pygame_available and self._channel and hasattr(self._channel, 'stop'):
             try:
                 self._channel.stop()
                 self._state = 'stop'
@@ -306,6 +360,7 @@ class BedrockApp(MDApp):
             self._init_sensor_thread = threading.Thread(target=self._init_sensors_async, daemon=True)
             self._init_sensor_thread.start()
             logger.info("Services initialized")
+            return safe_kv_load()
         except Exception as e:
             logger.error(f"Error initializing services: {e}")
             with open('bedrock_startup_log.txt', 'a') as log_file:
@@ -410,11 +465,13 @@ class BedrockApp(MDApp):
                         try:
                             logger.info(f"Attempting to load sound {sound_name} from {path}")
                             sound = PygameSoundLoader.load(path)
-                            if sound:
+                            if sound and sound._sound:
                                 self.sounds[sound_name] = sound
                                 logger.info(f"Successfully loaded sound: {sound_name} from {path}")
                                 loaded = True
                                 break
+                            else:
+                                logger.warning(f"Sound loaded but not initialized correctly: {sound_name} from {path}")
                         except Exception as e:
                             logger.warning(f"Failed to load sound {sound_name} from {path}: {e}")
                     else:
@@ -515,18 +572,22 @@ class BedrockApp(MDApp):
         # Play the sound if it's loaded
         if sound_name in self.sounds:
             try:
-                # Create a new instance for each play to support concurrent sounds
+                # Check if the sound is actually loaded
                 sound = self.sounds[sound_name]
-                source = sound.source
-                
+                if not sound or not sound._sound:
+                    logger.warning(f"Sound {sound_name} is not properly loaded")
+                    return
+                    
                 # For small UI sounds, try to just play the original if available
                 if sound.state == 'stop':
                     sound.play()
                 else:
                     # If original is playing, try to load and play a new instance
-                    new_sound = PygameSoundLoader.load(source)
-                    if new_sound:
+                    new_sound = PygameSoundLoader.load(sound.source)
+                    if new_sound and new_sound._sound:
                         new_sound.play()
+                    else:
+                        logger.warning(f"Failed to create new instance of sound {sound_name}")
             except Exception as e:
                 logger.warning(f"Error playing sound {sound_name}: {e}")
                 
@@ -536,8 +597,8 @@ class BedrockApp(MDApp):
                     if os.path.exists(self.sounds[sound_name].source):
                         self.sounds[sound_name] = PygameSoundLoader.load(self.sounds[sound_name].source)
                         logger.info(f"Reloaded sound: {sound_name}")
-                except:
-                    pass
+                except Exception as reload_error:
+                    logger.error(f"Error reloading sound {sound_name}: {reload_error}")
         else:
             logger.debug(f"Sound not found: {sound_name}")
 

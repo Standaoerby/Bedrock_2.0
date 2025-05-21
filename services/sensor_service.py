@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger("SensorService")
 
 # Define constants for I2C addresses
-ENS160_ADDRESS = 0x53  # Исправлено с 0x68 на 0x53 для вашего конкретного датчика
+ENS160_ADDRESS = 0x53  # Corrected address for ENS160 sensor
 AHT21_ADDRESS = 0x38
 
 # Air quality levels mapping
@@ -93,104 +93,59 @@ class DummyAHTx0(DummySensor):
         return self._humidity
 
 # Try to set up real libraries based on available hardware
-def setup_i2c(retry_count=5, retry_delay=2.0):
-    """Set up I2C interface for the current platform with retry mechanism
-    
-    Args:
-        retry_count: Number of times to retry if initialization fails
-        retry_delay: Initial delay between retries in seconds (doubles with each retry)
-    
-    Returns:
-        tuple: (i2c_interface, is_real_hardware)
+def setup_i2c():
+    """Set up I2C interface for the current platform
+    Returns a tuple of (i2c_interface, is_real_hardware)
     """
     # Check if we should force mock mode (for testing)
     if os.environ.get('USE_MOCK_SENSORS') == '1':
         logger.info("Using mock sensors (forced by environment variable)")
         return None, False
-    
-    # Check if I2C device exists before trying to access it
-    if not os.path.exists('/dev/i2c-1') and not os.path.exists('/dev/i2c-0'):
-        logger.warning("No I2C device files found in /dev. Is I2C enabled?")
         
-        # On Raspberry Pi, try to set permissions and ensure I2C is enabled
-        if os.path.exists('/usr/bin/raspi-config'):
-            logger.info("Trying to enable I2C...")
-            try:
-                # Enable I2C via raspi-config (nonint = non-interactive mode)
-                os.system('sudo raspi-config nonint do_i2c 0')
-                # Set permissions
-                os.system('sudo chmod 666 /dev/i2c-1 2>/dev/null || sudo chmod 666 /dev/i2c-0 2>/dev/null')
-                logger.info("I2C should now be enabled. Continuing setup...")
-            except Exception as e:
-                logger.error(f"Failed to enable I2C: {e}")
-    
-    # Setup with retry mechanism
-    current_retry = 0
-    current_delay = retry_delay
-    
-    while current_retry <= retry_count:
+    # Try multiple methods to initialize I2C
+    try:
+        # Method 1: Traditional board with SCL/SDA pins
+        import board
+        import busio
         try:
-            if current_retry > 0:
-                logger.info(f"I2C initialization retry {current_retry}/{retry_count} (delay: {current_delay:.1f}s)")
-                time.sleep(current_delay)
-                # Double the delay for next attempt (exponential backoff)
-                current_delay *= 2
+            logger.info("Trying I2C Method 1: board.SCL/board.SDA")
+            i2c = busio.I2C(board.SCL, board.SDA)
+            logger.info("I2C initialized using board.SCL/board.SDA")
+            return i2c, True
+        except (AttributeError, ValueError) as e:
+            logger.warning(f"Method 1 failed: {e}")
             
-            # Method 1: Traditional board with SCL/SDA pins
-            import board
-            import busio
+            # Method 2: Direct GPIO pin numbers (for Raspberry Pi 5)
             try:
-                logger.info("Trying I2C Method 1: board.SCL/board.SDA")
-                i2c = busio.I2C(board.SCL, board.SDA)
-                logger.info("I2C initialized using board.SCL/board.SDA")
+                logger.info("Trying I2C Method 2: Direct GPIO pins (3=SCL, 2=SDA)")
+                i2c = busio.I2C(3, 2)  # GPIO3=SCL, GPIO2=SDA
+                logger.info("I2C initialized using direct GPIO pins 3 and 2")
                 return i2c, True
-            except (AttributeError, ValueError) as e:
-                logger.warning(f"Method 1 failed: {e}")
+            except Exception as e:
+                logger.warning(f"Method 2 failed: {e}")
                 
-                # Method 2: Direct GPIO pin numbers (for Raspberry Pi 5)
-                try:
-                    logger.info("Trying I2C Method 2: Direct GPIO pins (3=SCL, 2=SDA)")
-                    i2c = busio.I2C(3, 2)  # GPIO3=SCL, GPIO2=SDA
-                    logger.info("I2C initialized using direct GPIO pins 3 and 2")
-                    return i2c, True
-                except Exception as e:
-                    logger.warning(f"Method 2 failed: {e}")
-                    
-                    # Method 3: Use adafruit_blinka to access /dev/i2c-1 directly
-                    for i2c_dev in ['/dev/i2c-1', '/dev/i2c-0']:
-                        if os.path.exists(i2c_dev):
-                            try:
-                                logger.info(f"Trying I2C Method 3: Direct I2C device access ({i2c_dev})")
-                                from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
-                                i2c = I2C(int(i2c_dev.split('-')[1]))  # Extract number from device path
-                                logger.info(f"I2C initialized using generic Linux I2C device {i2c_dev}")
-                                return i2c, True
-                            except Exception as e:
-                                logger.warning(f"Method 3 failed with {i2c_dev}: {e}")
-                                
-        except ImportError as e:
-            logger.error(f"Error importing required libraries: {e}")
-            # Import error is fatal, no need to retry
-            return None, False
-        except Exception as e:
-            logger.error(f"Unexpected error during I2C setup (attempt {current_retry}): {e}")
-        
-        # Increment retry counter
-        current_retry += 1
+                # Method 3: Use adafruit_blinka to access /dev/i2c-1 directly
+                if os.path.exists('/dev/i2c-1'):
+                    try:
+                        logger.info("Trying I2C Method 3: Direct I2C device access")
+                        from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
+                        i2c = I2C(1)  # /dev/i2c-1
+                        logger.info("I2C initialized using generic Linux I2C device")
+                        return i2c, True
+                    except Exception as e:
+                        logger.warning(f"Method 3 failed: {e}")
+                        
+    except ImportError as e:
+        # If board or busio not available
+        logger.error(f"Error importing required libraries: {e}")
     
-    # If all methods and retries fail, use mock mode
-    logger.warning(f"All I2C initialization methods failed after {retry_count} retries. Falling back to mock sensors mode.")
+    # If all methods fail, use mock mode
+    logger.info("Falling back to mock sensors mode")
     return None, False
 
-# Initialize global variables with retry mechanism
-# These will be initialized once at module import time
+# Initialize global variables
 try:
-    # Wait a moment before first attempt to let system stabilize (important for autostart)
-    logger.info("Sensor service initializing, waiting for I2C bus to be ready...")
-    time.sleep(2)
-    
-    # Initialize I2C with retry mechanism
-    i2c_interface, use_real_sensors = setup_i2c(retry_count=5, retry_delay=2.0)
+    i2c_interface, use_real_sensors = setup_i2c()
     
     if use_real_sensors:
         import adafruit_ens160
@@ -246,14 +201,16 @@ class SensorService:
                 # Detect I2C devices
                 self._scan_i2c()
                 
-                # Initialize sensors with retry mechanism
-                self._initialize_sensors()
+                # Initialize sensors
+                self.ens = adafruit_ens160.ENS160(self.i2c, address=ENS160_ADDRESS)
+                self.aht = adafruit_ahtx0.AHTx0(self.i2c, address=AHT21_ADDRESS)
             else:
                 # Mock mode
                 self.i2c = busio(board.SCL, board.SDA)
                 self.ens = adafruit_ens160(self.i2c, address=ENS160_ADDRESS)
                 self.aht = adafruit_ahtx0(self.i2c, address=AHT21_ADDRESS)
-                self.sensor_available = True
+                
+            self.sensor_available = True
             
             # Initial reading
             self.update_readings()
@@ -267,51 +224,6 @@ class SensorService:
         except Exception as e:
             logger.error(f"Error initializing sensors: {e}")
             self.sensor_available = False
-    
-    def _initialize_sensors(self, retry_count=3, retry_delay=1.0):
-        """Initialize sensors with retry mechanism"""
-        current_retry = 0
-        current_delay = retry_delay
-        last_error = None
-        
-        while current_retry <= retry_count:
-            try:
-                if current_retry > 0:
-                    logger.info(f"Sensor initialization retry {current_retry}/{retry_count} (delay: {current_delay:.1f}s)")
-                    time.sleep(current_delay)
-                    # Double the delay for next attempt (exponential backoff)
-                    current_delay *= 2
-                
-                # Initialize ENS160 sensor
-                logger.info(f"Initializing ENS160 at address 0x{ENS160_ADDRESS:02X}")
-                self.ens = adafruit_ens160.ENS160(self.i2c, address=ENS160_ADDRESS)
-                
-                # Initialize AHT21 sensor
-                logger.info(f"Initializing AHT21 at address 0x{AHT21_ADDRESS:02X}")
-                self.aht = adafruit_ahtx0.AHTx0(self.i2c, address=AHT21_ADDRESS)
-                
-                # Verify sensors are working by reading a value
-                # This will raise an exception if there are communication problems
-                logger.info("Verifying sensors by reading values...")
-                _ = self.ens.AQI  # Read a value to verify sensor works
-                _ = self.aht.temperature  # Read a value to verify sensor works
-                
-                # If we get here, initialization was successful
-                self.sensor_available = True
-                logger.info("Sensors initialized successfully")
-                return True
-                
-            except Exception as e:
-                last_error = e
-                logger.warning(f"Sensor initialization failed (attempt {current_retry}): {e}")
-            
-            # Increment retry counter
-            current_retry += 1
-        
-        # If all retries failed, log error and return false
-        logger.error(f"Failed to initialize sensors after {retry_count} retries: {last_error}")
-        self.sensor_available = False
-        return False
     
     def _scan_i2c(self):
         """Scan I2C bus and print detected devices"""

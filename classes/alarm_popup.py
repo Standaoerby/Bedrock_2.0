@@ -16,11 +16,17 @@ class PyGameSound:
     """A wrapper class for pygame.mixer.Sound to match SoundLoader API"""
     def __init__(self, source):
         self.source = source
-        self._sound = pygame.mixer.Sound(source)
+        self._sound = None
         self._channel = None
         self._volume = 1.0
         self._loop = 0  # 0 = no loop, -1 = infinite loop
         self._state = 'stop'
+        
+        # Try to load the sound
+        try:
+            self._sound = pygame.mixer.Sound(source)
+        except Exception as e:
+            logger.error(f"Error loading sound {source}: {e}")
     
     @property
     def volume(self):
@@ -30,13 +36,23 @@ class PyGameSound:
     def volume(self, value):
         self._volume = max(0.0, min(1.0, value))
         if self._sound:
-            self._sound.set_volume(self._volume)
+            try:
+                self._sound.set_volume(self._volume)
+            except Exception as e:
+                logger.error(f"Error setting volume: {e}")
     
     @property
     def state(self):
         # Update state if playing on a channel
-        if self._channel and self._channel.get_busy():
-            self._state = 'playing'
+        if self._channel and hasattr(self._channel, 'get_busy'):
+            try:
+                if self._channel.get_busy():
+                    self._state = 'playing'
+                else:
+                    self._state = 'stop'
+            except Exception as e:
+                logger.error(f"Error checking channel state: {e}")
+                self._state = 'stop'
         else:
             self._state = 'stop'
         return self._state
@@ -54,14 +70,15 @@ class PyGameSound:
             try:
                 # Play on a new channel - pygame gives us back the Channel object
                 self._channel = self._sound.play(loops=self._loop)
-                if self._channel:
+                if self._channel and hasattr(self._channel, 'set_volume'):
                     self._channel.set_volume(self._volume)
                 self._state = 'playing'
             except Exception as e:
                 logger.error(f"Error playing sound: {e}")
+                self._state = 'stop'
     
     def stop(self):
-        if self._channel:
+        if self._channel and hasattr(self._channel, 'stop'):
             try:
                 self._channel.stop()
                 self._state = 'stop'
