@@ -10,6 +10,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.popup import Popup
 from kivy.clock import Clock
+from functools import wraps
 
 logger = logging.getLogger("ErrorHandler")
 
@@ -52,6 +53,7 @@ class ErrorHandler:
     @staticmethod
     def handle_exception(func):
         """Decorator for functions to catch and handle exceptions"""
+        @wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)

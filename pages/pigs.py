@@ -4,6 +4,11 @@ import os
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import NumericProperty, ColorProperty
 from kivy.graphics import Color, Rectangle
+import logging
+from utils.error_handler import ErrorHandler
+
+# Set up logging
+logger = logging.getLogger("PigsScreen")
 
 # Custom progress bar class
 class CustomProgressBar(BoxLayout):
@@ -39,14 +44,16 @@ class CustomProgressBar(BoxLayout):
 class PigsScreen(MDScreen):
     def on_enter(self):
         self.update_bars()
-        # Check status every 20 minutes instead of every 60 seconds
+        # Check status every 20 minutes
         self._clock_ev = Clock.schedule_interval(lambda dt: self.update_bars(), 20 * 60)  
 
     def on_leave(self):
         if hasattr(self, "_clock_ev"):
             self._clock_ev.cancel()
 
+    @ErrorHandler.handle_exception
     def update_bars(self):
+        """Update all bars and pig image"""
         app = self.get_app()
         vals, integral = app.pigs_service.get_all_values()
         
@@ -55,8 +62,8 @@ class PigsScreen(MDScreen):
         self.ids.food_bar.value = vals["food"]
         self.ids.clean_bar.value = vals["clean"]
         
-        # Print values for debugging
-        print(f"Bar values: Water={vals['water']}, Food={vals['food']}, Clean={vals['clean']}")
+        # Log values at debug level
+        logger.debug(f"Bar values: Water={vals['water']:.1f}, Food={vals['food']:.1f}, Clean={vals['clean']:.1f}")
         
         # Update status display
         percent = int(integral * 100)
@@ -83,13 +90,16 @@ class PigsScreen(MDScreen):
         if os.path.exists(image_path):
             self.ids.pigs_image.source = image_path
         else:
-            print(f"Warning: Image not found: {image_path}")
+            logger.warning(f"Image not found: {image_path}")
 
+    @ErrorHandler.handle_exception
     def reset_bar(self, key):
+        """Reset a specific bar to full"""
         app = self.get_app()
         app.pigs_service.reset_bar(key)
         # Update both bars and image immediately
         self.update_bars()
+        logger.info(f"Reset bar: {key}")
 
     def get_app(self):
         from kivy.app import App

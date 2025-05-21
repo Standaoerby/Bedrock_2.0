@@ -6,8 +6,9 @@ from kivy.uix.label import Label
 from kivy.metrics import dp
 from kivy.properties import BooleanProperty
 import logging
+from utils.error_handler import ErrorHandler
 
-# Настройка логирования
+# Setup logging
 logger = logging.getLogger("WeatherScreen")
 
 class DayForecastItem(BoxLayout):
@@ -38,7 +39,7 @@ class DayForecastItem(BoxLayout):
         day_label = Label(
             text=day_name,
             font_name=app.theme_config["font_name"],
-            font_size="18sp",  # Larger font for touch
+            font_size="18sp",
             halign="left",
             size_hint_x=0.15,
             color=day_color
@@ -49,7 +50,7 @@ class DayForecastItem(BoxLayout):
         temp_label = Label(
             text=f"{temp_max:.1f}°C",
             font_name=app.theme_config["font_name"],
-            font_size="18sp",  # Larger font for touch
+            font_size="18sp",
             halign="left",
             size_hint_x=0.2
         )
@@ -58,7 +59,7 @@ class DayForecastItem(BoxLayout):
         condition_label = Label(
             text=day_data.get("condition", ""),
             font_name=app.theme_config["font_name"],
-            font_size="18sp",  # Larger font for touch
+            font_size="18sp",
             halign="left",
             size_hint_x=0.4
         )
@@ -68,7 +69,7 @@ class DayForecastItem(BoxLayout):
         precip_label = Label(
             text=f"{precip}%",
             font_name=app.theme_config["font_name"],
-            font_size="18sp",  # Larger font for touch
+            font_size="18sp",
             halign="left",
             size_hint_x=0.25
         )
@@ -80,22 +81,21 @@ class DayForecastItem(BoxLayout):
         self.add_widget(precip_label)
 
 class WeatherScreen(MDScreen):
-    # Add property to track sensor status
+    # Properties to track sensor status
     sensor_available = BooleanProperty(False)
-    # Add property to identify if using mock sensors
     using_mock_sensors = BooleanProperty(True)
     
     def on_pre_enter(self):
-        # Принудительное обновление всех данных сразу при входе на экран
+        # Force update of all data when entering screen
         logger.info("Entering WeatherScreen - forcing data update")
         self.update_sensor_data()
         self.update_weather_data()
         self.display_weather()
         
-        # Start regular updates - weather data every hour, sensor data every 10 seconds, display every 10 seconds
+        # Start regular updates
         self._weather_update_ev = Clock.schedule_interval(lambda dt: self.update_weather_data(), 3600)  # Hourly
-        self._sensor_update_ev = Clock.schedule_interval(lambda dt: self.update_sensor_data(), 10)     # Every 10 seconds
-        self._display_update_ev = Clock.schedule_interval(lambda dt: self.display_weather(), 10)       # Update display every 10 seconds
+        self._sensor_update_ev = Clock.schedule_interval(lambda dt: self.update_sensor_data(), 30)  # Every 30 seconds
+        self._display_update_ev = Clock.schedule_interval(lambda dt: self.display_weather(), 30)  # Update display every 30 seconds
         
         logger.info("Update timers initialized")
     
@@ -109,40 +109,30 @@ class WeatherScreen(MDScreen):
         if hasattr(self, '_display_update_ev'):
             self._display_update_ev.cancel()
     
+    @ErrorHandler.handle_exception
     def update_weather_data(self):
         """Update only weather data from service"""
         app = self.get_app()
         if hasattr(app, 'weather_service') and app.weather_service:
-            logger.debug("Fetching weather data")
             app.weather_service.fetch_weather()
     
+    @ErrorHandler.handle_exception
     def update_sensor_data(self):
         """Update only sensor readings"""
         app = self.get_app()
         if hasattr(app, 'sensor_service') and app.sensor_service:
-            logger.debug("Updating sensor readings")
-            
-            # Явно вызываем обновление показаний датчиков
+            # Update sensor readings
             app.sensor_service.update_readings()
             
-            # Получаем статус датчиков из сервиса
+            # Get sensor status from service
             self.sensor_available = app.sensor_service.sensor_available
-            
-            # Определяем, используются ли заглушки, напрямую из сервиса
-            if hasattr(app.sensor_service, 'using_mock_sensors'):
-                # Наиболее прямой и надежный способ
-                self.using_mock_sensors = app.sensor_service.using_mock_sensors
-                logger.debug(f"Using mock sensors: {self.using_mock_sensors}")
-            else:
-                # Запасной вариант
-                self.using_mock_sensors = True
-                logger.warning("Could not determine sensor type, assuming mock sensors")
+            self.using_mock_sensors = getattr(app.sensor_service, 'using_mock_sensors', True)
         else:
             # No sensor service available
             self.sensor_available = False
             self.using_mock_sensors = True
-            logger.warning("No sensor service available")
-        
+    
+    @ErrorHandler.handle_exception
     def display_weather(self):
         """Display weather and sensor data on the screen"""
         app = self.get_app()
@@ -151,18 +141,16 @@ class WeatherScreen(MDScreen):
         # Get sensor readings with proper null checks
         sensors = {}
         if hasattr(app, 'sensor_service') and app.sensor_service:
-            # Получаем показания с датчиков
+            # Get readings from sensors
             sensors = app.sensor_service.get_readings()
-            logger.debug(f"Got sensor readings: {sensors}")
             
             # Update sensor availability status
             self.sensor_available = app.sensor_service.sensor_available
-            self.using_mock_sensors = app.sensor_service.using_mock_sensors
+            self.using_mock_sensors = getattr(app.sensor_service, 'using_mock_sensors', True)
         else:
             # No sensor service available
             self.sensor_available = False
             self.using_mock_sensors = True
-            logger.warning("No sensor service available")
         
         # Current weather
         cur = weather.get("current", {})
@@ -180,17 +168,17 @@ class WeatherScreen(MDScreen):
             # Update condition text separately
             self.ids.current_condition.text = f"{cur.get('condition', 'Unknown')}"
             
-            # Update precipitation text (changed to "Rain")
+            # Update precipitation text
             self.ids.current_precipitation.text = f"Rain: {cur.get('precipitation_probability', 0)}%"
         
-        # Обновляем показания датчиков даже если они недоступны (будут отображаться нули)
+        # Update sensor readings even if unavailable (will show zeros)
         temp_value = sensors.get('temperature', 0)
         self.ids.sensor_temp.text = f"Temperature: {temp_value:.1f}°C"
         
         humidity_value = sensors.get('humidity', 0)
         self.ids.sensor_humidity.text = f"Humidity: {humidity_value:.1f}%"
         
-        # Добавляем индикацию статуса датчиков (реальные или заглушки)
+        # Add sensor status indicator
         sensor_status = ""
         if not self.sensor_available:
             sensor_status = " [OFFLINE]"
@@ -199,7 +187,7 @@ class WeatherScreen(MDScreen):
         else:
             sensor_status = " [REAL]"
             
-        # Добавляем статус к температуре
+        # Add status to temperature
         self.ids.sensor_temp.text += sensor_status
         
         # Combined CO2 and TVOC on one line
@@ -260,7 +248,7 @@ class WeatherScreen(MDScreen):
                 container.height = min_height
 
     def update_weather(self):
-        """Force weather data update - публичный метод для ручного обновления"""
+        """Force weather data update - public method for manual refresh"""
         logger.info("Manual refresh requested")
         self.update_weather_data()
         self.update_sensor_data()

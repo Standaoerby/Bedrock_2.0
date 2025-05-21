@@ -1,12 +1,18 @@
 import json
 import os
 from datetime import datetime
+import logging
+from utils.error_handler import ErrorHandler
+
+# Set up logging
+logger = logging.getLogger("PigsService")
 
 class PigsService:
     def __init__(self, config_path="config/pigs.json"):
         self.config_path = config_path
         self.config = self.load_config()
     
+    @ErrorHandler.handle_exception
     def load_config(self):
         # Set default configuration
         default_config = {
@@ -37,6 +43,7 @@ class PigsService:
             if os.path.exists(self.config_path):
                 with open(self.config_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
+                logger.info(f"Loaded pigs config from {self.config_path}")
                 return config
             else:
                 # Create directory if not exists
@@ -45,11 +52,13 @@ class PigsService:
                 # Save default config
                 with open(self.config_path, 'w', encoding='utf-8') as f:
                     json.dump(default_config, f, ensure_ascii=False, indent=2)
+                logger.info("Created default pigs config")
                 return default_config
         except Exception as e:
-            print(f"Error loading pigs config: {e}")
+            logger.error(f"Error loading pigs config: {e}")
             return default_config
     
+    @ErrorHandler.handle_exception
     def save_config(self):
         try:
             # Make sure directory exists
@@ -57,8 +66,9 @@ class PigsService:
             
             with open(self.config_path, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, ensure_ascii=False, indent=2)
+            logger.debug("Saved pigs config")
         except Exception as e:
-            print(f"Error saving pigs config: {e}")
+            logger.error(f"Error saving pigs config: {e}")
     
     def get_current_time_str(self):
         return datetime.now().isoformat()
@@ -80,9 +90,10 @@ class PigsService:
             dt_format = "%Y-%m-%dT%H:%M:%S"
             return datetime.strptime(datetime_str, dt_format)
         except Exception as e:
-            print(f"Error parsing datetime: {e}")
+            logger.error(f"Error parsing datetime: {e}")
             return datetime.now()
     
+    @ErrorHandler.handle_exception
     def get_bar_percentage(self, key):
         """
         Calculate percentage of time remaining for a bar
@@ -109,9 +120,10 @@ class PigsService:
             return max(0, min(100, percentage))  # Ensure within [0, 100] range
             
         except Exception as e:
-            print(f"Error calculating bar percentage: {e}")
+            logger.error(f"Error calculating bar percentage: {e}")
             return 50  # Default value on error
     
+    @ErrorHandler.handle_exception
     def get_all_values(self):
         """
         Get all bar values and calculate overall status
@@ -130,11 +142,12 @@ class PigsService:
         
         return result, overall_status
     
+    @ErrorHandler.handle_exception
     def reset_bar(self, key):
         """Reset a specific bar to full"""
         if key in self.config["bars"]:
             self.config["bars"][key]["last_reset"] = self.get_current_time_str()
             self.save_config()
-            print(f"Bar {key} has been reset")
+            logger.info(f"Bar {key} has been reset")
         else:
-            print(f"Error: Bar {key} not found in config")
+            logger.error(f"Error: Bar {key} not found in config")

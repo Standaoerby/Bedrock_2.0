@@ -1,5 +1,3 @@
-# Оптимизированный SensorService без дублирования кода и с улучшенным логированием
-
 """
 Service for working with sensors (ENS160+AHT21)
 Supports real sensors on Raspberry Pi and mock sensors for development
@@ -10,6 +8,7 @@ import sys
 from threading import Thread
 import logging
 import random
+from utils.error_handler import ErrorHandler
 
 # Configure logging
 logger = logging.getLogger("SensorService")
@@ -101,6 +100,7 @@ class SensorService:
         # Default to mock sensors until we verify real hardware
         self.using_mock_sensors = True
     
+    @ErrorHandler.handle_exception
     def start(self):
         """Initialize sensors and start update thread"""
         try:
@@ -216,6 +216,7 @@ class SensorService:
             # Pause between updates
             time.sleep(30)  # Update every 30 seconds
     
+    @ErrorHandler.handle_exception
     def update_readings(self):
         """Update data from sensors"""
         if not self.sensor_available or not self.ens or not self.aht:

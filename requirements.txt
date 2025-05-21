@@ -6,8 +6,8 @@ pillow>=9.5.0
 pygame>=2.5.0  # Added for improved audio support
 
 # Sensor libraries
-adafruit-circuitpython-ahtx0
-adafruit-circuitpython-ens160
+adafruit-circuitpython-ahtx0>=1.0.0
+adafruit-circuitpython-ens160>=1.0.0
 adafruit-blinka>=8.0.0
 smbus2>=0.4.2
 

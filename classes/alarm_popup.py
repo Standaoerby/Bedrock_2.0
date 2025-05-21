@@ -5,85 +5,10 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.clock import Clock
 import os
-import traceback
 import logging
-import pygame
+from services.sound_service import PyGameSound
 
 logger = logging.getLogger("AlarmPopup")
-
-# Define a pygame Sound wrapper to match the SoundLoader API
-class PyGameSound:
-    """A wrapper class for pygame.mixer.Sound to match SoundLoader API"""
-    def __init__(self, source):
-        self.source = source
-        self._sound = None
-        self._channel = None
-        self._volume = 1.0
-        self._loop = 0  # 0 = no loop, -1 = infinite loop
-        self._state = 'stop'
-        
-        # Try to load the sound
-        try:
-            self._sound = pygame.mixer.Sound(source)
-        except Exception as e:
-            logger.error(f"Error loading sound {source}: {e}")
-    
-    @property
-    def volume(self):
-        return self._volume
-    
-    @volume.setter
-    def volume(self, value):
-        self._volume = max(0.0, min(1.0, value))
-        if self._sound:
-            try:
-                self._sound.set_volume(self._volume)
-            except Exception as e:
-                logger.error(f"Error setting volume: {e}")
-    
-    @property
-    def state(self):
-        # Update state if playing on a channel
-        if self._channel and hasattr(self._channel, 'get_busy'):
-            try:
-                if self._channel.get_busy():
-                    self._state = 'playing'
-                else:
-                    self._state = 'stop'
-            except Exception as e:
-                logger.error(f"Error checking channel state: {e}")
-                self._state = 'stop'
-        else:
-            self._state = 'stop'
-        return self._state
-    
-    @property
-    def loop(self):
-        return self._loop
-    
-    @loop.setter
-    def loop(self, value):
-        self._loop = -1 if value else 0
-    
-    def play(self):
-        if self._sound:
-            try:
-                # Play on a new channel - pygame gives us back the Channel object
-                self._channel = self._sound.play(loops=self._loop)
-                if self._channel and hasattr(self._channel, 'set_volume'):
-                    self._channel.set_volume(self._volume)
-                self._state = 'playing'
-            except Exception as e:
-                logger.error(f"Error playing sound: {e}")
-                self._state = 'stop'
-    
-    def stop(self):
-        if self._channel and hasattr(self._channel, 'stop'):
-            try:
-                self._channel.stop()
-                self._state = 'stop'
-            except Exception as e:
-                logger.error(f"Error stopping sound: {e}")
 
 class AlarmPopup(ModalView):
     """Popup that shows when alarm goes off"""
@@ -140,9 +65,7 @@ class AlarmPopup(ModalView):
         self.max_volume = 1.0
         self.fade_time = 30.0  # Seconds to fade from 0 to max volume
         self._fade_event = None
-        
-    # Модифицированная часть AlarmPopup в classes/alarm_popup.py
-
+    
     def start_alarm(self):
         """Start playing the alarm sound"""
         folder = "media/ringtones"
@@ -159,11 +82,7 @@ class AlarmPopup(ModalView):
             app = App.get_running_app()
             
             # Use sound service to load the ringtone
-            if hasattr(app, 'sound_service'):
-                self.sound = app.sound_service.load_sound_file(path)
-            else:
-                # Fallback to direct pygame if no sound service
-                self.sound = PyGameSound(path)
+            self.sound = app.sound_service.load_sound_file(path)
                 
             if not self.sound:
                 logger.warning(f"Failed to load ringtone: {path}")
@@ -184,7 +103,6 @@ class AlarmPopup(ModalView):
                 
         except Exception as e:
             logger.error(f"Error starting alarm: {e}")
-            logger.error(traceback.format_exc())
     
     def start_fade_in(self):
         """Gradually increase volume"""
