@@ -1,37 +1,29 @@
 {
   "current": {
-    "time": "2025-05-21T22:45",
-    "temperature": 11.9,
+    "time": "2025-05-22T03:45",
+    "temperature": 9.1,
     "condition": "Clear Sky",
     "precipitation_probability": 0
   },
   "forecast_5h": {
-    "temperature": 11.7,
+    "temperature": 9.1,
     "condition": "Mostly Clear",
     "precipitation_probability": 0
   },
   "weekly_forecast": [
     {
-      "day": "Wed",
-      "date": "2025-05-21",
-      "temp_max": 18.4,
-      "temp_min": 11.7,
-      "condition": "Moderate Rain",
-      "precipitation_probability": 98
-    },
-    {
       "day": "Thu",
       "date": "2025-05-22",
       "temp_max": 14.1,
-      "temp_min": 8.2,
+      "temp_min": 8.8,
       "condition": "Slight Rain",
       "precipitation_probability": 8
     },
     {
       "day": "Fri",
       "date": "2025-05-23",
-      "temp_max": 20.6,
-      "temp_min": 8.2,
+      "temp_max": 20.8,
+      "temp_min": 8.4,
       "condition": "Cloudy",
       "precipitation_probability": 3
     },
@@ -39,7 +31,7 @@
       "day": "Sat",
       "date": "2025-05-24",
       "temp_max": 21.9,
-      "temp_min": 12.8,
+      "temp_min": 12.9,
       "condition": "Slight Rain Showers",
       "precipitation_probability": 73
     },
@@ -66,7 +58,15 @@
       "temp_min": 10.7,
       "condition": "Moderate Rain",
       "precipitation_probability": 37
+    },
+    {
+      "day": "Wed",
+      "date": "2025-05-28",
+      "temp_max": 20.9,
+      "temp_min": 14.7,
+      "condition": "Slight Rain Showers",
+      "precipitation_probability": 38
     }
   ],
-  "updated": "2025-05-21T22:54:15.393081"
+  "updated": "2025-05-22T03:56:12.314389"
 }

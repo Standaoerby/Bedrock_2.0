@@ -102,7 +102,7 @@ class HomeScreen(MDScreen):
                 elif temp_5h < temp_now:
                     self.weather_trend_arrow = "↓"  # Blue arrow down
                 else:
-                    self.weather_trend_arrow = "="  # White equals sign for no change
+                    self.weather_trend_arrow = "~"  # White equals sign for no change
             except Exception:
                 self.weather_trend_arrow = ""
         else:
