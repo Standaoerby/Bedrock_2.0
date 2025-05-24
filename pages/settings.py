@@ -25,13 +25,14 @@ class SettingsScreen(MDScreen):
     auto_theme_enabled = BooleanProperty(True)
     light_sensor_available = BooleanProperty(False)
     current_light_level = BooleanProperty(True)  # True = light, False = dark
-    light_sensor_threshold = NumericProperty(3)  # seconds (увеличено до 3)
+    light_sensor_threshold = NumericProperty(5)  # seconds (theme switch delay)
     
     # Volume properties
     current_volume = NumericProperty(50)
     volume_buttons_available = BooleanProperty(False)
     
     def on_pre_enter(self):
+        logger.info("=== ENTERING SETTINGS SCREEN ===")
         self.scan_available_themes()
         self.load_settings()
         self.check_dark_mode_availability()
@@ -45,6 +46,7 @@ class SettingsScreen(MDScreen):
         self._sensor_update_event = Clock.schedule_interval(self.update_sensor_status, 2)  # Every 2 seconds
     
     def on_leave(self):
+        logger.info("Leaving settings screen")
         # Stop periodic updates
         if hasattr(self, '_sensor_update_event'):
             self._sensor_update_event.cancel()
@@ -68,7 +70,7 @@ class SettingsScreen(MDScreen):
                        os.path.exists(os.path.join(theme_path, "dark")):
                         themes.append(theme)
                 
-                logger.debug(f"Found themes: {themes}")
+                logger.info(f"Found themes: {themes}")
             else:
                 logger.warning(f"Themes directory '{themes_dir}' not found")
         except Exception as e:
@@ -81,13 +83,16 @@ class SettingsScreen(MDScreen):
         """Check if dark mode is available for current theme"""
         theme_path = os.path.join("themes", self.current_theme)
         dark_path = os.path.join(theme_path, "dark")
+        dark_theme_file = os.path.join(dark_path, "theme.json")
         
-        self.dark_mode_available = os.path.exists(dark_path) and os.path.isdir(dark_path)
-        logger.debug(f"Dark mode for theme '{self.current_theme}': {'available' if self.dark_mode_available else 'unavailable'}")
+        self.dark_mode_available = os.path.exists(dark_theme_file)
+        logger.info(f"Dark mode for theme '{self.current_theme}': {'available' if self.dark_mode_available else 'unavailable'}")
+        logger.info(f"Checked path: {dark_theme_file}")
         
         # If dark mode is not available, force disable it
         if not self.dark_mode_available:
             self.dark_mode_enabled = False
+            logger.info("Dark mode disabled because theme not available")
     
     def update_dark_mode_button(self):
         """Update the dark mode button UI"""
@@ -97,7 +102,7 @@ class SettingsScreen(MDScreen):
             # Update color based on state
             app = self.get_app()
             if app:
-                if self.dark_mode_enabled:
+                if self.dark_mode_enabled and self.dark_mode_available:
                     self.ids.dark_mode_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
                 else:
                     self.ids.dark_mode_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
@@ -113,9 +118,12 @@ class SettingsScreen(MDScreen):
                 self.dark_mode_enabled = settings.get("theme_mode", "light") == "dark"
                 self.username = settings.get("username", "")
                 
-                # Auto theme settings
+                # Auto theme settings - ИСПРАВЛЕНО
                 self.auto_theme_enabled = settings.get("auto_theme_enabled", True)
-                self.light_sensor_threshold = settings.get("theme_switch_delay", 3)
+                self.light_sensor_threshold = settings.get("theme_switch_delay", 5)
+                
+                logger.info(f"Loaded settings: theme={self.current_theme}, mode={'dark' if self.dark_mode_enabled else 'light'}")
+                logger.info(f"Auto theme enabled: {self.auto_theme_enabled}, delay: {self.light_sensor_threshold}s")
                 
                 # Parse birth date
                 birthdate = settings.get("birthdate", "")
@@ -141,32 +149,43 @@ class SettingsScreen(MDScreen):
                 light_status = app.sensor_service.get_light_sensor_status()
                 
                 # Update properties
-                self.light_sensor_available = light_status.get('gpio_available', False)
+                self.light_sensor_available = light_status.get('gpio_available', False) or not light_status.get('using_mock', True)
                 self.current_light_level = light_status.get('current_level', True)
                 
                 # Update UI elements if they exist
                 if hasattr(self.ids, 'light_sensor_status'):
                     if self.light_sensor_available:
                         status_text = "Light" if self.current_light_level else "Dark"
-                        self.ids.light_sensor_status.text = f"Sensor: {status_text}"
-                        self.ids.light_sensor_status.color = [0, 0.8, 0, 1]  # Green
+                        sensor_type = "Real" if not light_status.get('using_mock', True) else "Mock"
+                        self.ids.light_sensor_status.text = f"Sensor: {status_text} ({sensor_type})"
                         
+                        # Color based on sensor type
+                        if light_status.get('using_mock', True):
+                            self.ids.light_sensor_status.color = [0.8, 0.8, 0, 1]  # Yellow for mock
+                        else:
+                            self.ids.light_sensor_status.color = [0, 0.8, 0, 1]  # Green for real
+                            
                         # Debug info - показываем каждые 10 обновлений
                         if not hasattr(self, '_debug_counter'):
                             self._debug_counter = 0
                         self._debug_counter += 1
                         
-                        if self._debug_counter % 10 == 0:
+                        if self._debug_counter % 20 == 0:  # Every 20 updates (40 seconds)
                             raw_val = light_status.get('raw_value', 0)
-                            logger.debug(f"Light sensor UI update: raw={raw_val}, level={status_text}, GPIO available={self.light_sensor_available}")
+                            change_pending = light_status.get('change_pending', False)
+                            consecutive = light_status.get('consecutive_readings', 0)
+                            logger.debug(f"Sensor UI update: raw={raw_val}, level={status_text}, pending={change_pending}, consecutive={consecutive}")
                     else:
                         self.ids.light_sensor_status.text = "Sensor: Offline"
-                        self.ids.light_sensor_status.color = [0.8, 0.8, 0, 1]  # Yellow
+                        self.ids.light_sensor_status.color = [0.8, 0, 0, 1]  # Red
                         
                 # Update auto theme button state
                 if hasattr(self.ids, 'auto_theme_button'):
-                    self.ids.auto_theme_button.disabled = not self.light_sensor_available
-                    if self.auto_theme_enabled and self.light_sensor_available:
+                    # Disable only if sensor is completely unavailable (not even mock)
+                    sensor_completely_unavailable = not app.sensor_service.sensor_available
+                    self.ids.auto_theme_button.disabled = sensor_completely_unavailable
+                    
+                    if self.auto_theme_enabled and not sensor_completely_unavailable:
                         self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
                     else:
                         self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
@@ -204,7 +223,7 @@ class SettingsScreen(MDScreen):
                     self.ids.volume_status.text = "Volume: Not Available"
                     self.ids.volume_status.color = [0.8, 0, 0, 1]  # Red
                     
-        except Exception in e:
+        except Exception as e:
             logger.error(f"Error updating volume status: {e}")
     
     def save_all_settings(self):
@@ -229,9 +248,23 @@ class SettingsScreen(MDScreen):
                 "auto_dark_mode": True,  # Automatic dark theme switching
                 "username": self.username,
                 "birthdate": self.get_birthdate_string(),
-                # Auto theme settings
+                # Auto theme settings - ИСПРАВЛЕНО
                 "auto_theme_enabled": self.auto_theme_enabled,
-                "theme_switch_delay": int(self.light_sensor_threshold)
+                "theme_switch_delay": int(self.light_sensor_threshold),
+                # Volume settings
+                "volume_settings": {
+                    "enabled": True,
+                    "step": 5,
+                    "min_volume": 0,
+                    "max_volume": 100,
+                    "feedback_sounds": True
+                },
+                # Sensor settings
+                "sensor_settings": {
+                    "light_sensor_enabled": True,
+                    "calibration_time": int(self.light_sensor_threshold),
+                    "mock_mode": False
+                }
             }
             
             logger.info(f"Saving settings: {settings}")
@@ -248,56 +281,53 @@ class SettingsScreen(MDScreen):
             # Update app settings
             app = self.get_app()
             if app:
+                old_theme_mode = app.theme_mode
+                old_auto_theme = app.auto_theme_enabled
+                
                 app.theme_name = self.current_theme
                 app.theme_mode = "dark" if self.dark_mode_enabled else "light"
                 
+                logger.info(f"App theme mode: {old_theme_mode} → {app.theme_mode}")
+                
                 # Update auto theme setting
                 app.set_auto_theme_enabled(self.auto_theme_enabled)
+                logger.info(f"Auto theme enabled: {old_auto_theme} → {self.auto_theme_enabled}")
                 
                 # Update sensor threshold
                 if hasattr(app, 'sensor_service') and app.sensor_service:
                     app.sensor_service.calibrate_light_sensor(int(self.light_sensor_threshold))
+                    logger.info(f"Updated sensor threshold to {self.light_sensor_threshold}s")
                 
-                # Import the load_theme_config function from main
-                try:
-                    from main import load_theme_config
-                    app.theme_config = load_theme_config(app.theme_name, app.theme_mode)
-                except ImportError:
-                    # Fallback if import fails - recreate the theme config directly
-                    logger.warning("Could not import load_theme_config, using fallback")
-                    path = f"themes/{app.theme_name}/{app.theme_mode}/theme.json"
+                # Switch theme if mode changed
+                if old_theme_mode != app.theme_mode:
+                    logger.info(f"Theme mode changed, switching: {old_theme_mode} → {app.theme_mode}")
+                    if app.switch_theme_mode(app.theme_mode):
+                        logger.info("✅ Theme switched successfully")
+                    else:
+                        logger.error("❌ Theme switch failed")
+                else:
+                    # Just reload theme config
                     try:
-                        with open(path, "r", encoding="utf-8") as f:
-                            app.theme_config = json.load(f)
+                        from main import load_theme_config
+                        app.theme_config = load_theme_config(app.theme_name, app.theme_mode)
+                        logger.info("Theme config reloaded")
                     except Exception as e:
-                        logger.error(f"Error loading theme: {e}")
-                        # Fallback to default theme config
-                        app.theme_config = {
-                            "background_image": "",
-                            "menu_button_normal": "",
-                            "font_name": "Minecraftia",
-                            "font_color": [1, 1, 1, 1],
-                            "menu_selected_color": [1, 1, 1, 1],
-                            "menu_unselected_color": [0.7, 0.7, 0.7, 1],
-                            "overlay_images": {}
-                        }
+                        logger.error(f"Error reloading theme config: {e}")
                 
-                logger.info(f"App settings updated: {app.theme_name}, {app.theme_mode}")
-                
-                # Reload screens to apply new theme
-                app.root.ids.screen_manager.current = "settings"
+                logger.info(f"✅ App settings updated successfully")
             else:
                 logger.error("Could not get app instance")
                 
-            logger.info("Settings saved successfully!")
+            logger.info("✅ Settings saved successfully!")
         except Exception as e:
             import traceback
-            logger.error(f"Error saving settings: {e}")
+            logger.error(f"❌ Error saving settings: {e}")
             logger.error(traceback.format_exc())
     
     def change_theme(self, theme):
         """Change current theme"""
         if theme != self.current_theme:
+            logger.info(f"Changing theme: {self.current_theme} → {theme}")
             self.current_theme = theme
             self.check_dark_mode_availability()
             self.update_dark_mode_button()
@@ -305,69 +335,113 @@ class SettingsScreen(MDScreen):
             # If selected theme doesn't have dark mode, disable the option
             if not self.dark_mode_available:
                 self.dark_mode_enabled = False
+                logger.info("Dark mode disabled due to theme change")
     
     def toggle_dark_mode(self, enabled):
         """Enable/disable dark mode"""
         app = self.get_app()
+        
+        logger.info(f"Toggle dark mode: {self.dark_mode_enabled} → {enabled}")
+        logger.info(f"Dark mode available: {self.dark_mode_available}")
+        
         if self.dark_mode_available:
             self.dark_mode_enabled = enabled
             if enabled:
                 app.play_sound("success")
             self.update_dark_mode_button()
+            logger.info(f"Dark mode toggled to: {enabled}")
         else:
             self.dark_mode_enabled = False
+            logger.warning("Cannot enable dark mode - theme not available")
+            if app:
+                app.play_sound("error")
     
     def toggle_auto_theme(self, enabled):
         """Enable/disable auto theme switching - УЛУЧШЕНО"""
-        self.auto_theme_enabled = enabled
         app = self.get_app()
-        if app:
-            if enabled and self.light_sensor_available:
-                app.play_sound("success")
-                logger.info("Auto theme switching enabled")
-            elif enabled and not self.light_sensor_available:
-                app.play_sound("error")
-                logger.warning("Cannot enable auto theme - light sensor not available")
-            else:
-                logger.info("Auto theme switching disabled")
+        
+        logger.info(f"=== TOGGLE AUTO THEME ===")
+        logger.info(f"Current state: {self.auto_theme_enabled}")
+        logger.info(f"New state: {enabled}")
+        logger.info(f"Light sensor available: {self.light_sensor_available}")
+        logger.info(f"Dark mode available: {self.dark_mode_available}")
+        
+        # Check prerequisites
+        can_enable = True
+        reasons = []
+        
+        if enabled:
+            if not self.dark_mode_available:
+                can_enable = False
+                reasons.append("Dark theme not available")
             
-            # Update auto theme button UI
-            if hasattr(self.ids, 'auto_theme_button'):
-                self.ids.auto_theme_button.text = "ON" if enabled else "OFF"
-                if enabled and self.light_sensor_available:
+            # Allow both real and mock sensors for testing
+            app_has_sensors = app and hasattr(app, 'sensor_service') and app.sensor_service and app.sensor_service.sensor_available
+            if not app_has_sensors:
+                can_enable = False
+                reasons.append("Sensor service not available")
+        
+        if enabled and not can_enable:
+            logger.warning(f"Cannot enable auto theme: {', '.join(reasons)}")
+            if app:
+                app.play_sound("error")
+            # Keep disabled
+            self.auto_theme_enabled = False
+        else:
+            # Update state
+            self.auto_theme_enabled = enabled
+            
+            if app:
+                if enabled:
+                    app.play_sound("success")
+                    logger.info("🟢 Auto theme enabled")
+                else:
+                    logger.info("🔴 Auto theme disabled")
+            
+        # Update auto theme button UI
+        if hasattr(self.ids, 'auto_theme_button'):
+            self.ids.auto_theme_button.text = "ON" if self.auto_theme_enabled else "OFF"
+            if app:
+                if self.auto_theme_enabled:
                     self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
                 else:
                     self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
+        
+        logger.info(f"Final auto theme state: {self.auto_theme_enabled}")
     
     def test_light_sensor(self):
         """Test light sensor reading - УЛУЧШЕНО"""
         app = self.get_app()
         if app and hasattr(app, 'sensor_service') and app.sensor_service:
-            if app.sensor_service.gpio_available:
-                logger.info("Starting light sensor test...")
-                app.play_sound("click")
-                
-                # Start test in background
-                import threading
-                test_thread = threading.Thread(
-                    target=app.sensor_service.test_light_sensor, 
-                    args=(10,),  # 10 seconds test
-                    daemon=True
-                )
-                test_thread.start()
-                
-                # Show current status immediately
-                light_status = app.sensor_service.get_light_sensor_status()
-                light_level = "Light" if light_status.get('current_level', True) else "Dark"
-                raw_value = light_status.get('raw_value', 0)
-                
-                logger.info(f"Current light sensor reading: {light_level} (raw: {raw_value})")
-                
-                # Force immediate UI update
-                self.update_sensor_status()
-            else:
-                logger.warning("Light sensor test failed - GPIO not available")
-                app.play_sound("error")
+            logger.info("=== LIGHT SENSOR TEST ===")
+            sensor_status = app.sensor_service.get_light_sensor_status()
+            
+            # Log current status
+            logger.info("Current sensor status:")
+            for key, value in sensor_status.items():
+                logger.info(f"  {key}: {value}")
+            
+            app.play_sound("click")
+            
+            # Start test in background
+            import threading
+            test_thread = threading.Thread(
+                target=app.sensor_service.test_light_sensor, 
+                args=(15,),  # 15 seconds test
+                daemon=True
+            )
+            test_thread.start()
+            
+            # Show current status immediately
+            light_level = "Light" if sensor_status.get('current_level', True) else "Dark"
+            raw_value = sensor_status.get('raw_value', 0)
+            using_mock = sensor_status.get('using_mock', True)
+            sensor_type = "Mock" if using_mock else "Real"
+            
+            logger.info(f"Current light sensor reading: {light_level} (raw: {raw_value}, type: {sensor_type})")
+            
+            # Force immediate UI update
+            self.update_sensor_status()
         else:
             logger.error("Cannot test light sensor - service not available")
             if app:
@@ -375,11 +449,14 @@ class SettingsScreen(MDScreen):
     
     def set_threshold_delay(self, value):
         """Set theme switch delay threshold"""
-        self.light_sensor_threshold = int(value)
+        old_value = self.light_sensor_threshold
+        self.light_sensor_threshold = max(1, min(int(value), 10))  # Clamp between 1-10 seconds
+        
+        logger.info(f"Theme switch delay: {old_value}s → {self.light_sensor_threshold}s")
+        
         app = self.get_app()
         if app and hasattr(app, 'sensor_service') and app.sensor_service:
-            app.sensor_service.calibrate_light_sensor(int(value))
-        logger.info(f"Theme switch delay set to {value} seconds")
+            app.sensor_service.calibrate_light_sensor(self.light_sensor_threshold)
     
     def test_volume_up(self):
         """Test volume up"""
