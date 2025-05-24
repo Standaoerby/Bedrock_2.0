@@ -11,6 +11,51 @@ import random
 from datetime import datetime
 from utils.error_handler import ErrorHandler
 
+# Global GPIO imports with error handling
+try:
+    import lgpio
+    LGPIO_AVAILABLE = True
+except ImportError:
+    LGPIO_AVAILABLE = False
+    lgpio = None
+
+try:
+    import RPi.GPIO as GPIO
+    RPI_GPIO_AVAILABLE = True  
+except ImportError:
+    RPI_GPIO_AVAILABLE = False
+    GPIO = None
+
+# Global GPIO imports with error handling
+try:
+    import lgpio
+    LGPIO_AVAILABLE = True
+except ImportError:
+    LGPIO_AVAILABLE = False
+    lgpio = None
+
+try:
+    import RPi.GPIO as GPIO
+    RPI_GPIO_AVAILABLE = True  
+except ImportError:
+    RPI_GPIO_AVAILABLE = False
+    GPIO = None
+
+# Global GPIO imports with error handling
+try:
+    import lgpio
+    LGPIO_AVAILABLE = True
+except ImportError:
+    LGPIO_AVAILABLE = False
+    lgpio = None
+
+try:
+    import RPi.GPIO as GPIO
+    RPI_GPIO_AVAILABLE = True  
+except ImportError:
+    RPI_GPIO_AVAILABLE = False
+    GPIO = None
+
 # Configure logging
 logger = logging.getLogger("SensorService")
 
@@ -85,10 +130,40 @@ class DummyAHTx0(DummySensor):
 class DummyLDR:
     """Built-in mock for LDR light sensor"""
     def __init__(self):
-        self._last_change = time.time()
-        self._is_light = True
-        logger.info("Dummy LDR sensor initialized")
-    
+        """Initialize the sensor service"""
+        # Initialize variables
+        self.sensor_available = False
+        self.ens = None
+        self.aht = None
+        self.ldr = None
+        self.i2c = None
+        self.running = False
+        self.thread = None
+        
+        # Sensor readings
+        self._readings = {
+            'temperature': 22.5,
+            'humidity': 45.0,
+            'co2': 800,
+            'tvoc': 250,
+            'air_quality': 'Good',
+            'light_level': True,  # True = light, False = dark
+            'light_raw': 1        # Raw digital value from sensor
+        }
+        
+        # Light sensor state tracking
+        self._last_light_state = None
+        self._light_change_threshold = 2  # seconds to confirm change
+        self._light_change_start = None
+        
+        # GPIO setup with proper handle management
+        self.gpio_available = False
+        self.gpio_lib = None
+        self.gpio_handle = None
+        self._gpio_handles = []  # Track all handles for cleanup
+        
+        # Default to mock sensors until we verify real hardware
+        self.using_mock_sensors = True
     def read_digital(self):
         """Simulate light level changes based on time of day"""
         current_hour = datetime.now().hour
@@ -138,14 +213,14 @@ class SensorService:
         self._light_change_threshold = 2  # seconds to confirm change
         self._light_change_start = None
         
-        # GPIO setup
+        # GPIO setup with proper handle management
         self.gpio_available = False
         self.gpio_lib = None
         self.gpio_handle = None
+        self._gpio_handles = []  # Track all handles for cleanup
         
         # Default to mock sensors until we verify real hardware
         self.using_mock_sensors = True
-    
     @ErrorHandler.handle_exception
     def start(self):
         """Initialize sensors and start update thread"""
@@ -222,55 +297,96 @@ class SensorService:
             self.sensor_available = False
     
     def _init_gpio(self):
-        """Initialize GPIO for LDR sensor"""
+        """Initialize GPIO for LDR sensor with proper handle management"""
         try:
-            # Try lgpio first (preferred for Pi 5)
+            logger.info("Initializing GPIO for LDR sensor...")
+            
+            # Clean up any existing handles first
+            self._cleanup_gpio_handles()
+            
+            # Kill any existing GPIO processes that might be holding pins
+            import subprocess
             try:
-                import lgpio
-                self.gpio_handle = lgpio.gpiochip_open(0)
-                lgpio.gpio_claim_input(self.gpio_handle, LDR_GPIO_PIN)
-                self.gpio_lib = "lgpio"
-                self.gpio_available = True
-                logger.info(f"GPIO initialized with lgpio (pin {LDR_GPIO_PIN})")
-                return
-            except ImportError:
+                subprocess.run(['sudo', 'pkill', '-f', 'gpio'], capture_output=True, timeout=5)
+                time.sleep(0.5)
+            except:
+                pass
+            
+            # Try lgpio first (preferred for Pi 5)
+            if LGPIO_AVAILABLE:
+                try:
+                    logger.info("Trying lgpio initialization...")
+                    
+                    # Open GPIO chip
+                    self.gpio_handle = lgpio.gpiochip_open(0)
+                    self._gpio_handles.append(self.gpio_handle)  # Track handle
+                    
+                    # Claim the pin
+                    lgpio.gpio_claim_input(self.gpio_handle, LDR_GPIO_PIN)
+                    
+                    # Test read to make sure it works
+                    test_val = lgpio.gpio_read(self.gpio_handle, LDR_GPIO_PIN)
+                    logger.info(f"GPIO test read successful: {test_val}")
+                    
+                    self.gpio_lib = "lgpio"
+                    self.gpio_available = True
+                    logger.info(f"✓ GPIO initialized with lgpio (pin {LDR_GPIO_PIN}, handle {self.gpio_handle})")
+                    return
+                    
+                except Exception as e:
+                    logger.warning(f"lgpio initialization failed: {e}")
+                    self._cleanup_gpio_handles()
+            else:
                 logger.info("lgpio not available, trying RPi.GPIO")
-            except Exception as e:
-                logger.warning(f"lgpio initialization failed: {e}")
             
             # Fallback to RPi.GPIO
-            try:
-                import RPi.GPIO as GPIO
-                GPIO.setmode(GPIO.BCM)
-                GPIO.setup(LDR_GPIO_PIN, GPIO.IN)
-                self.gpio_lib = "RPi.GPIO"
-                self.gpio_available = True
-                logger.info(f"GPIO initialized with RPi.GPIO (pin {LDR_GPIO_PIN})")
-                return
-            except ImportError:
+            if RPI_GPIO_AVAILABLE:
+                try:
+                    logger.info("Trying RPi.GPIO initialization...")
+                    
+                    # Clean up any existing setup
+                    GPIO.cleanup()
+                    time.sleep(0.2)
+                    
+                    GPIO.setmode(GPIO.BCM)
+                    GPIO.setup(LDR_GPIO_PIN, GPIO.IN)
+                    
+                    # Test read
+                    test_val = GPIO.input(LDR_GPIO_PIN)
+                    logger.info(f"GPIO test read successful: {test_val}")
+                    
+                    self.gpio_lib = "RPi.GPIO"
+                    self.gpio_available = True
+                    logger.info(f"✓ GPIO initialized with RPi.GPIO (pin {LDR_GPIO_PIN})")
+                    return
+                    
+                except Exception as e:
+                    logger.warning(f"RPi.GPIO initialization failed: {e}")
+                    try:
+                        GPIO.cleanup()
+                    except:
+                        pass
+            else:
                 logger.warning("RPi.GPIO not available")
-            except Exception as e:
-                logger.warning(f"RPi.GPIO initialization failed: {e}")
             
             # No GPIO available
+            logger.warning("No GPIO library available for LDR sensor - using mock")
             self.gpio_available = False
-            logger.warning("No GPIO library available for LDR sensor")
             
         except Exception as e:
             logger.error(f"Error initializing GPIO: {e}")
             self.gpio_available = False
-    
+            self._cleanup_gpio_handles()
     def _read_ldr_gpio(self):
         """Read LDR sensor value from GPIO"""
         try:
             if not self.gpio_available:
                 return None
                 
-            if self.gpio_lib == "lgpio":
+            if self.gpio_lib == "lgpio" and LGPIO_AVAILABLE:
                 value = lgpio.gpio_read(self.gpio_handle, LDR_GPIO_PIN)
                 return bool(value)
-            elif self.gpio_lib == "RPi.GPIO":
-                import RPi.GPIO as GPIO
+            elif self.gpio_lib == "RPi.GPIO" and RPI_GPIO_AVAILABLE:
                 value = GPIO.input(LDR_GPIO_PIN)
                 return bool(value)
             else:
@@ -279,7 +395,6 @@ class SensorService:
         except Exception as e:
             logger.error(f"Error reading LDR GPIO: {e}")
             return None
-    
     def _scan_i2c(self):
         """Scan I2C bus and print detected devices"""
         if self.using_mock_sensors or not self.i2c:
@@ -316,24 +431,58 @@ class SensorService:
         except Exception as e:
             logger.error(f"Error scanning I2C: {e}")
     
+    def _cleanup_gpio_handles(self):
+        """Clean up all GPIO handles properly"""
+        try:
+            if self.gpio_lib == "lgpio" and LGPIO_AVAILABLE:
+                # Close all tracked handles
+                for handle in self._gpio_handles:
+                    try:
+                        lgpio.gpiochip_close(handle)
+                        logger.debug(f"Closed GPIO handle {handle}")
+                    except:
+                        pass
+                self._gpio_handles.clear()
+                self.gpio_handle = None
+            elif self.gpio_lib == "RPi.GPIO" and RPI_GPIO_AVAILABLE:
+                try:
+                    GPIO.cleanup()
+                    logger.debug("RPi.GPIO cleaned up")
+                except:
+                    pass
+        except Exception as e:
+            logger.error(f"Error cleaning up GPIO handles: {e}")
+    def _cleanup_gpio_handles(self):
+        """Clean up all GPIO handles properly"""
+        try:
+            if self.gpio_lib == "lgpio" and LGPIO_AVAILABLE:
+                # Close all tracked handles
+                for handle in self._gpio_handles:
+                    try:
+                        lgpio.gpiochip_close(handle)
+                        logger.debug(f"Closed GPIO handle {handle}")
+                    except:
+                        pass
+                self._gpio_handles.clear()
+                self.gpio_handle = None
+            elif self.gpio_lib == "RPi.GPIO" and RPI_GPIO_AVAILABLE:
+                try:
+                    GPIO.cleanup()
+                    logger.debug("RPi.GPIO cleaned up")
+                except:
+                    pass
+        except Exception as e:
+            logger.error(f"Error cleaning up GPIO handles: {e}")
     def stop(self):
         """Stop the update thread and free resources"""
         self.running = False
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=1.0)
             
-        # Cleanup GPIO
-        try:
-            if self.gpio_lib == "lgpio" and self.gpio_handle is not None:
-                lgpio.gpiochip_close(self.gpio_handle)
-            elif self.gpio_lib == "RPi.GPIO":
-                import RPi.GPIO as GPIO
-                GPIO.cleanup()
-        except Exception as e:
-            logger.error(f"Error cleaning up GPIO: {e}")
+        # Cleanup GPIO with improved method
+        self._cleanup_gpio_handles()
             
         logger.info("Sensor service stopped")
-    
     def _background_update(self):
         """Background process for sensor data updates"""
         while self.running:
