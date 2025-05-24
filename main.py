@@ -427,9 +427,18 @@ class BedrockApp(MDApp):
                 log_file.write(traceback.format_exc())
     
     def _delayed_auto_theme_start(self, dt):
-        """Start auto theme monitoring after sensors have had time to initialize"""
+        """Быстрый запуск авто-переключения тем"""
         if self.auto_theme_enabled:
-            logger.info("Starting delayed auto theme monitoring...")
+            logger.info("Starting FAST auto theme monitoring...")
+            
+            # Настраиваем быстрое переключение в сенсоре
+            if hasattr(self, 'sensor_service') and self.sensor_service:
+                # Включаем быстрое переключение
+                self.sensor_service.set_fast_switching(enabled=True, confidence=0.8)
+                # Устанавливаем короткую задержку
+                switch_delay = self.user_config.get("theme_switch_delay", 3)
+                self.sensor_service.calibrate_light_sensor(switch_delay)
+            
             self._start_auto_theme_monitoring()
         
     def on_stop(self):
@@ -473,7 +482,7 @@ class BedrockApp(MDApp):
     
     # ИСПРАВЛЕННЫЕ методы автоматического переключения тем с подробным логированием
     def _start_auto_theme_monitoring(self):
-        """Start monitoring light sensor for auto theme switching - ИСПРАВЛЕНО"""
+        """ИСПРАВЛЕНО: Быстрый мониторинг изменений освещённости"""
         if not self.auto_theme_enabled:
             logger.info("Auto theme monitoring disabled in user config")
             return
@@ -501,7 +510,7 @@ class BedrockApp(MDApp):
             logger.info("Auto theme monitoring already active")
             return
             
-        logger.info("=== STARTING AUTO THEME MONITORING ===")
+        logger.info("=== STARTING FAST AUTO THEME MONITORING ===")
         logger.info(f"Current theme: {self.theme_name}/{self.theme_mode}")
         logger.info(f"Auto theme enabled: {self.auto_theme_enabled}")
         logger.info(f"Sensor available: {getattr(self.sensor_service, 'sensor_available', False)}")
@@ -518,14 +527,14 @@ class BedrockApp(MDApp):
                 self.sensor_service._last_light_state = initial_light
                 logger.info(f"Initialized sensor last light state: {'Light' if initial_light else 'Dark'}")
         
-        # Запускаем мониторинг каждые 3 секунды (чаще для лучшей отзывчивости)
-        self._auto_theme_event = Clock.schedule_interval(self._check_auto_theme_switch, 3)
+        # ИСПРАВЛЕНО: Быстрая проверка каждые 1.5 секунды (вместо 3)
+        self._auto_theme_event = Clock.schedule_interval(self._check_auto_theme_switch, 1.5)
         self._theme_monitoring_active = True
         
-        # Выполняем первоначальную проверку через 2 секунды
-        Clock.schedule_once(lambda dt: self._check_auto_theme_switch(dt), 2)
+        # Выполняем первоначальную проверку через 1 секунду
+        Clock.schedule_once(lambda dt: self._check_auto_theme_switch(dt), 1)
         
-        logger.info("Auto theme monitoring started successfully")
+        logger.info("✅ Fast auto theme monitoring started successfully")
     
     def _stop_auto_theme_monitoring(self):
         """Stop auto theme monitoring"""
@@ -672,7 +681,7 @@ class BedrockApp(MDApp):
             self._theme_switch_timer = None
     
     def switch_theme_mode(self, mode):
-        """Switch theme mode (light/dark) - РАДИКАЛЬНОЕ ОБНОВЛЕНИЕ UI"""
+        """ИСПРАВЛЕНО: Переключение темы с принудительным обновлением UI"""
         try:
             logger.info(f"🎨 === SWITCHING THEME MODE: {self.theme_mode} → {mode} ===")
             
@@ -695,10 +704,11 @@ class BedrockApp(MDApp):
                 logger.error(f"Failed to load theme config for {self.theme_name}/{mode}")
                 return False
             
-            # Update properties
+            # Store old values for comparison
             old_mode = self.theme_mode
             old_theme_config = self.theme_config.copy()
             
+            # Update properties IMMEDIATELY
             self.theme_mode = mode
             self.theme_config = new_theme_config
             
@@ -714,12 +724,9 @@ class BedrockApp(MDApp):
             else:
                 logger.error("❌ Failed to save user config")
             
-            # КРИТИЧЕСКИ ВАЖНО: Принудительное обновление UI
-            logger.info("🔄 Starting RADICAL UI update...")
-            self._apply_theme_to_ui()
-            
-            # Additional force refresh after delay
-            Clock.schedule_once(lambda dt: self._secondary_ui_refresh(), 0.5)
+            # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительное обновление UI
+            logger.info("🔄 Starting IMMEDIATE UI refresh...")
+            self._force_immediate_ui_update()
             
             logger.info(f"✅ Theme mode switched: {old_mode} → {mode}")
             return True
@@ -729,7 +736,211 @@ class BedrockApp(MDApp):
             import traceback
             logger.error(traceback.format_exc())
             return False
-    
+    def _force_immediate_ui_update(self):
+        """НОВОЕ: Принудительное немедленное обновление UI"""
+        try:
+            logger.info("🚀 FORCE IMMEDIATE UI UPDATE")
+            
+            # 1. Dispatch theme_config property change event MULTIPLE times
+            for i in range(3):  # Делаем несколько раз для гарантии
+                try:
+                    self.property('theme_config').dispatch(self)
+                    logger.info(f"✅ Property dispatch #{i+1} completed")
+                except Exception as e:
+                    logger.error(f"Property dispatch #{i+1} failed: {e}")
+            
+            # 2. Получаем все экраны и принудительно обновляем их
+            if hasattr(self.root, 'ids') and 'screen_manager' in self.root.ids:
+                screen_manager = self.root.ids.screen_manager
+                current_screen_name = screen_manager.current
+                
+                logger.info(f"Current screen: {current_screen_name}")
+                
+                # 3. Принудительно обновляем все экраны
+                for screen in screen_manager.screens:
+                    try:
+                        screen_name = screen.name
+                        logger.info(f"🔄 Updating screen: {screen_name}")
+                        
+                        # Принудительно перестраиваем виджеты экрана
+                        self._rebuild_screen_widgets(screen)
+                        
+                        # Обновляем canvas
+                        self._force_screen_canvas_update(screen)
+                        
+                    except Exception as e:
+                        logger.error(f"Error updating screen {screen.name}: {e}")
+                
+                # 4. Дополнительное обновление текущего экрана
+                try:
+                    current_screen = screen_manager.get_screen(current_screen_name)
+                    Clock.schedule_once(lambda dt: self._final_screen_update(current_screen), 0.1)
+                    Clock.schedule_once(lambda dt: self._final_screen_update(current_screen), 0.5)  # Второй раз через полсекунды
+                except Exception as e:
+                    logger.error(f"Error in additional current screen update: {e}")
+            
+            # 5. Обновляем главный background
+            self._update_main_background()
+            
+            logger.info("🎯 Immediate UI update completed")
+            
+        except Exception as e:
+            logger.error(f"Error in force immediate UI update: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+    def _rebuild_screen_widgets(self, screen):
+        """НОВОЕ: Перестроение виджетов экрана для применения новой темы"""
+        try:
+            def update_widget_theme(widget):
+                """Рекурсивно обновляем тему для всех виджетов"""
+                try:
+                    widget_class = widget.__class__.__name__
+                    
+                    # Обновляем основные свойства в зависимости от типа виджета
+                    if hasattr(widget, 'color'):
+                        if 'Label' in widget_class or 'ThemedLabel' in widget_class:
+                            widget.color = self.theme_config.get("font_color", [1, 1, 1, 1])
+                        elif 'Button' in widget_class:
+                            # Кнопки могут иметь специальные цвета
+                            if hasattr(widget, 'background_normal'):
+                                widget.background_normal = self.theme_config.get("button_normal", "")
+                            if hasattr(widget, 'background_down'):
+                                widget.background_down = self.theme_config.get("button_active", "")
+                    
+                    # Обновляем шрифт для всех текстовых элементов
+                    if hasattr(widget, 'font_name'):
+                        widget.font_name = self.theme_config.get("font_name", "Minecraftia")
+                    
+                    # Принудительно обновляем canvas
+                    if hasattr(widget, 'canvas'):
+                        widget.canvas.ask_update()
+                    
+                    # Обновляем фон для панелей
+                    if 'Panel' in widget_class or 'ThemedPanel' in widget_class:
+                        # Перестраиваем фон панели
+                        if hasattr(widget, 'canvas') and hasattr(widget.canvas, 'before'):
+                            widget.canvas.before.clear()
+                            with widget.canvas.before:
+                                from kivy.graphics import Color, RoundedRectangle
+                                Color(*self.theme_config.get("panel_bg", [0, 0, 0, 0.2]))
+                                RoundedRectangle(
+                                    pos=widget.pos, 
+                                    size=widget.size,
+                                    radius=[self.theme_config.get("panel_radius", 16)]
+                                )
+                    
+                    # Рекурсивно обновляем дочерние виджеты
+                    if hasattr(widget, 'children'):
+                        for child in widget.children:
+                            update_widget_theme(child)
+                            
+                except Exception as e:
+                    logger.debug(f"Error updating widget {widget}: {e}")
+            
+            # Начинаем обновление с корневого виджета экрана
+            update_widget_theme(screen)
+            
+            logger.info(f"✅ Rebuilt widgets for screen: {screen.name}")
+            
+        except Exception as e:
+            logger.error(f"Error rebuilding screen widgets: {e}")
+    def _force_screen_canvas_update(self, screen):
+        """НОВОЕ: Принудительное обновление canvas для экрана"""
+        try:
+            def force_canvas_redraw(widget):
+                try:
+                    if hasattr(widget, 'canvas'):
+                        widget.canvas.ask_update()
+                    
+                    # Принудительно обновляем размеры для пересчёта layout
+                    if hasattr(widget, 'size') and hasattr(widget, 'pos'):
+                        original_size = widget.size[:]
+                        original_pos = widget.pos[:]
+                        
+                        # Микроизменение для запуска событий обновления
+                        widget.size = (original_size[0] + 0.1, original_size[1] + 0.1)
+                        widget.pos = (original_pos[0] + 0.1, original_pos[1] + 0.1)
+                        
+                        # Возвращаем обратно через очень короткое время
+                        Clock.schedule_once(
+                            lambda dt: setattr(widget, 'size', original_size), 0.01
+                        )
+                        Clock.schedule_once(
+                            lambda dt: setattr(widget, 'pos', original_pos), 0.01
+                        )
+                    
+                    if hasattr(widget, 'children'):
+                        for child in widget.children:
+                            force_canvas_redraw(child)
+                            
+                except Exception as e:
+                    logger.debug(f"Error in force canvas redraw: {e}")
+            
+            force_canvas_redraw(screen)
+            
+        except Exception as e:
+            logger.error(f"Error forcing canvas update: {e}")
+    def _final_screen_update(self, screen):
+        """НОВОЕ: Финальное обновление экрана"""
+        try:
+            logger.info(f"🏁 Final update for screen: {screen.name}")
+            
+            # Ещё раз диспатчим изменение темы
+            self.property('theme_config').dispatch(self)
+            
+            # Обновляем весь экран
+            self._rebuild_screen_widgets(screen)
+            self._force_screen_canvas_update(screen)
+            
+            # Специальное обновление для overlay изображений
+            self._update_screen_overlays(screen)
+            
+            logger.info(f"✅ Final screen update completed: {screen.name}")
+            
+        except Exception as e:
+            logger.error(f"Error in final screen update: {e}")
+
+    def _update_screen_overlays(self, screen):
+        """НОВОЕ: Обновление overlay изображений для экрана"""
+        try:
+            def find_and_update_overlays(widget):
+                """Ищем и обновляем overlay изображения"""
+                try:
+                    if hasattr(widget, 'source') and isinstance(widget.source, str):
+                        # Проверяем, является ли это overlay изображением
+                        if 'overlay_' in widget.source or '/overlay_' in widget.source:
+                            screen_name = screen.name
+                            new_overlay = self.get_overlay_image(screen_name)
+                            if new_overlay and new_overlay != widget.source:
+                                logger.info(f"🖼️  Updating overlay: {widget.source} → {new_overlay}")
+                                widget.source = new_overlay
+                                # Принудительно обновляем изображение
+                                widget.reload()
+                    
+                    if hasattr(widget, 'children'):
+                        for child in widget.children:
+                            find_and_update_overlays(child)
+                            
+                except Exception as e:
+                    logger.debug(f"Error updating overlay: {e}")
+            
+            find_and_update_overlays(screen)
+            
+        except Exception as e:
+            logger.error(f"Error updating screen overlays: {e}")
+
+    def _update_main_background(self):
+        """НОВОЕ: Обновление главного фона приложения"""
+        try:
+            if hasattr(self.root, 'ids') and 'background_image' in self.root.ids:
+                bg_image = self.root.ids.background_image
+                new_bg = self.theme_config.get("background_image", "")
+                if new_bg and new_bg != bg_image.source:
+                    logger.info(f"🖼️  Updating main background: {bg_image.source} → {new_bg}")
+                    bg_image.source = new_bg
+                    bg_image.reload()
+        except Exception as e:
+            logger.error(f"Error updating main background: {e}")
     def _secondary_ui_refresh(self):
         """Secondary UI refresh to ensure theme is applied"""
         try:
