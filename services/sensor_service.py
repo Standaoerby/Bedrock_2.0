@@ -1,5 +1,5 @@
 """
-Service for working with sensors (ENS160+AHT21)
+Service for working with sensors (ENS160+AHT21+LDR)
 Supports real sensors on Raspberry Pi and mock sensors for development
 """
 import time
@@ -8,6 +8,7 @@ import sys
 from threading import Thread
 import logging
 import random
+from datetime import datetime
 from utils.error_handler import ErrorHandler
 
 # Configure logging
@@ -16,6 +17,9 @@ logger = logging.getLogger("SensorService")
 # Define constants for I2C addresses
 ENS160_ADDRESS = 0x53
 AHT21_ADDRESS = 0x38
+
+# GPIO pins for new sensors
+LDR_GPIO_PIN = 18
 
 # Air quality levels mapping
 AIR_QUALITY_LEVELS = {
@@ -78,6 +82,32 @@ class DummyAHTx0(DummySensor):
         self._humidity = max(30.0, min(self._humidity, 70.0))
         return self._humidity
 
+class DummyLDR:
+    """Built-in mock for LDR light sensor"""
+    def __init__(self):
+        self._last_change = time.time()
+        self._is_light = True
+        logger.info("Dummy LDR sensor initialized")
+    
+    def read_digital(self):
+        """Simulate light level changes based on time of day"""
+        current_hour = datetime.now().hour
+        
+        # Simulate day/night cycle: dark from 20:00 to 07:00
+        if 7 <= current_hour < 20:
+            base_is_light = True
+        else:
+            base_is_light = False
+            
+        # Add some random variation
+        if time.time() - self._last_change > 30:  # Change every 30 seconds for testing
+            if random.random() < 0.1:  # 10% chance to flip
+                self._is_light = not self._is_light
+                self._last_change = time.time()
+                logger.debug(f"Mock LDR changed to: {'Light' if self._is_light else 'Dark'}")
+        
+        return base_is_light if random.random() > 0.05 else self._is_light
+
 class SensorService:
     """Service for environmental sensors"""
     
@@ -87,16 +117,32 @@ class SensorService:
         self.sensor_available = False
         self.ens = None
         self.aht = None
+        self.ldr = None
         self.i2c = None
         self.running = False
         self.thread = None
+        
+        # Sensor readings
         self._readings = {
             'temperature': 22.5,
             'humidity': 45.0,
             'co2': 800,
             'tvoc': 250,
-            'air_quality': 'Good'
+            'air_quality': 'Good',
+            'light_level': True,  # True = light, False = dark
+            'light_raw': 1        # Raw digital value from sensor
         }
+        
+        # Light sensor state tracking
+        self._last_light_state = None
+        self._light_change_threshold = 2  # seconds to confirm change
+        self._light_change_start = None
+        
+        # GPIO setup
+        self.gpio_available = False
+        self.gpio_lib = None
+        self.gpio_handle = None
+        
         # Default to mock sensors until we verify real hardware
         self.using_mock_sensors = True
     
@@ -104,6 +150,9 @@ class SensorService:
     def start(self):
         """Initialize sensors and start update thread"""
         try:
+            # Initialize GPIO first
+            self._init_gpio()
+            
             # Try to import and initialize real hardware
             try:
                 # Try to initialize real sensors
@@ -135,18 +184,27 @@ class SensorService:
                     # Initialize real sensors
                     self.ens = adafruit_ens160.ENS160(self.i2c, address=ENS160_ADDRESS)
                     self.aht = adafruit_ahtx0.AHTx0(self.i2c, address=AHT21_ADDRESS)
-                    logger.info("Real sensors initialized successfully")
+                    logger.info("Real I2C sensors initialized successfully")
                 else:
-                    raise ImportError("Failed to initialize real hardware")
+                    raise ImportError("Failed to initialize real I2C hardware")
+                    
             except ImportError as e:
-                logger.info(f"Using mock sensors: {e}")
+                logger.info(f"Using mock I2C sensors: {e}")
                 self.using_mock_sensors = True
             
             # If we need to use mock sensors, initialize them
             if self.using_mock_sensors:
-                logger.info("Initializing mock sensors")
+                logger.info("Initializing mock I2C sensors")
                 self.ens = DummyENS160(None)
                 self.aht = DummyAHTx0(None)
+            
+            # Initialize LDR sensor (GPIO-based)
+            if self.gpio_available:
+                self.ldr = None  # Real LDR uses GPIO directly
+                logger.info("Real LDR sensor available via GPIO")
+            else:
+                self.ldr = DummyLDR()
+                logger.info("Using mock LDR sensor")
             
             self.sensor_available = True
             
@@ -158,10 +216,69 @@ class SensorService:
             self.thread = Thread(target=self._background_update, daemon=True)
             self.thread.start()
             
-            logger.info(f"Sensor service started successfully (mock mode: {self.using_mock_sensors})")
+            logger.info(f"Sensor service started successfully (mock mode: {self.using_mock_sensors}, GPIO: {self.gpio_available})")
         except Exception as e:
             logger.error(f"Error initializing sensors: {e}")
             self.sensor_available = False
+    
+    def _init_gpio(self):
+        """Initialize GPIO for LDR sensor"""
+        try:
+            # Try lgpio first (preferred for Pi 5)
+            try:
+                import lgpio
+                self.gpio_handle = lgpio.gpiochip_open(0)
+                lgpio.gpio_claim_input(self.gpio_handle, LDR_GPIO_PIN)
+                self.gpio_lib = "lgpio"
+                self.gpio_available = True
+                logger.info(f"GPIO initialized with lgpio (pin {LDR_GPIO_PIN})")
+                return
+            except ImportError:
+                logger.info("lgpio not available, trying RPi.GPIO")
+            except Exception as e:
+                logger.warning(f"lgpio initialization failed: {e}")
+            
+            # Fallback to RPi.GPIO
+            try:
+                import RPi.GPIO as GPIO
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setup(LDR_GPIO_PIN, GPIO.IN)
+                self.gpio_lib = "RPi.GPIO"
+                self.gpio_available = True
+                logger.info(f"GPIO initialized with RPi.GPIO (pin {LDR_GPIO_PIN})")
+                return
+            except ImportError:
+                logger.warning("RPi.GPIO not available")
+            except Exception as e:
+                logger.warning(f"RPi.GPIO initialization failed: {e}")
+            
+            # No GPIO available
+            self.gpio_available = False
+            logger.warning("No GPIO library available for LDR sensor")
+            
+        except Exception as e:
+            logger.error(f"Error initializing GPIO: {e}")
+            self.gpio_available = False
+    
+    def _read_ldr_gpio(self):
+        """Read LDR sensor value from GPIO"""
+        try:
+            if not self.gpio_available:
+                return None
+                
+            if self.gpio_lib == "lgpio":
+                value = lgpio.gpio_read(self.gpio_handle, LDR_GPIO_PIN)
+                return bool(value)
+            elif self.gpio_lib == "RPi.GPIO":
+                import RPi.GPIO as GPIO
+                value = GPIO.input(LDR_GPIO_PIN)
+                return bool(value)
+            else:
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error reading LDR GPIO: {e}")
+            return None
     
     def _scan_i2c(self):
         """Scan I2C bus and print detected devices"""
@@ -204,6 +321,17 @@ class SensorService:
         self.running = False
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=1.0)
+            
+        # Cleanup GPIO
+        try:
+            if self.gpio_lib == "lgpio" and self.gpio_handle is not None:
+                lgpio.gpiochip_close(self.gpio_handle)
+            elif self.gpio_lib == "RPi.GPIO":
+                import RPi.GPIO as GPIO
+                GPIO.cleanup()
+        except Exception as e:
+            logger.error(f"Error cleaning up GPIO: {e}")
+            
         logger.info("Sensor service stopped")
     
     def _background_update(self):
@@ -235,12 +363,26 @@ class SensorService:
             self._readings['temperature'] = self.aht.temperature
             self._readings['humidity'] = self.aht.relative_humidity
             
+            # Read LDR sensor
+            if self.gpio_available:
+                light_raw = self._read_ldr_gpio()
+                if light_raw is not None:
+                    self._readings['light_raw'] = int(light_raw)
+                    self._readings['light_level'] = light_raw
+            else:
+                # Use mock LDR
+                if self.ldr:
+                    light_value = self.ldr.read_digital()
+                    self._readings['light_raw'] = int(light_value)
+                    self._readings['light_level'] = light_value
+            
             # Log readings periodically (at debug level to avoid log spam)
             logger.debug(f"Sensor readings: Temp={self._readings['temperature']:.1f}°C, "
                        f"Humidity={self._readings['humidity']:.1f}%, "
                        f"CO2={self._readings['co2']} ppm, "
                        f"TVOC={self._readings['tvoc']} ppb, "
-                       f"Air Quality={self._readings['air_quality']}")
+                       f"Air Quality={self._readings['air_quality']}, "
+                       f"Light={'Light' if self._readings['light_level'] else 'Dark'}")
                   
         except Exception as e:
             logger.error(f"Error reading sensors: {e}")
@@ -248,3 +390,54 @@ class SensorService:
     def get_readings(self):
         """Return the latest sensor readings"""
         return self._readings.copy()  # Return a copy to avoid threading issues
+    
+    def get_light_level(self):
+        """Get current light level (True = light, False = dark)"""
+        return self._readings.get('light_level', True)
+    
+    def is_light_changed(self):
+        """Check if light level has changed and is stable"""
+        current_light = self.get_light_level()
+        
+        # If this is the first reading
+        if self._last_light_state is None:
+            self._last_light_state = current_light
+            return False
+        
+        # If light level is different
+        if current_light != self._last_light_state:
+            # Start change timer if not already started
+            if self._light_change_start is None:
+                self._light_change_start = time.time()
+                logger.debug(f"Light change detected: {self._last_light_state} -> {current_light}")
+            
+            # Check if change has been stable long enough
+            elif time.time() - self._light_change_start >= self._light_change_threshold:
+                # Change is confirmed
+                self._last_light_state = current_light
+                self._light_change_start = None
+                logger.info(f"Light level changed to: {'Light' if current_light else 'Dark'}")
+                return True
+        else:
+            # Light level returned to previous state, cancel change
+            if self._light_change_start is not None:
+                self._light_change_start = None
+                logger.debug("Light change cancelled - returned to previous state")
+        
+        return False
+    
+    def calibrate_light_sensor(self, threshold_seconds=2):
+        """Set the threshold for light change confirmation"""
+        self._light_change_threshold = threshold_seconds
+        logger.info(f"Light sensor threshold set to {threshold_seconds} seconds")
+    
+    def get_light_sensor_status(self):
+        """Get detailed light sensor status for debugging"""
+        return {
+            'current_level': self.get_light_level(),
+            'raw_value': self._readings.get('light_raw', 0),
+            'gpio_available': self.gpio_available,
+            'gpio_lib': self.gpio_lib,
+            'using_mock': not self.gpio_available,
+            'change_threshold': self._light_change_threshold
+        }

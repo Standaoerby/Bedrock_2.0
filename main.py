@@ -3,6 +3,7 @@ from kivy.lang import Builder
 from kivymd.app import MDApp
 from kivymd.uix.pickers.timepicker import MDTimePickerInput
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
+from kivy.clock import Clock
 from services.alarm_service import AlarmService
 from classes.alarm_clock import AlarmClock
 from services.weather_service import WeatherService
@@ -11,6 +12,7 @@ from services.pigs_service import PigsService
 from services.notifications_service import NotificationService
 from services.sensor_service import SensorService
 from services.sound_service import SoundService
+from services.volume_service import VolumeControlService  # NEW
 from classes.marquee import MarqueeLabel
 import os
 import sys
@@ -63,6 +65,35 @@ def load_theme_config(theme="minecraft", mode="light"):
         return {"background_image": "", "menu_button_normal": "", "font_name": "Minecraftia", 
                 "font_color": [1, 1, 1, 1], "menu_selected_color": [1, 1, 1, 1], 
                 "menu_unselected_color": [0.7, 0.7, 0.7, 1], "overlay_images": {}}
+
+def load_user_config():
+    """Load user configuration from file"""
+    try:
+        with open("config/user.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading user config: {e}")
+        # Return default config
+        return {
+            "theme": "minecraft",
+            "theme_mode": "light",
+            "auto_theme_enabled": True,
+            "light_sensor_threshold": 50,
+            "theme_switch_delay": 5,
+            "username": "User",
+            "birthdate": "2000-01-01"
+        }
+
+def save_user_config(config):
+    """Save user configuration to file"""
+    try:
+        os.makedirs("config", exist_ok=True)
+        with open("config/user.json", "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving user config: {e}")
+        return False
 
 # Add a safe KV file loader that works with potentially missing theme properties
 def safe_kv_load():
@@ -128,11 +159,20 @@ class BedrockApp(MDApp):
         'widget_height': 48,
         'small_widget_height': 36,
     })
+    
+    # NEW: Auto theme properties
+    auto_theme_enabled = BooleanProperty(True)
+    current_volume = NumericProperty(50)
 
     def __init__(self, **kwargs):
+        # Load user configuration
+        self.user_config = load_user_config()
+        
         # Initialize theme_config BEFORE parent init to ensure it's available for KV loading
-        self.theme_name = "minecraft"
-        self.theme_mode = "light"
+        self.theme_name = self.user_config.get("theme", "minecraft")
+        self.theme_mode = self.user_config.get("theme_mode", "light")
+        self.auto_theme_enabled = self.user_config.get("auto_theme_enabled", True)
+        
         try:
             self.theme_config = load_theme_config(self.theme_name, self.theme_mode)
             logger.info("Theme initialized in __init__")
@@ -151,6 +191,10 @@ class BedrockApp(MDApp):
         
         # Initialize sound service
         self.sound_service = SoundService()
+        
+        # NEW: Theme switching state
+        self._theme_switch_pending = False
+        self._theme_switch_timer = None
         
         # Call parent init after our initializations
         super(BedrockApp, self).__init__(**kwargs)
@@ -172,6 +216,9 @@ class BedrockApp(MDApp):
             # Initialize AlarmClock
             self.alarm_clock = AlarmClock(self)
             
+            # NEW: Initialize Volume Control Service
+            self.volume_service = VolumeControlService(self)
+            
             # Initialize sensors in separate thread
             self.sensor_service = SensorService()
             self._init_sensor_thread = threading.Thread(target=self._init_sensors_async, daemon=True)
@@ -192,8 +239,19 @@ class BedrockApp(MDApp):
             logger.info("Starting sensor service in background thread...")
             self.sensor_service.start()
             logger.info("Sensor service started successfully")
+            
+            # NEW: Start volume control service
+            logger.info("Starting volume control service...")
+            if self.volume_service.start():
+                # Set up volume change callback
+                self.volume_service.set_volume_change_callback(self._on_volume_changed)
+                self.current_volume = self.volume_service.get_volume()
+                logger.info("Volume control service started successfully")
+            else:
+                logger.warning("Volume control service failed to start")
+                
         except Exception as e:
-            logger.error(f"Error starting sensor service: {e}")
+            logger.error(f"Error starting services: {e}")
 
     def scale_font(self, size):
         """Scale font size"""
@@ -259,6 +317,11 @@ class BedrockApp(MDApp):
         logger.info("App starting...")
         try:
             self.root.ids.screen_manager.bind(current=self._update_current_screen)
+            
+            # NEW: Start auto theme checking
+            if self.auto_theme_enabled:
+                self._start_auto_theme_monitoring()
+                
             logger.info("Screen manager bound successfully")
         except Exception as e:
             logger.error(f"Error in on_start: {e}")
@@ -270,12 +333,24 @@ class BedrockApp(MDApp):
     def on_stop(self):
         """Clean up when the application exits"""
         logger.info("App stopping...")
+        
+        # Stop auto theme monitoring
+        self._stop_auto_theme_monitoring()
+        
+        # Stop services
         if hasattr(self, 'sensor_service'):
             try:
                 self.sensor_service.stop()
                 logger.info("Sensor service stopped")
             except Exception as e:
                 logger.error(f"Error stopping sensor service: {e}")
+                
+        if hasattr(self, 'volume_service'):
+            try:
+                self.volume_service.stop()
+                logger.info("Volume service stopped")
+            except Exception as e:
+                logger.error(f"Error stopping volume service: {e}")
                 
         # Cleanup sound service
         if hasattr(self, 'sound_service'):
@@ -293,6 +368,170 @@ class BedrockApp(MDApp):
             self.play_sound("success")
             
         self.menu_navigation = False
+    
+    # NEW: Auto theme switching methods
+    def _start_auto_theme_monitoring(self):
+        """Start monitoring light sensor for auto theme switching"""
+        if not self.auto_theme_enabled:
+            return
+            
+        logger.info("Starting auto theme monitoring")
+        # Check every 10 seconds
+        self._auto_theme_event = Clock.schedule_interval(self._check_auto_theme_switch, 10)
+    
+    def _stop_auto_theme_monitoring(self):
+        """Stop auto theme monitoring"""
+        if hasattr(self, '_auto_theme_event'):
+            self._auto_theme_event.cancel()
+        if self._theme_switch_timer:
+            self._theme_switch_timer.cancel()
+            self._theme_switch_timer = None
+        logger.info("Auto theme monitoring stopped")
+    
+    def _check_auto_theme_switch(self, dt):
+        """Check if theme should be switched based on light sensor"""
+        if not self.auto_theme_enabled:
+            return
+            
+        try:
+            if not hasattr(self, 'sensor_service') or not self.sensor_service.sensor_available:
+                return
+                
+            # Check if light level changed
+            if self.sensor_service.is_light_changed():
+                current_light = self.sensor_service.get_light_level()
+                target_mode = "light" if current_light else "dark"
+                
+                # Check if we need to switch
+                if target_mode != self.theme_mode:
+                    logger.info(f"Light level changed - switching to {target_mode} theme")
+                    self._schedule_theme_switch(target_mode)
+                    
+        except Exception as e:
+            logger.error(f"Error in auto theme check: {e}")
+    
+    def _schedule_theme_switch(self, target_mode):
+        """Schedule theme switch with delay to avoid rapid switching"""
+        if self._theme_switch_pending:
+            return  # Switch already pending
+            
+        delay = self.user_config.get("theme_switch_delay", 5)
+        self._theme_switch_pending = True
+        
+        logger.info(f"Scheduling theme switch to {target_mode} in {delay} seconds")
+        self._theme_switch_timer = Clock.schedule_once(
+            lambda dt: self._execute_theme_switch(target_mode), 
+            delay
+        )
+    
+    def _execute_theme_switch(self, target_mode):
+        """Execute the theme switch"""
+        try:
+            if target_mode != self.theme_mode:
+                logger.info(f"Executing theme switch to {target_mode}")
+                self.switch_theme_mode(target_mode)
+                
+                # Show notification
+                if hasattr(self, 'notification_service'):
+                    self.notification_service.add(
+                        f"Theme switched to {target_mode} mode",
+                        "system"
+                    )
+                    
+        except Exception as e:
+            logger.error(f"Error executing theme switch: {e}")
+        finally:
+            self._theme_switch_pending = False
+            self._theme_switch_timer = None
+    
+    def switch_theme_mode(self, mode):
+        """Switch theme mode (light/dark)"""
+        try:
+            if mode not in ["light", "dark"]:
+                logger.error(f"Invalid theme mode: {mode}")
+                return False
+                
+            self.theme_mode = mode
+            self.theme_config = load_theme_config(self.theme_name, self.theme_mode)
+            
+            # Update user config
+            self.user_config["theme_mode"] = mode
+            save_user_config(self.user_config)
+            
+            logger.info(f"Theme mode switched to: {mode}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error switching theme mode: {e}")
+            return False
+    
+    def set_auto_theme_enabled(self, enabled):
+        """Enable/disable auto theme switching"""
+        self.auto_theme_enabled = enabled
+        self.user_config["auto_theme_enabled"] = enabled
+        save_user_config(self.user_config)
+        
+        if enabled:
+            self._start_auto_theme_monitoring()
+        else:
+            self._stop_auto_theme_monitoring()
+            
+        logger.info(f"Auto theme switching {'enabled' if enabled else 'disabled'}")
+    
+    # NEW: Volume control methods
+    def _on_volume_changed(self, volume, action):
+        """Callback for volume changes"""
+        self.current_volume = volume
+        logger.debug(f"Volume changed to {volume}% via {action}")
+        
+        # Show temporary volume indicator (could be implemented in UI)
+        # For now just log it
+    
+    def get_volume(self):
+        """Get current volume level"""
+        if hasattr(self, 'volume_service'):
+            return self.volume_service.get_volume()
+        return 50
+    
+    def set_volume(self, volume):
+        """Set volume level"""
+        if hasattr(self, 'volume_service'):
+            return self.volume_service.set_volume(volume)
+        return False
+    
+    # NEW: Sensor status methods
+    def get_light_sensor_status(self):
+        """Get light sensor status for UI"""
+        if hasattr(self, 'sensor_service'):
+            return self.sensor_service.get_light_sensor_status()
+        return {
+            'current_level': True,
+            'raw_value': 1,
+            'gpio_available': False,
+            'using_mock': True
+        }
+    
+    def get_service_status(self):
+        """Get status of all services for debugging"""
+        status = {}
+        
+        if hasattr(self, 'sensor_service'):
+            status['sensors'] = {
+                'available': self.sensor_service.sensor_available,
+                'using_mock': self.sensor_service.using_mock_sensors,
+                'gpio_available': self.sensor_service.gpio_available
+            }
+            
+        if hasattr(self, 'volume_service'):
+            status['volume'] = self.volume_service.get_status()
+            
+        status['auto_theme'] = {
+            'enabled': self.auto_theme_enabled,
+            'current_mode': self.theme_mode,
+            'switch_pending': self._theme_switch_pending
+        }
+        
+        return status
 
 if __name__ == "__main__":
     logger.info("Starting Bedrock App...")
