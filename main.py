@@ -12,7 +12,7 @@ from services.pigs_service import PigsService
 from services.notifications_service import NotificationService
 from services.sensor_service import SensorService
 from services.sound_service import SoundService
-from services.volume_service import VolumeControlService  # NEW
+from services.volume_service import VolumeControlService
 from classes.marquee import MarqueeLabel
 import os
 import sys
@@ -160,7 +160,7 @@ class BedrockApp(MDApp):
         'small_widget_height': 36,
     })
     
-    # NEW: Auto theme properties
+    # Auto theme properties
     auto_theme_enabled = BooleanProperty(True)
     current_volume = NumericProperty(50)
 
@@ -192,9 +192,10 @@ class BedrockApp(MDApp):
         # Initialize sound service
         self.sound_service = SoundService()
         
-        # NEW: Theme switching state
+        # Theme switching state - УЛУЧШЕНО
         self._theme_switch_pending = False
         self._theme_switch_timer = None
+        self._last_theme_switch = 0  # Prevent rapid switching
         
         # Call parent init after our initializations
         super(BedrockApp, self).__init__(**kwargs)
@@ -216,7 +217,7 @@ class BedrockApp(MDApp):
             # Initialize AlarmClock
             self.alarm_clock = AlarmClock(self)
             
-            # NEW: Initialize Volume Control Service
+            # Initialize Volume Control Service
             self.volume_service = VolumeControlService(self)
             
             # Initialize sensors in separate thread
@@ -240,7 +241,7 @@ class BedrockApp(MDApp):
             self.sensor_service.start()
             logger.info("Sensor service started successfully")
             
-            # NEW: Start volume control service
+            # Start volume control service
             logger.info("Starting volume control service...")
             if self.volume_service.start():
                 # Set up volume change callback
@@ -292,6 +293,7 @@ class BedrockApp(MDApp):
             "assets/sounds",
             "assets/images",
             "themes/minecraft/light",
+            "themes/minecraft/dark",  # ДОБАВЛЕНО: убеждаемся что папка темной темы существует
             "media/ringtones",
             "cache",
             "config",
@@ -318,7 +320,7 @@ class BedrockApp(MDApp):
         try:
             self.root.ids.screen_manager.bind(current=self._update_current_screen)
             
-            # NEW: Start auto theme checking
+            # Start auto theme checking
             if self.auto_theme_enabled:
                 self._start_auto_theme_monitoring()
                 
@@ -369,15 +371,24 @@ class BedrockApp(MDApp):
             
         self.menu_navigation = False
     
-    # NEW: Auto theme switching methods
+    # ИСПРАВЛЕННЫЕ методы автоматического переключения тем
     def _start_auto_theme_monitoring(self):
         """Start monitoring light sensor for auto theme switching"""
         if not self.auto_theme_enabled:
+            logger.info("Auto theme monitoring disabled in config")
+            return
+            
+        # Проверяем наличие темной темы
+        if not self._check_dark_theme_available():
+            logger.warning("Dark theme not available - auto theme switching disabled")
             return
             
         logger.info("Starting auto theme monitoring")
-        # Check every 10 seconds
-        self._auto_theme_event = Clock.schedule_interval(self._check_auto_theme_switch, 10)
+        # Check every 5 seconds (увеличена частота)
+        self._auto_theme_event = Clock.schedule_interval(self._check_auto_theme_switch, 5)
+        
+        # Initial check
+        Clock.schedule_once(lambda dt: self._check_auto_theme_switch(dt), 2)
     
     def _stop_auto_theme_monitoring(self):
         """Stop auto theme monitoring"""
@@ -388,13 +399,26 @@ class BedrockApp(MDApp):
             self._theme_switch_timer = None
         logger.info("Auto theme monitoring stopped")
     
+    def _check_dark_theme_available(self):
+        """Check if dark theme is available for current theme"""
+        dark_theme_path = f"themes/{self.theme_name}/dark/theme.json"
+        available = os.path.exists(dark_theme_path)
+        logger.info(f"Dark theme check: {dark_theme_path} {'exists' if available else 'missing'}")
+        return available
+    
     def _check_auto_theme_switch(self, dt):
-        """Check if theme should be switched based on light sensor"""
+        """Check if theme should be switched based on light sensor - ИСПРАВЛЕНО"""
         if not self.auto_theme_enabled:
             return
             
         try:
             if not hasattr(self, 'sensor_service') or not self.sensor_service.sensor_available:
+                logger.debug("Sensor service not available for auto theme switching")
+                return
+            
+            # Prevent rapid switching
+            current_time = time.time()
+            if current_time - self._last_theme_switch < 10:  # Minimum 10 seconds between switches
                 return
                 
             # Check if light level changed
@@ -404,18 +428,23 @@ class BedrockApp(MDApp):
                 
                 # Check if we need to switch
                 if target_mode != self.theme_mode:
-                    logger.info(f"Light level changed - switching to {target_mode} theme")
+                    logger.info(f"Light level changed: {self.theme_mode} → {target_mode} (sensor: {'Light' if current_light else 'Dark'})")
                     self._schedule_theme_switch(target_mode)
                     
         except Exception as e:
             logger.error(f"Error in auto theme check: {e}")
     
     def _schedule_theme_switch(self, target_mode):
-        """Schedule theme switch with delay to avoid rapid switching"""
+        """Schedule theme switch with delay to avoid rapid switching - ИСПРАВЛЕНО"""
         if self._theme_switch_pending:
+            logger.debug("Theme switch already pending, skipping")
             return  # Switch already pending
             
-        delay = self.user_config.get("theme_switch_delay", 5)
+        if not self._check_dark_theme_available():
+            logger.warning(f"Cannot switch to {target_mode} mode - dark theme not available")
+            return
+            
+        delay = self.user_config.get("theme_switch_delay", 3)
         self._theme_switch_pending = True
         
         logger.info(f"Scheduling theme switch to {target_mode} in {delay} seconds")
@@ -425,18 +454,28 @@ class BedrockApp(MDApp):
         )
     
     def _execute_theme_switch(self, target_mode):
-        """Execute the theme switch"""
+        """Execute the theme switch - ИСПРАВЛЕНО"""
         try:
             if target_mode != self.theme_mode:
-                logger.info(f"Executing theme switch to {target_mode}")
-                self.switch_theme_mode(target_mode)
+                logger.info(f"Executing theme switch: {self.theme_mode} → {target_mode}")
                 
-                # Show notification
-                if hasattr(self, 'notification_service'):
-                    self.notification_service.add(
-                        f"Theme switched to {target_mode} mode",
-                        "system"
-                    )
+                # Switch theme
+                if self.switch_theme_mode(target_mode):
+                    self._last_theme_switch = time.time()
+                    
+                    # Show notification
+                    if hasattr(self, 'notification_service'):
+                        self.notification_service.add(
+                            f"Theme switched to {target_mode} mode",
+                            "system"
+                        )
+                        
+                    # Play sound feedback
+                    self.play_sound("success")
+                    
+                    logger.info(f"✓ Theme successfully switched to {target_mode}")
+                else:
+                    logger.error(f"Failed to switch theme to {target_mode}")
                     
         except Exception as e:
             logger.error(f"Error executing theme switch: {e}")
@@ -445,47 +484,101 @@ class BedrockApp(MDApp):
             self._theme_switch_timer = None
     
     def switch_theme_mode(self, mode):
-        """Switch theme mode (light/dark)"""
+        """Switch theme mode (light/dark) - ИСПРАВЛЕНО"""
         try:
             if mode not in ["light", "dark"]:
                 logger.error(f"Invalid theme mode: {mode}")
                 return False
+            
+            # Check if dark theme exists
+            if mode == "dark" and not self._check_dark_theme_available():
+                logger.error(f"Dark theme not available for {self.theme_name}")
+                return False
                 
+            # Load new theme config
+            new_theme_config = load_theme_config(self.theme_name, mode)
+            if not new_theme_config:
+                logger.error(f"Failed to load theme config for {self.theme_name}/{mode}")
+                return False
+            
+            # Update properties
+            old_mode = self.theme_mode
             self.theme_mode = mode
-            self.theme_config = load_theme_config(self.theme_name, self.theme_mode)
+            self.theme_config = new_theme_config
             
             # Update user config
             self.user_config["theme_mode"] = mode
             save_user_config(self.user_config)
             
-            logger.info(f"Theme mode switched to: {mode}")
+            # КРИТИЧЕСКИ ВАЖНО: Обновить UI
+            self._apply_theme_to_ui()
+            
+            logger.info(f"Theme mode switched: {old_mode} → {mode}")
             return True
             
         except Exception as e:
             logger.error(f"Error switching theme mode: {e}")
             return False
     
+    def _apply_theme_to_ui(self):
+        """Apply current theme to all UI elements - НОВЫЙ МЕТОД"""
+        try:
+            logger.info("Applying theme to UI...")
+            
+            # Trigger property updates to refresh all UI elements
+            # This forces all widgets to re-read theme_config
+            self.property('theme_config').dispatch(self)
+            
+            # Force refresh of current screen
+            if hasattr(self.root, 'ids') and 'screen_manager' in self.root.ids:
+                current_screen_name = self.root.ids.screen_manager.current
+                current_screen = self.root.ids.screen_manager.get_screen(current_screen_name)
+                
+                # Trigger screen refresh by temporarily switching away and back
+                Clock.schedule_once(lambda dt: self._refresh_current_screen(current_screen_name), 0.1)
+            
+            logger.info("Theme applied to UI successfully")
+            
+        except Exception as e:
+            logger.error(f"Error applying theme to UI: {e}")
+    
+    def _refresh_current_screen(self, target_screen):
+        """Refresh current screen to apply new theme"""
+        try:
+            screen_manager = self.root.ids.screen_manager
+            
+            # Briefly switch to a different screen and back to force refresh
+            temp_screen = "home" if target_screen != "home" else "alarm"
+            
+            screen_manager.current = temp_screen
+            Clock.schedule_once(lambda dt: setattr(screen_manager, 'current', target_screen), 0.05)
+            
+        except Exception as e:
+            logger.error(f"Error refreshing screen: {e}")
+    
     def set_auto_theme_enabled(self, enabled):
-        """Enable/disable auto theme switching"""
+        """Enable/disable auto theme switching - ИСПРАВЛЕНО"""
+        old_state = self.auto_theme_enabled
         self.auto_theme_enabled = enabled
         self.user_config["auto_theme_enabled"] = enabled
         save_user_config(self.user_config)
         
-        if enabled:
+        if enabled and not old_state:
+            # Starting auto theme
+            logger.info("Auto theme switching enabled")
             self._start_auto_theme_monitoring()
-        else:
+        elif not enabled and old_state:
+            # Stopping auto theme
+            logger.info("Auto theme switching disabled")
             self._stop_auto_theme_monitoring()
             
         logger.info(f"Auto theme switching {'enabled' if enabled else 'disabled'}")
     
-    # NEW: Volume control methods
+    # Volume control methods
     def _on_volume_changed(self, volume, action):
         """Callback for volume changes"""
         self.current_volume = volume
         logger.debug(f"Volume changed to {volume}% via {action}")
-        
-        # Show temporary volume indicator (could be implemented in UI)
-        # For now just log it
     
     def get_volume(self):
         """Get current volume level"""
@@ -499,7 +592,7 @@ class BedrockApp(MDApp):
             return self.volume_service.set_volume(volume)
         return False
     
-    # NEW: Sensor status methods
+    # Sensor status methods
     def get_light_sensor_status(self):
         """Get light sensor status for UI"""
         if hasattr(self, 'sensor_service'):
@@ -528,7 +621,8 @@ class BedrockApp(MDApp):
         status['auto_theme'] = {
             'enabled': self.auto_theme_enabled,
             'current_mode': self.theme_mode,
-            'switch_pending': self._theme_switch_pending
+            'switch_pending': self._theme_switch_pending,
+            'dark_theme_available': self._check_dark_theme_available()
         }
         
         return status

@@ -1,16 +1,12 @@
 {
-  "name": "Minecraft Dark",
-  "primary_color": [0.25, 0.65, 0.15, 1],
-  "font_color": [1, 1, 1, 1],
-  "font_name": "Minecraftia",
-  "background_image": "themes/minecraft/dark/background.png",
-  "menu_button_normal": "themes/minecraft/dark/menu_button.png",
-  "menu_button_active": "themes/minecraft/dark/menu_button_active.png",
-  "menu_button_size": [180, 60],   
-  "menu_button_font_size": 26,   
-  "menu_button_padding": [0, 0, 0, 0],
-  "menu_selected_color": [1, 1, 1, 1],
-  "menu_unselected_color": [0.7, 0.7, 0.7, 1],
+  "theme_name": "minecraft",
+  "theme_mode": "dark",
+  "description": "Minecraft-style dark theme with retro pixel aesthetics",
+  
+  "background_image": "themes/minecraft/dark/bg.png",
+  "menu_button_normal": "themes/minecraft/dark/button_normal.png",
+  "menu_button_active": "themes/minecraft/dark/button_active.png",
+  
   "overlay_images": {
     "home": "themes/minecraft/dark/overlay_home.png",
     "alarm": "themes/minecraft/dark/overlay_alarm.png",
@@ -19,54 +15,53 @@
     "pigs": "themes/minecraft/dark/overlay_pigs.png",
     "settings": "themes/minecraft/dark/overlay_settings.png"
   },
-  "overlay_opacity": 0.5,
-  "panel_bg": [0, 0, 0, 0.4],
-  "panel_radius": 16,
   
-  "spacing": "10dp",
-  "padding": "15dp",
+  "button_normal": "themes/minecraft/dark/btn_normal.png",
+  "button_active": "themes/minecraft/dark/btn_active.png",
   
-  "grid_unit": "32dp",
-  "grid_unit_half": "16dp",
-  "grid_unit_quarter": "8dp",
-  "grid_unit_eighth": "4dp",
-  "grid_unit_1.5x": "48dp",
-  "grid_unit_2x": "64dp",
-  "grid_unit_3x": "96dp",
-  "grid_unit_4x": "128dp",
+  "panel_bg": [0.1, 0.1, 0.15, 0.85],
+  "panel_radius": 8,
+  "overlay_opacity": 0.6,
   
+  "font_name": "Minecraftia",
+  "font_color": [0.9, 0.9, 0.95, 1],
   "font_sizes": {
     "tiny": "12sp",
-    "small": "14sp",
-    "default": "18sp",
+    "small": "14sp", 
+    "default": "16sp",
     "medium": "20sp",
     "large": "24sp",
-    "xlarge": "28sp",
-    "huge": "180sp"        
+    "xlarge": "32sp",
+    "huge": "240sp"
   },
-
-  "widget_font_size": "18sp",
-
+  
   "colors": {
-    "primary": [0.25, 0.65, 0.15, 1],
-    "font_default": [1, 1, 1, 1],
-    "font_highlight": [0.8, 1, 0.5, 1],
-    "font_secondary": [0.7, 0.9, 1, 1],
-    "font_action": [0.5, 1, 0.5, 1],
-    "active": [0, 1, 0, 1],
-    "inactive": [0.5, 0.5, 0.5, 1],
-    "semi_active": [0.6, 0.9, 0.6, 1],
-    "accent": [0.9, 0.7, 0.2, 1]
+    "primary": [0.2, 0.4, 0.8, 1],
+    "secondary": [0.6, 0.3, 0.8, 1],
+    "accent": [1, 0.6, 0, 1],
+    "active": [0.2, 0.8, 0.2, 1],
+    "inactive": [0.4, 0.4, 0.4, 1],
+    "semi_active": [0.5, 0.7, 0.5, 1],
+    "warning": [0.9, 0.7, 0.1, 1],
+    "error": [0.9, 0.2, 0.2, 1],
+    "success": [0.2, 0.8, 0.2, 1],
+    "font_highlight": [0.8, 0.8, 0.9, 1]
   },
   
-  "widget_heights": {
-    "small": "36dp",
-    "medium": "48dp",
-    "large": "60dp",
-    "button": "48dp",
-    "button_small": "36dp"
-  },
+  "menu_selected_color": [0.9, 0.9, 0.95, 1],
+  "menu_unselected_color": [0.6, 0.6, 0.7, 1],
+  "menu_button_size": [180, 60],
   
-  "button_normal": "themes/minecraft/dark/button.png",
-  "button_active": "themes/minecraft/dark/button_active.png"
+  "grid_unit": "32dp",
+  "grid_unit_half": "16dp", 
+  "grid_unit_quarter": "8dp",
+  "grid_unit_1.5x": "48dp",
+  "grid_unit_2x": "64dp",
+  
+  "padding": "15dp",
+  "widget_font_size": "18sp",
+  
+  "window": {
+    "background_color": [0.05, 0.05, 0.1, 1]
+  }
 }

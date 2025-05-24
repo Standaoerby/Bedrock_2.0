@@ -21,13 +21,13 @@ class SettingsScreen(MDScreen):
     birth_month = StringProperty("")
     birth_year = StringProperty("")
     
-    # NEW: Auto theme properties
+    # Auto theme properties - ИСПРАВЛЕНО
     auto_theme_enabled = BooleanProperty(True)
     light_sensor_available = BooleanProperty(False)
     current_light_level = BooleanProperty(True)  # True = light, False = dark
-    light_sensor_threshold = NumericProperty(2)  # seconds
+    light_sensor_threshold = NumericProperty(3)  # seconds (увеличено до 3)
     
-    # NEW: Volume properties
+    # Volume properties
     current_volume = NumericProperty(50)
     volume_buttons_available = BooleanProperty(False)
     
@@ -37,16 +37,17 @@ class SettingsScreen(MDScreen):
         self.check_dark_mode_availability()
         self.update_dark_mode_button()
         
-        # NEW: Load sensor and volume status
+        # Load sensor and volume status
         self.update_sensor_status()
         self.update_volume_status()
         
-        # Schedule periodic updates for sensor readings
-        Clock.schedule_interval(self.update_sensor_status, 5)  # Every 5 seconds
+        # Schedule periodic updates for sensor readings (чаще обновляем)
+        self._sensor_update_event = Clock.schedule_interval(self.update_sensor_status, 2)  # Every 2 seconds
     
     def on_leave(self):
         # Stop periodic updates
-        Clock.unschedule(self.update_sensor_status)
+        if hasattr(self, '_sensor_update_event'):
+            self._sensor_update_event.cancel()
     
     def scan_available_themes(self):
         """Scan themes/ directory for available themes"""
@@ -112,9 +113,9 @@ class SettingsScreen(MDScreen):
                 self.dark_mode_enabled = settings.get("theme_mode", "light") == "dark"
                 self.username = settings.get("username", "")
                 
-                # NEW: Auto theme settings
+                # Auto theme settings
                 self.auto_theme_enabled = settings.get("auto_theme_enabled", True)
-                self.light_sensor_threshold = settings.get("theme_switch_delay", 5)
+                self.light_sensor_threshold = settings.get("theme_switch_delay", 3)
                 
                 # Parse birth date
                 birthdate = settings.get("birthdate", "")
@@ -131,43 +132,80 @@ class SettingsScreen(MDScreen):
         except Exception as e:
             logger.error(f"Error loading settings: {e}")
     
-    # NEW: Update sensor status
     def update_sensor_status(self, dt=None):
-        """Update sensor status and readings"""
-        app = self.get_app()
-        if app and hasattr(app, 'sensor_service'):
-            # Update light sensor status
-            light_status = app.get_light_sensor_status()
-            self.light_sensor_available = light_status.get('gpio_available', False)
-            self.current_light_level = light_status.get('current_level', True)
-            
-            # Update UI elements if they exist
-            if hasattr(self.ids, 'light_sensor_status'):
-                if self.light_sensor_available:
-                    status_text = "Light" if self.current_light_level else "Dark"
-                    self.ids.light_sensor_status.text = f"Sensor: {status_text}"
-                    self.ids.light_sensor_status.color = [0, 0.8, 0, 1]  # Green
-                else:
-                    self.ids.light_sensor_status.text = "Sensor: Offline"
-                    self.ids.light_sensor_status.color = [0.8, 0.8, 0, 1]  # Yellow
+        """Update sensor status and readings - ИСПРАВЛЕНО"""
+        try:
+            app = self.get_app()
+            if app and hasattr(app, 'sensor_service') and app.sensor_service:
+                # Get detailed sensor status
+                light_status = app.sensor_service.get_light_sensor_status()
+                
+                # Update properties
+                self.light_sensor_available = light_status.get('gpio_available', False)
+                self.current_light_level = light_status.get('current_level', True)
+                
+                # Update UI elements if they exist
+                if hasattr(self.ids, 'light_sensor_status'):
+                    if self.light_sensor_available:
+                        status_text = "Light" if self.current_light_level else "Dark"
+                        self.ids.light_sensor_status.text = f"Sensor: {status_text}"
+                        self.ids.light_sensor_status.color = [0, 0.8, 0, 1]  # Green
+                        
+                        # Debug info - показываем каждые 10 обновлений
+                        if not hasattr(self, '_debug_counter'):
+                            self._debug_counter = 0
+                        self._debug_counter += 1
+                        
+                        if self._debug_counter % 10 == 0:
+                            raw_val = light_status.get('raw_value', 0)
+                            logger.debug(f"Light sensor UI update: raw={raw_val}, level={status_text}, GPIO available={self.light_sensor_available}")
+                    else:
+                        self.ids.light_sensor_status.text = "Sensor: Offline"
+                        self.ids.light_sensor_status.color = [0.8, 0.8, 0, 1]  # Yellow
+                        
+                # Update auto theme button state
+                if hasattr(self.ids, 'auto_theme_button'):
+                    self.ids.auto_theme_button.disabled = not self.light_sensor_available
+                    if self.auto_theme_enabled and self.light_sensor_available:
+                        self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
+                    else:
+                        self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
+            else:
+                # Sensor service not available
+                self.light_sensor_available = False
+                if hasattr(self.ids, 'light_sensor_status'):
+                    self.ids.light_sensor_status.text = "Sensor: Not Available"
+                    self.ids.light_sensor_status.color = [0.8, 0, 0, 1]  # Red
+                    
+        except Exception as e:
+            logger.error(f"Error updating sensor status: {e}")
     
-    # NEW: Update volume status
     def update_volume_status(self):
         """Update volume control status"""
-        app = self.get_app()
-        if app and hasattr(app, 'volume_service'):
-            volume_status = app.volume_service.get_status()
-            self.volume_buttons_available = volume_status.get('gpio_available', False)
-            self.current_volume = volume_status.get('current_volume', 50)
-            
-            # Update UI elements if they exist
-            if hasattr(self.ids, 'volume_status'):
-                if self.volume_buttons_available:
-                    self.ids.volume_status.text = f"Volume: {self.current_volume}%"
-                    self.ids.volume_status.color = [0, 0.8, 0, 1]  # Green
-                else:
-                    self.ids.volume_status.text = "Volume Buttons: Offline"
-                    self.ids.volume_status.color = [0.8, 0.8, 0, 1]  # Yellow
+        try:
+            app = self.get_app()
+            if app and hasattr(app, 'volume_service') and app.volume_service:
+                volume_status = app.volume_service.get_status()
+                self.volume_buttons_available = volume_status.get('gpio_available', False)
+                self.current_volume = volume_status.get('current_volume', 50)
+                
+                # Update UI elements if they exist
+                if hasattr(self.ids, 'volume_status'):
+                    if self.volume_buttons_available:
+                        self.ids.volume_status.text = f"Volume: {self.current_volume}%"
+                        self.ids.volume_status.color = [0, 0.8, 0, 1]  # Green
+                    else:
+                        self.ids.volume_status.text = "Volume Buttons: Offline"
+                        self.ids.volume_status.color = [0.8, 0.8, 0, 1]  # Yellow
+            else:
+                # Volume service not available
+                self.volume_buttons_available = False
+                if hasattr(self.ids, 'volume_status'):
+                    self.ids.volume_status.text = "Volume: Not Available"
+                    self.ids.volume_status.color = [0.8, 0, 0, 1]  # Red
+                    
+        except Exception in e:
+            logger.error(f"Error updating volume status: {e}")
     
     def save_all_settings(self):
         """Save all settings to file"""
@@ -191,7 +229,7 @@ class SettingsScreen(MDScreen):
                 "auto_dark_mode": True,  # Automatic dark theme switching
                 "username": self.username,
                 "birthdate": self.get_birthdate_string(),
-                # NEW: Auto theme settings
+                # Auto theme settings
                 "auto_theme_enabled": self.auto_theme_enabled,
                 "theme_switch_delay": int(self.light_sensor_threshold)
             }
@@ -213,8 +251,12 @@ class SettingsScreen(MDScreen):
                 app.theme_name = self.current_theme
                 app.theme_mode = "dark" if self.dark_mode_enabled else "light"
                 
-                # NEW: Update auto theme setting
+                # Update auto theme setting
                 app.set_auto_theme_enabled(self.auto_theme_enabled)
+                
+                # Update sensor threshold
+                if hasattr(app, 'sensor_service') and app.sensor_service:
+                    app.sensor_service.calibrate_light_sensor(int(self.light_sensor_threshold))
                 
                 # Import the load_theme_config function from main
                 try:
@@ -275,66 +317,103 @@ class SettingsScreen(MDScreen):
         else:
             self.dark_mode_enabled = False
     
-    # NEW: Auto theme methods
     def toggle_auto_theme(self, enabled):
-        """Enable/disable auto theme switching"""
+        """Enable/disable auto theme switching - УЛУЧШЕНО"""
         self.auto_theme_enabled = enabled
         app = self.get_app()
         if app:
             if enabled and self.light_sensor_available:
                 app.play_sound("success")
+                logger.info("Auto theme switching enabled")
             elif enabled and not self.light_sensor_available:
                 app.play_sound("error")
+                logger.warning("Cannot enable auto theme - light sensor not available")
+            else:
+                logger.info("Auto theme switching disabled")
             
             # Update auto theme button UI
             if hasattr(self.ids, 'auto_theme_button'):
                 self.ids.auto_theme_button.text = "ON" if enabled else "OFF"
-                if enabled:
+                if enabled and self.light_sensor_available:
                     self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
                 else:
                     self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
     
     def test_light_sensor(self):
-        """Test light sensor reading"""
+        """Test light sensor reading - УЛУЧШЕНО"""
         app = self.get_app()
-        if app and hasattr(app, 'sensor_service'):
-            light_status = app.get_light_sensor_status()
-            light_level = "Light" if light_status.get('current_level', True) else "Dark"
-            raw_value = light_status.get('raw_value', 0)
-            
-            # Show temporary notification or update UI
-            logger.info(f"Light sensor test: {light_level} (raw: {raw_value})")
-            app.play_sound("click")
-            
-            # Update status immediately
-            self.update_sensor_status()
-    
-    # NEW: Volume control methods
-    def test_volume_up(self):
-        """Test volume up"""
-        app = self.get_app()
-        if app and hasattr(app, 'volume_service'):
-            current = app.volume_service.get_volume()
-            app.volume_service.set_volume(min(current + 10, 100))
-            self.update_volume_status()
-            app.play_sound("success")
-    
-    def test_volume_down(self):
-        """Test volume down"""
-        app = self.get_app()
-        if app and hasattr(app, 'volume_service'):
-            current = app.volume_service.get_volume()
-            app.volume_service.set_volume(max(current - 10, 0))
-            self.update_volume_status()
-            app.play_sound("click")
+        if app and hasattr(app, 'sensor_service') and app.sensor_service:
+            if app.sensor_service.gpio_available:
+                logger.info("Starting light sensor test...")
+                app.play_sound("click")
+                
+                # Start test in background
+                import threading
+                test_thread = threading.Thread(
+                    target=app.sensor_service.test_light_sensor, 
+                    args=(10,),  # 10 seconds test
+                    daemon=True
+                )
+                test_thread.start()
+                
+                # Show current status immediately
+                light_status = app.sensor_service.get_light_sensor_status()
+                light_level = "Light" if light_status.get('current_level', True) else "Dark"
+                raw_value = light_status.get('raw_value', 0)
+                
+                logger.info(f"Current light sensor reading: {light_level} (raw: {raw_value})")
+                
+                # Force immediate UI update
+                self.update_sensor_status()
+            else:
+                logger.warning("Light sensor test failed - GPIO not available")
+                app.play_sound("error")
+        else:
+            logger.error("Cannot test light sensor - service not available")
+            if app:
+                app.play_sound("error")
     
     def set_threshold_delay(self, value):
         """Set theme switch delay threshold"""
         self.light_sensor_threshold = int(value)
         app = self.get_app()
-        if app and hasattr(app, 'sensor_service'):
+        if app and hasattr(app, 'sensor_service') and app.sensor_service:
             app.sensor_service.calibrate_light_sensor(int(value))
         logger.info(f"Theme switch delay set to {value} seconds")
+    
+    def test_volume_up(self):
+        """Test volume up"""
+        app = self.get_app()
+        if app and hasattr(app, 'volume_service') and app.volume_service:
+            current = app.volume_service.get_volume()
+            new_volume = min(current + 10, 100)
+            if app.volume_service.set_volume(new_volume):
+                self.current_volume = new_volume
+                self.update_volume_status()
+                app.play_sound("success")
+                logger.info(f"Volume increased to {new_volume}%")
+            else:
+                app.play_sound("error")
+        else:
+            if app:
+                app.play_sound("error")
+    
+    def test_volume_down(self):
+        """Test volume down"""
+        app = self.get_app()
+        if app and hasattr(app, 'volume_service') and app.volume_service:
+            current = app.volume_service.get_volume()
+            new_volume = max(current - 10, 0)
+            if app.volume_service.set_volume(new_volume):
+                self.current_volume = new_volume
+                self.update_volume_status()
+                app.play_sound("click")
+                logger.info(f"Volume decreased to {new_volume}%")
+            else:
+                app.play_sound("error")
+        else:
+            if app:
+                app.play_sound("error")
     
     def update_birthdate(self):
         """Update combined birth date from individual fields"""
