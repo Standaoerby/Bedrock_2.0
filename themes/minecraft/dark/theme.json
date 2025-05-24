@@ -3,7 +3,7 @@
   "theme_mode": "dark",
   "description": "Minecraft-style dark theme with retro pixel aesthetics",
   
-  "background_image": "themes/minecraft/dark/bg.png",
+  "background_image": "themes/minecraft/dark/background.png",
   "menu_button_normal": "themes/minecraft/dark/button_normal.png",
   "menu_button_active": "themes/minecraft/dark/button_active.png",
   

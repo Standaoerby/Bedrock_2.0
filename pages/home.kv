@@ -61,7 +61,7 @@
                 size_hint_x: 0.25
                 size_hint_y: 0.9  # Increased from 0.8 - raised by ~30%
                 pos_hint: {"center_y": 0.55}  # Moved up slightly
-                font_name: app.theme_config["font_name"]
+                font_name: app.theme_config.get("font_name", "Minecraftia")
                 font_size: "20sp"  # Increased from 18sp
                 color: app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1]) if root.alarm_active else app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
                 background_normal: app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
@@ -140,6 +140,6 @@
             MarqueeLabel:
                 id: notification_label
                 full_text: root.notification_text
-                font_name: app.theme_config["font_name"]
-                color: app.theme_config["font_color"]
+                font_name: app.theme_config.get("font_name", "Minecraftia")
+                color: app.theme_config.get("font_color", [1, 1, 1, 1])
                 font_size: app.theme_config.get("widget_font_size", "20sp")

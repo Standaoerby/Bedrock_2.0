@@ -134,7 +134,7 @@
                             size_hint_x: 1
                             size_hint_y: None
                             height: "70dp"
-                            font_name: app.theme_config["font_name"]
+                            font_name: app.theme_config.get("font_name", "Minecraftia")
                             font_size: "32sp"
                             color: app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1]) if root.alarm_active else app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
                             background_normal: app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
@@ -159,49 +159,49 @@
                         text: "Mon"
                         state: "down" if "Mon" in root.alarm_repeat else "normal"
                         on_state: root.toggle_repeat("Mon", self.state)
-                        font_name: app.theme_config["font_name"]
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
                         font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
                     ToggleButton:
                         id: repeat_tue
                         text: "Tue"
                         state: "down" if "Tue" in root.alarm_repeat else "normal"
                         on_state: root.toggle_repeat("Tue", self.state)
-                        font_name: app.theme_config["font_name"]
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
                         font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
                     ToggleButton:
                         id: repeat_wed
                         text: "Wed"
                         state: "down" if "Wed" in root.alarm_repeat else "normal"
                         on_state: root.toggle_repeat("Wed", self.state)
-                        font_name: app.theme_config["font_name"]
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
                         font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
                     ToggleButton:
                         id: repeat_thu
                         text: "Thu"
                         state: "down" if "Thu" in root.alarm_repeat else "normal"
                         on_state: root.toggle_repeat("Thu", self.state)
-                        font_name: app.theme_config["font_name"]
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
                         font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
                     ToggleButton:
                         id: repeat_fri
                         text: "Fri"
                         state: "down" if "Fri" in root.alarm_repeat else "normal"
                         on_state: root.toggle_repeat("Fri", self.state)
-                        font_name: app.theme_config["font_name"]
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
                         font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
                     ToggleButton:
                         id: repeat_sat
                         text: "Sat"
                         state: "down" if "Sat" in root.alarm_repeat else "normal"
                         on_state: root.toggle_repeat("Sat", self.state)
-                        font_name: app.theme_config["font_name"]
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
                         font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
                     ToggleButton:
                         id: repeat_sun
                         text: "Sun"
                         state: "down" if "Sun" in root.alarm_repeat else "normal"
                         on_state: root.toggle_repeat("Sun", self.state)
-                        font_name: app.theme_config["font_name"]
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
                         font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
     
             # Section 3: Ringtone selection
@@ -225,7 +225,7 @@
                     id: ringtone_spinner
                     text: root.selected_ringtone
                     values: root.ringtone_list
-                    font_name: app.theme_config["font_name"]
+                    font_name: app.theme_config.get("font_name", "Minecraftia")
                     font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
                     size_hint_x: 0.6
                     on_text: root.select_ringtone(self.text)
@@ -235,7 +235,7 @@
                     id: play_button
                     text: "Play"
                     size_hint_x: 0.2
-                    font_name: app.theme_config["font_name"]
+                    font_name: app.theme_config.get("font_name", "Minecraftia")
                     font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
                     on_state: root.toggle_play_ringtone(self.state)
     
@@ -278,7 +278,7 @@
                             size_hint_x: 0.18  # Narrower
                             size_hint_y: 0.8  # Higher
                             pos_hint: {"center_y": 0.6}  # Positioned higher
-                            font_name: app.theme_config["font_name"]
+                            font_name: app.theme_config.get("font_name", "Minecraftia")
                             font_size: "20sp"
                             color: app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1]) if root.alarm_fadein else app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
                             background_normal: app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
