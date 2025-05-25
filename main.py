@@ -3,9 +3,10 @@ from kivy.lang import Builder
 from kivymd.app import MDApp
 from kivymd.uix.pickers.timepicker import MDTimePickerInput
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
-from kivy.clock import Clock
+from kivy.clock import Clock, mainthread
 from kivy.core.image import Image as CoreImage
 from kivy.cache import Cache
+from kivy.core.window import Window
 from services.alarm_service import AlarmService
 from classes.alarm_clock import AlarmClock
 from services.weather_service import WeatherService
@@ -54,107 +55,257 @@ if sys.platform.startswith('linux'):
     os.environ['KIVY_WINDOW'] = 'sdl2'
     os.environ['KIVY_GL_BACKEND'] = 'sdl2'
 
-def create_default_dark_theme():
-    """Create default dark theme if it doesn't exist"""
-    try:
-        dark_theme_dir = "themes/minecraft/dark"
-        os.makedirs(dark_theme_dir, exist_ok=True)
-        
-        theme_file = os.path.join(dark_theme_dir, "theme.json")
-        
-        if not os.path.exists(theme_file):
-            dark_theme_config = {
-                "background_image": "themes/minecraft/dark/background.png",
-                "overlay_images": {
-                    "home": "themes/minecraft/dark/overlay_home.png",
-                    "alarm": "themes/minecraft/dark/overlay_alarm.png",
-                    "schedule": "themes/minecraft/dark/overlay_schedule.png",
-                    "weather": "themes/minecraft/dark/overlay_weather.png",
-                    "pigs": "themes/minecraft/dark/overlay_pigs.png",
-                    "settings": "themes/minecraft/dark/overlay_settings.png"
-                },
-                "menu_button_normal": "themes/minecraft/dark/menu_button.png",
-                "menu_button_active": "themes/minecraft/dark/menu_button_active.png",
-                "button_normal": "themes/minecraft/dark/button.png", 
-                "button_active": "themes/minecraft/dark/button_active.png",
-                "panel_bg": [0.1, 0.1, 0.1, 0.7],
-                "panel_radius": 16,
-                "font_name": "Minecraftia",
-                "font_color": [0.9, 0.9, 0.9, 1],
-                "font_sizes": {
-                    "tiny": "12sp",
-                    "small": "14sp",
-                    "default": "18sp",
-                    "medium": "20sp",
-                    "large": "26sp",
-                    "xlarge": "34sp",
-                    "huge": "240sp"
-                },
-                "colors": {
-                    "primary": [0.2, 0.4, 0.8, 1],
-                    "secondary": [0.6, 0.3, 0.8, 1],
-                    "accent": [1, 0.6, 0, 1],
-                    "active": [0.2, 0.8, 0.2, 1],
-                    "inactive": [0.4, 0.4, 0.4, 1],
-                    "semi_active": [0.5, 0.7, 0.5, 1],
-                    "warning": [0.9, 0.7, 0.1, 1],
-                    "error": [0.9, 0.2, 0.2, 1],
-                    "success": [0.2, 0.8, 0.2, 1],
-                    "font_highlight": [0.8, 0.8, 0.9, 1],
-                    "shadow": [0.9, 0.9, 0.9, 0.3],
-                    "trend_up": [1, 0.5, 0.5, 1],
-                    "trend_down": [0.4, 0.7, 1, 1]
-                },
-                "menu_selected_color": [0.9, 0.9, 0.9, 1],
-                "menu_unselected_color": [0.5, 0.5, 0.5, 1],
-                "menu_button_size": [180, 60],
-                "grid_unit": "32dp",
-                "grid_unit_half": "16dp",
-                "grid_unit_quarter": "8dp",
-                "grid_unit_1.5x": "48dp",
-                "grid_unit_2x": "64dp",
-                "padding": "15dp",
-                "widget_font_size": "20sp"
-            }
-            
-            with open(theme_file, "w", encoding="utf-8") as f:
-                json.dump(dark_theme_config, f, ensure_ascii=False, indent=2)
-            
-            logger.info(f"Created default dark theme")
-            return True
-    except Exception as e:
-        logger.error(f"Error creating default dark theme: {e}")
-        return False
+class ThemeManager:
+    """Отдельный класс для управления темами"""
     
-    return False
+    def __init__(self, app):
+        self.app = app
+        self.logger = logging.getLogger("ThemeManager")
+        
+    def create_default_dark_theme(self):
+        """Create default dark theme if it doesn't exist"""
+        try:
+            dark_theme_dir = "themes/minecraft/dark"
+            os.makedirs(dark_theme_dir, exist_ok=True)
+            
+            theme_file = os.path.join(dark_theme_dir, "theme.json")
+            
+            if not os.path.exists(theme_file):
+                dark_theme_config = {
+                    "background_image": "themes/minecraft/dark/background.png",
+                    "overlay_images": {
+                        "home": "themes/minecraft/dark/overlay_home.png",
+                        "alarm": "themes/minecraft/dark/overlay_alarm.png",
+                        "schedule": "themes/minecraft/dark/overlay_schedule.png",
+                        "weather": "themes/minecraft/dark/overlay_weather.png",
+                        "pigs": "themes/minecraft/dark/overlay_pigs.png",
+                        "settings": "themes/minecraft/dark/overlay_settings.png"
+                    },
+                    "menu_button_normal": "themes/minecraft/dark/menu_button.png",
+                    "menu_button_active": "themes/minecraft/dark/menu_button_active.png",
+                    "button_normal": "themes/minecraft/dark/button.png", 
+                    "button_active": "themes/minecraft/dark/button_active.png",
+                    "panel_bg": [0.1, 0.1, 0.1, 0.7],
+                    "panel_radius": 16,
+                    "font_name": "Minecraftia",
+                    "font_color": [0.9, 0.9, 0.9, 1],
+                    "font_sizes": {
+                        "tiny": "12sp", "small": "14sp", "default": "18sp",
+                        "medium": "20sp", "large": "26sp", "xlarge": "34sp", "huge": "240sp"
+                    },
+                    "colors": {
+                        "primary": [0.2, 0.4, 0.8, 1],
+                        "secondary": [0.6, 0.3, 0.8, 1],
+                        "accent": [1, 0.6, 0, 1],
+                        "active": [0.2, 0.8, 0.2, 1],
+                        "inactive": [0.4, 0.4, 0.4, 1],
+                        "semi_active": [0.5, 0.7, 0.5, 1],
+                        "warning": [0.9, 0.7, 0.1, 1],
+                        "error": [0.9, 0.2, 0.2, 1],
+                        "success": [0.2, 0.8, 0.2, 1],
+                        "font_highlight": [0.8, 0.8, 0.9, 1],
+                        "shadow": [0.9, 0.9, 0.9, 0.3],
+                        "trend_up": [1, 0.5, 0.5, 1],
+                        "trend_down": [0.4, 0.7, 1, 1]
+                    },
+                    "menu_selected_color": [0.9, 0.9, 0.9, 1],
+                    "menu_unselected_color": [0.5, 0.5, 0.5, 1],
+                    "menu_button_size": [180, 60],
+                    "grid_unit": "32dp", "grid_unit_half": "16dp", "grid_unit_quarter": "8dp",
+                    "grid_unit_1.5x": "48dp", "grid_unit_2x": "64dp",
+                    "padding": "15dp", "widget_font_size": "20sp"
+                }
+                
+                with open(theme_file, "w", encoding="utf-8") as f:
+                    json.dump(dark_theme_config, f, ensure_ascii=False, indent=2)
+                
+                self.logger.info(f"Created default dark theme")
+                return True
+        except Exception as e:
+            self.logger.error(f"Error creating default dark theme: {e}")
+            return False
+        
+        return False
 
-def load_theme_config(theme="minecraft", mode="light"):
-    """Load theme configuration from file"""
-    path = f"themes/{theme}/{mode}/theme.json"
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-        return config
-    except Exception as e:
-        logger.error(f"Error loading theme config from {path}: {e}")
-        
-        # If dark theme fails, create it
-        if mode == "dark":
-            if create_default_dark_theme():
+    def load_theme_config(self, theme="minecraft", mode="light"):
+        """Load theme configuration from file"""
+        path = f"themes/{theme}/{mode}/theme.json"
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            return config
+        except Exception as e:
+            self.logger.error(f"Error loading theme config from {path}: {e}")
+            
+            # If dark theme fails, create it
+            if mode == "dark":
+                if self.create_default_dark_theme():
+                    try:
+                        with open(path, "r", encoding="utf-8") as f:
+                            config = json.load(f)
+                        return config
+                    except Exception:
+                        pass
+            
+            # Return fallback config
+            return {
+                "background_image": "", "menu_button_normal": "", "font_name": "Minecraftia", 
+                "font_color": [1, 1, 1, 1], "menu_selected_color": [1, 1, 1, 1], 
+                "menu_unselected_color": [0.7, 0.7, 0.7, 1], "overlay_images": {},
+                "colors": {"shadow": [0.1, 0.1, 0.1, 0.5], "trend_up": [1, 0.3, 0.3, 1], "trend_down": [0.2, 0.6, 1, 1]}
+            }
+
+    def clear_theme_cache_and_refresh(self):
+        """Очистка кэша и принуждение к обновлению виджетов"""
+        try:
+            self.logger.info("Clearing theme cache and refreshing widgets")
+            
+            # Очистка всех категорий кэша
+            cache_categories = ['kv.image', 'kv.texture', 'kv.atlas', 'kv.loader']
+            for category in cache_categories:
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        config = json.load(f)
-                    return config
-                except Exception:
+                    Cache.remove(category)
+                    self.logger.debug(f"Cleared cache category: {category}")
+                except:
                     pass
-        
-        # Return fallback config
-        return {
-            "background_image": "", "menu_button_normal": "", "font_name": "Minecraftia", 
-            "font_color": [1, 1, 1, 1], "menu_selected_color": [1, 1, 1, 1], 
-            "menu_unselected_color": [0.7, 0.7, 0.7, 1], "overlay_images": {},
-            "colors": {"shadow": [0.1, 0.1, 0.1, 0.5], "trend_up": [1, 0.3, 0.3, 1], "trend_down": [0.2, 0.6, 1, 1]}
-        }
+            
+            # Принудительное обновление виджетов
+            Clock.schedule_once(self._refresh_all_widgets, 0.1)
+            
+        except Exception as e:
+            self.logger.error(f"Error clearing theme cache: {e}")
+
+    def _refresh_all_widgets(self, dt):
+        """Обновление всех виджетов после очистки кэша"""
+        try:
+            if not hasattr(self.app, 'root') or not self.app.root:
+                return
+                
+            # Получаем screen manager
+            screen_manager = getattr(self.app.root.ids, 'screen_manager', None)
+            if not screen_manager:
+                return
+            
+            for screen in screen_manager.screens:
+                self._update_widget_tree(screen)
+                
+            self.logger.info("All widgets refreshed successfully")
+            
+        except Exception as e:
+            self.logger.error(f"Error refreshing widgets: {e}")
+
+    def _update_widget_tree(self, parent):
+        """Рекурсивное обновление дерева виджетов"""
+        try:
+            # Обновляем canvas родительского виджета
+            if hasattr(parent, 'canvas'):
+                parent.canvas.ask_update()
+            
+            # Обновляем Image виджеты
+            if hasattr(parent, 'source') and parent.source:
+                temp_source = parent.source
+                parent.source = ''
+                Clock.schedule_once(lambda dt: setattr(parent, 'source', temp_source), 0.05)
+            
+            # Рекурсивно обрабатываем детей
+            if hasattr(parent, 'children'):
+                for child in parent.children:
+                    self._update_widget_tree(child)
+                    
+        except Exception as e:
+            self.logger.error(f"Error updating widget tree: {e}")
+
+    @mainthread
+    def switch_theme_mode(self, mode):
+        """Переключение режима темы с полным обновлением UI"""
+        try:
+            if mode not in ["light", "dark"] or mode == self.app.theme_mode:
+                return True
+            
+            # Проверяем доступность тёмной темы
+            if mode == "dark":
+                dark_theme_path = f"themes/{self.app.theme_name}/dark/theme.json"
+                if not os.path.exists(dark_theme_path):
+                    if not self.create_default_dark_theme():
+                        return False
+            
+            self.logger.info(f"Switching theme: {self.app.theme_mode} → {mode}")
+            
+            # Загружаем новую конфигурацию темы
+            new_theme_config = self.load_theme_config(self.app.theme_name, mode)
+            if not new_theme_config:
+                return False
+            
+            # Обновляем свойства темы
+            old_mode = self.app.theme_mode
+            self.app.theme_mode = mode
+            
+            # Очищаем и обновляем theme_config
+            self.app.theme_config.clear()
+            self.app.theme_config.update(new_theme_config)
+            
+            # Сохраняем пользовательскую конфигурацию
+            self.app.user_config["theme_mode"] = mode
+            self._save_user_config()
+            
+            # Принудительно обновляем свойство
+            self.app.property('theme_config').dispatch(self.app)
+            
+            # Очищаем кэш и обновляем виджеты
+            self.clear_theme_cache_and_refresh()
+            
+            # Планируем полное обновление UI
+            Clock.schedule_once(lambda dt: self._force_ui_refresh(), 0.2)
+            
+            self.logger.info(f"Theme successfully switched to {mode}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error switching theme: {e}")
+            return False
+
+    def _force_ui_refresh(self):
+        """Принудительное обновление UI"""
+        try:
+            if not hasattr(self.app, 'root') or not self.app.root:
+                return
+                
+            # Получаем текущий экран
+            screen_manager = getattr(self.app.root.ids, 'screen_manager', None)
+            if not screen_manager:
+                return
+                
+            current_screen = screen_manager.current
+            
+            # Находим временный экран или создаём его
+            temp_screens = [s for s in screen_manager.screens if s.name in ['settings', 'home']]
+            if not temp_screens:
+                return
+                
+            temp_screen_name = temp_screens[0].name
+            if temp_screen_name == current_screen:
+                temp_screen_name = temp_screens[1].name if len(temp_screens) > 1 else 'home'
+            
+            # Быстрое переключение экранов для обновления
+            screen_manager.current = temp_screen_name
+            Clock.schedule_once(
+                lambda dt: setattr(screen_manager, 'current', current_screen), 
+                0.1
+            )
+            
+            self.logger.info("UI refresh completed")
+            
+        except Exception as e:
+            self.logger.error(f"Error in UI refresh: {e}")
+
+    def _save_user_config(self):
+        """Сохранение пользовательской конфигурации"""
+        try:
+            os.makedirs("config", exist_ok=True)
+            with open("config/user.json", "w", encoding="utf-8") as f:
+                json.dump(self.app.user_config, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.logger.error(f"Error saving user config: {e}")
 
 def load_user_config():
     """Load user configuration from file"""
@@ -170,17 +321,6 @@ def load_user_config():
             "username": "User",
             "birthdate": "2000-01-01"
         }
-
-def save_user_config(config):
-    """Save user configuration to file"""
-    try:
-        os.makedirs("config", exist_ok=True)
-        with open("config/user.json", "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        logger.error(f"Error saving user config: {e}")
-        return False
 
 # Register font
 try:
@@ -234,8 +374,11 @@ class BedrockApp(MDApp):
         self.theme_mode = self.user_config.get("theme_mode", "light")
         self.auto_theme_enabled = self.user_config.get("auto_theme_enabled", True)
         
+        # Initialize theme manager
+        self.theme_manager = ThemeManager(self)
+        
         # Ensure dark theme exists
-        create_default_dark_theme()
+        self.theme_manager.create_default_dark_theme()
         
         # Initialize sound service
         self.sound_service = SoundService()
@@ -253,7 +396,7 @@ class BedrockApp(MDApp):
     def _load_current_theme(self):
         """Load current theme configuration"""
         try:
-            self.theme_config = load_theme_config(self.theme_name, self.theme_mode)
+            self.theme_config = self.theme_manager.load_theme_config(self.theme_name, self.theme_mode)
             logger.info(f"Loaded theme: {self.theme_name}/{self.theme_mode}")
         except Exception as e:
             logger.error(f"Error loading theme: {e}")
@@ -267,6 +410,14 @@ class BedrockApp(MDApp):
         
         # Initialize services
         try:
+            self._init_services()
+            return Builder.load_file('main.kv')
+        except Exception as e:
+            logger.error(f"Error building app: {e}")
+
+    def _init_services(self):
+        """Initialize all application services"""
+        try:
             self.alarm_service = AlarmService()
             self.weather_service = WeatherService(lat=51.5390, lon=-0.1426)
             self.schedule_service = ScheduleService()
@@ -279,9 +430,11 @@ class BedrockApp(MDApp):
             self.sensor_service = SensorService()
             threading.Thread(target=self._init_sensors_async, daemon=True).start()
             
-            return Builder.load_file('main.kv')
+            logger.info("Services initialized successfully")
+            
         except Exception as e:
             logger.error(f"Error initializing services: {e}")
+            raise
 
     def _init_sensors_async(self):
         """Initialize sensors in background thread"""
@@ -479,71 +632,14 @@ class BedrockApp(MDApp):
             self._theme_switch_timer = None
 
     def switch_theme_mode(self, mode):
-        """Switch theme mode with UI refresh"""
-        try:
-            if mode not in ["light", "dark"] or mode == self.theme_mode:
-                return True
-            
-            # Check if dark theme exists
-            if mode == "dark":
-                dark_theme_path = f"themes/{self.theme_name}/dark/theme.json"
-                if not os.path.exists(dark_theme_path):
-                    if not create_default_dark_theme():
-                        return False
-            
-            # Load new theme config
-            new_theme_config = load_theme_config(self.theme_name, mode)
-            if not new_theme_config:
-                return False
-            
-            logger.info(f"Switching theme: {self.theme_mode} → {mode}")
-            
-            # Clear image cache
-            Cache.remove('kv.image')
-            Cache.remove('kv.texture')
-            
-            # Update theme properties
-            self.theme_mode = mode
-            self.theme_config.clear()
-            self.theme_config.update(new_theme_config)
-            
-            # Save user config
-            self.user_config["theme_mode"] = mode
-            save_user_config(self.user_config)
-            
-            # Force UI refresh
-            Clock.schedule_once(self._refresh_ui, 0.1)
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error switching theme: {e}")
-            return False
-
-    def _refresh_ui(self, dt):
-        """Refresh UI after theme change"""
-        try:
-            # Force property updates
-            self.property('theme_config').dispatch(self)
-            
-            # Quick screen switch to refresh
-            current_screen = self.root.ids.screen_manager.current
-            temp_screen = "settings" if current_screen != "settings" else "home"
-            
-            self.root.ids.screen_manager.current = temp_screen
-            Clock.schedule_once(
-                lambda dt: setattr(self.root.ids.screen_manager, 'current', current_screen), 
-                0.2
-            )
-            
-        except Exception as e:
-            logger.error(f"Error refreshing UI: {e}")
+        """Switch theme mode with UI refresh - Wrapper для theme_manager"""
+        return self.theme_manager.switch_theme_mode(mode)
     
     def set_auto_theme_enabled(self, enabled):
         """Enable/disable auto theme switching"""
         self.auto_theme_enabled = enabled
         self.user_config["auto_theme_enabled"] = enabled
-        save_user_config(self.user_config)
+        self.theme_manager._save_user_config()
         
         if enabled and not self._auto_theme_event:
             Clock.schedule_once(self._start_auto_theme, 1)

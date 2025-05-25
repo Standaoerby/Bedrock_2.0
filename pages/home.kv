@@ -1,45 +1,50 @@
 <HomeScreen>:
     FloatLayout:
         size_hint: 1, 1
-        # Fixed overlay for this screen (with proper aspect ratio)
+        # Fixed overlay for this screen (with proper aspect ratio and dynamic update)
         Image:
+            id: home_overlay
             source: app.get_overlay_image("home")
             allow_stretch: True
-            keep_ratio: True  # Changed to True to maintain aspect ratio
-            size_hint: None, None  # Using explicit sizes instead of size_hint
+            keep_ratio: True
+            size_hint: None, None
             width: self.parent.width
             height: self.parent.height
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            # opacity: app.theme_config.get("overlay_opacity", 0.5)
+            # Принудительное обновление overlay при изменении темы
+            on_parent:
+                if self.parent: self.source = app.get_overlay_image("home")
             
-        # Date panel  
+        # Date panel with dynamic theme updates
         ThemedPanel:
+            id: date_panel
             orientation: "vertical"
             size_hint: 0.38, None
-            height: "60dp"  # Increased from 48dp
+            height: "60dp"
             pos_hint: {"x": 0.05, "top": 0.95}
             padding: ["25dp", "10dp", "15dp", "6dp"]
             
             ThemedLabel:
                 id: date_label
                 text: root.current_date
-                font_size: "24sp"  # Increased from 20sp
+                font_size: "24sp"
                 halign: "center"
                 valign: "middle"
                 shorten: False
 
-        # Alarm panel
+        # Alarm panel with dynamic theme updates
         ThemedPanel:
+            id: alarm_panel
             orientation: "horizontal"
             size_hint: 0.38, None
-            height: "60dp"  # Increased from 48dp
+            height: "60dp"
             pos_hint: {"right": 0.95, "top": 0.95}
             padding: ["10dp", "6dp", "10dp", "6dp"]
             spacing: "4dp"
             
             ThemedLabel:
                 text: "Alarm:"
-                font_size: "22sp"  # Increased from 18sp
+                font_size: "22sp"
                 size_hint_x: 0.35
                 halign: "right"
                 valign: "middle"
@@ -48,7 +53,7 @@
             ThemedLabel:
                 id: alarm_time_label
                 text: root.current_alarm_time
-                font_size: "28sp"  # Increased from 24sp
+                font_size: "28sp"
                 size_hint_x: 0.4
                 halign: "center"
                 valign: "middle"
@@ -59,26 +64,32 @@
                 id: alarm_status_button
                 text: "ON" if root.alarm_active else "OFF"
                 size_hint_x: 0.25
-                size_hint_y: 0.9  # Increased from 0.8 - raised by ~30%
-                pos_hint: {"center_y": 0.55}  # Moved up slightly
+                size_hint_y: 0.9
+                pos_hint: {"center_y": 0.55}
                 font_name: app.theme_config.get("font_name", "Minecraftia")
-                font_size: "20sp"  # Increased from 18sp
+                font_size: "20sp"
                 color: app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1]) if root.alarm_active else app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
                 background_normal: app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
                 background_down: app.theme_config.get("button_active", "atlas://data/images/defaulttheme/button_pressed")
                 on_press: app.play_sound("click")
                 on_release: root.toggle_alarm()
+                # Принудительное обновление кнопки при изменении темы
+                on_parent:
+                    if self.parent: self.background_normal = app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
 
-        # FIXED: Main clock display with theme-aware shadow effect
+        # ИСПРАВЛЕНО: Главные часы с динамически обновляемой тенью
         ThemedLabel:
             id: clock_shadow_label
-            text: clock_label.text
+            text: clock_label.text if clock_label else "00:00"
             font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "240").replace("sp", "")) * 1.5, Window.height * 0.375)) + "sp"
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.51, "center_y": 0.56}
-            # DYNAMIC shadow color based on theme mode
-            color: [0.2, 0.2, 0.2, 0.4] if app.theme_mode == "light" else [0.8, 0.8, 0.8, 0.3]
+            # ИСПРАВЛЕНО: Динамический цвет тени в зависимости от режима темы
+            color: app.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
+            # Принудительное обновление тени при изменении темы
+            on_parent:
+                if self.parent: self.color = app.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
             
         ThemedLabel:
             id: clock_label
@@ -87,16 +98,21 @@
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.5, "center_y": 0.57}
-            # DYNAMIC font color based on theme
+            # ИСПРАВЛЕНО: Динамический цвет шрифта
             color: app.theme_config.get("font_color", [1, 1, 1, 1])
+            # Принудительное обновление цвета при изменении темы
+            on_parent:
+                if self.parent: self.color = app.theme_config.get("font_color", [1, 1, 1, 1])
 
-        # Weather panel - MOVED DOWN 15px
+        # Weather panel with dynamic theme updates
         ThemedPanel:
+            id: weather_panel
             orientation: "vertical"
             size_hint: 0.65, None
             height: app.theme_config.get("grid_unit_1.5x", "48dp")
-            pos_hint: {"center_x": 0.5, "center_y": 0.24}  # Moved down from 0.28 to 0.24
+            pos_hint: {"center_x": 0.5, "center_y": 0.24}
             padding: ["10dp", "12dp", "10dp", "6dp"]
+            
             BoxLayout:
                 orientation: "horizontal"
                 spacing: app.theme_config.get("grid_unit_half", "16dp")
@@ -110,7 +126,7 @@
                     halign: "center"
                     valign: "middle"
                 
-                # FIXED: Forecast temperature with theme-aware colored trend indicator
+                # ИСПРАВЛЕНО: Forecast temperature с динамически обновляемыми цветами стрелок
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint_x: 0.5
@@ -123,8 +139,11 @@
                         size_hint_x: 0.2
                         halign: "left"
                         valign: "middle"
-                        # FIXED: Theme-aware arrow colors
+                        # ИСПРАВЛЕНО: Динамические цвета стрелок с принудительным обновлением
                         color: app.theme_config.get("colors", {}).get("trend_down", [0.2, 0.6, 1, 1]) if root.weather_trend_arrow == "↓" else (app.theme_config.get("colors", {}).get("trend_up", [1, 0.4, 0.4, 1]) if root.weather_trend_arrow == "↑" else app.theme_config.get("font_color", [1, 1, 1, 1]))
+                        # Принудительное обновление цвета при изменении темы
+                        on_parent:
+                            if self.parent: self.color = app.theme_config.get("colors", {}).get("trend_down", [0.2, 0.6, 1, 1]) if root.weather_trend_arrow == "↓" else (app.theme_config.get("colors", {}).get("trend_up", [1, 0.4, 0.4, 1]) if root.weather_trend_arrow == "↑" else app.theme_config.get("font_color", [1, 1, 1, 1]))
                         
                     ThemedLabel:
                         id: weather_forecast_label
@@ -134,8 +153,9 @@
                         halign: "left"
                         valign: "middle"
 
-        # Notification widget (bottom)
+        # Notification widget (bottom) with theme updates
         BoxLayout:
+            id: notification_container
             orientation: "horizontal"
             size_hint: 0.85, None
             height: app.theme_config.get("grid_unit_2x", "64dp")
@@ -147,3 +167,6 @@
                 font_name: app.theme_config.get("font_name", "Minecraftia")
                 color: app.theme_config.get("font_color", [1, 1, 1, 1])
                 font_size: app.theme_config.get("widget_font_size", "20sp")
+                # Принудительное обновление цвета уведомлений при изменении темы
+                on_parent:
+                    if self.parent: self.color = app.theme_config.get("font_color", [1, 1, 1, 1])
