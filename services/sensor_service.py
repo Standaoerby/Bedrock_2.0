@@ -99,11 +99,6 @@ class DummyLDR:
                 return 0 if not base_is_light else 1  # Flip for testing
         
         return 0 if base_is_light else 1
-    
-    def force_state(self, is_light):
-        """Force sensor state for testing"""
-        self._manual_override = is_light
-        logger.info(f"LDR forced to: {'Light' if is_light else 'Dark'}")
 
 class SensorService:
     """Simplified sensor service for environmental monitoring"""
@@ -117,7 +112,6 @@ class SensorService:
         self.ens = None
         self.aht = None
         self.ldr = None
-        self.i2c = None
         
         # GPIO
         self.gpio_lib = None
@@ -138,11 +132,10 @@ class SensorService:
             'light_raw': 1
         }
         
-        # Light sensor state
+        # Light sensor state tracking
         self._last_light_state = None
         self._light_readings = []
-        self._switch_threshold = 3  # seconds
-        self._confidence_level = 0.8
+        self._confidence_level = 0.7
         
         logger.info("SensorService initialized")
     
@@ -286,17 +279,17 @@ class SensorService:
             
             # Simple smoothing
             self._light_readings.append(light_level)
-            if len(self._light_readings) > 5:
+            if len(self._light_readings) > 4:
                 self._light_readings.pop(0)
             
             # Calculate stable light level
-            if len(self._light_readings) >= 3:
+            if len(self._light_readings) >= 2:
                 light_count = sum(self._light_readings)
                 light_ratio = light_count / len(self._light_readings)
                 
-                if light_ratio >= 0.7:
+                if light_ratio >= 0.6:
                     self._readings['light_level'] = True  # Light
-                elif light_ratio <= 0.3:
+                elif light_ratio <= 0.4:
                     self._readings['light_level'] = False  # Dark
                 # Else keep previous state
             
@@ -350,7 +343,7 @@ class SensorService:
                 return False
             
             # Light level changed - use confidence-based switching
-            if len(self._light_readings) >= 4:
+            if len(self._light_readings) >= 3:
                 target_count = sum(1 for x in self._light_readings if x == current_light)
                 confidence = target_count / len(self._light_readings)
                 
@@ -370,21 +363,16 @@ class SensorService:
     
     def calibrate_light_sensor(self, threshold_seconds=3):
         """Set light sensor switching threshold"""
-        self._switch_threshold = max(1, min(threshold_seconds, 8))
-        
         # Adjust confidence based on threshold
         if threshold_seconds <= 2:
-            self._confidence_level = 0.75  # Fast switching
+            self._confidence_level = 0.6  # Fast switching
         else:
-            self._confidence_level = 0.8   # Normal switching
-            
-        logger.info(f"Light sensor calibrated: {self._switch_threshold}s, confidence: {self._confidence_level}")
-    
-    def set_fast_switching(self, enabled=True, confidence=0.8):
-        """Enable fast switching mode"""
-        if enabled:
-            self._confidence_level = confidence
-        logger.info(f"Fast switching: {enabled}, confidence: {confidence}")
+            self._confidence_level = 0.7  # Normal switching
+        
+        # Clear existing readings for fresh calibration
+        self._light_readings.clear()
+        
+        logger.info(f"Light sensor calibrated: {threshold_seconds}s, confidence: {self._confidence_level}")
     
     def update_readings(self):
         """Force update readings"""

@@ -1,11 +1,9 @@
 {
   "theme": "minecraft",
   "theme_mode": "light",
-  "auto_dark_mode": true,
   "username": "Anna-Maria",
   "birthdate": "2015-05-18",
   "auto_theme_enabled": true,
-  "light_sensor_threshold": 50,
   "theme_switch_delay": 2,
   "volume_settings": {
     "enabled": true,

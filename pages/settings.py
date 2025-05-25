@@ -82,18 +82,20 @@ class SettingsScreen(MDScreen):
             if app and hasattr(app, 'sensor_service') and app.sensor_service:
                 light_status = app.sensor_service.get_light_sensor_status()
                 
-                self.light_sensor_available = True  # Always show as available
+                self.light_sensor_available = True
                 
                 # Update UI
                 if hasattr(self.ids, 'light_sensor_status'):
                     current_level = light_status.get('current_level', True)
+                    using_mock = light_status.get('using_mock', True)
+                    
                     status_text = "Light" if current_level else "Dark"
-                    sensor_type = "Real" if not light_status.get('using_mock', True) else "Mock"
+                    sensor_type = "Mock" if using_mock else "Real"
                     
                     self.ids.light_sensor_status.text = f"Sensor: {status_text} ({sensor_type})"
                     
                     # Set color
-                    if light_status.get('using_mock', True):
+                    if using_mock:
                         self.ids.light_sensor_status.color = [0.8, 0.8, 0, 1]  # Yellow
                     else:
                         self.ids.light_sensor_status.color = [0, 0.8, 0, 1]  # Green
@@ -137,24 +139,27 @@ class SettingsScreen(MDScreen):
             # Update app
             if app:
                 old_mode = app.theme_mode
+                
                 app.theme_name = self.current_theme
                 new_mode = "dark" if self.dark_mode_enabled else "light"
                 app.set_auto_theme_enabled(self.auto_theme_enabled)
                 
-                # Switch theme if changed
+                # Update user config
+                app.user_config.update(settings)
+                
+                # Recalibrate sensor if settings changed
+                if hasattr(app, 'sensor_service') and app.sensor_service:
+                    app.sensor_service.calibrate_light_sensor(int(self.light_sensor_threshold))
+                
+                # Switch theme if manually changed
                 if old_mode != new_mode:
+                    logger.info(f"Manual theme change: {old_mode} → {new_mode}")
                     app.switch_theme_mode(new_mode)
                 
             logger.info("Settings saved successfully")
                 
         except Exception as e:
             logger.error(f"Error saving settings: {e}")
-    
-    def change_theme(self, theme):
-        """Change current theme"""
-        if theme != self.current_theme:
-            self.current_theme = theme
-            self.check_dark_mode_availability()
     
     def toggle_dark_mode(self, enabled):
         """Toggle dark mode"""
@@ -183,16 +188,8 @@ class SettingsScreen(MDScreen):
         
         self.auto_theme_enabled = enabled
         
-        if app:
-            if enabled:
-                app.play_sound("success")
-            
-            # Update button color
-            if hasattr(self.ids, 'auto_theme_button'):
-                if self.auto_theme_enabled:
-                    self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
-                else:
-                    self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
+        if app and enabled:
+            app.play_sound("success")
     
     def set_threshold_delay(self, value):
         """Set theme switch delay"""
@@ -203,23 +200,29 @@ class SettingsScreen(MDScreen):
             app.sensor_service.calibrate_light_sensor(self.light_sensor_threshold)
     
     def manual_theme_test(self):
-        """Simple manual theme test - just switch mode immediately"""
+        """Simple manual theme test"""
         app = self.get_app()
         if not app:
             return
             
-        # Toggle theme mode for testing
-        new_mode = "dark" if app.theme_mode == "light" else "light"
-        
-        logger.info(f"Manual theme test: switching to {new_mode}")
-        
-        if app.switch_theme_mode(new_mode):
-            app.play_sound("success")
+        try:
+            # Toggle theme mode for testing
+            new_mode = "dark" if app.theme_mode == "light" else "light"
             
-            # Switch back after 3 seconds
-            Clock.schedule_once(lambda dt: app.switch_theme_mode(app.theme_mode), 3)
-        else:
-            app.play_sound("error")
+            logger.info(f"Manual theme test: switching to {new_mode}")
+            
+            if app.switch_theme_mode(new_mode):
+                app.play_sound("success")
+                
+                # Switch back after 3 seconds
+                Clock.schedule_once(lambda dt: app.switch_theme_mode(app.theme_mode), 3)
+            else:
+                app.play_sound("error")
+                
+        except Exception as e:
+            logger.error(f"Error in manual theme test: {e}")
+            if app:
+                app.play_sound("error")
     
     def update_birthdate(self):
         """Update birth date from UI fields"""
