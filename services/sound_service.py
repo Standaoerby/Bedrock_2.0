@@ -295,3 +295,6 @@ class SoundService:
                     pass
         except Exception as e:
             logger.error(f"Error cleaning up sounds: {e}")
+    def stop(self):
+        """Stop the sound service and cleanup resources"""
+        self.cleanup()

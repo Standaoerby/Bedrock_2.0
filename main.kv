@@ -43,11 +43,14 @@
 <ThemedPanel@BoxLayout>:
     canvas.before:
         Color:
+            # DYNAMIC panel background based on theme
             rgba: app.theme_config.get("panel_bg", [0, 0, 0, 0.08])
         RoundedRectangle:
             pos: self.pos
             size: self.size
             radius: [app.theme_config.get("panel_radius", 16)]
+    # Force canvas update when theme changes
+    on_parent: self.canvas.ask_update()
 
 # Main layout - FloatLayout for background, menu and content
 FloatLayout:

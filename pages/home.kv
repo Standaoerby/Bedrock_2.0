@@ -77,8 +77,8 @@
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.51, "center_y": 0.56}
-            # FIXED: Shadow color from theme (dark themes = light shadow, light themes = dark shadow)
-            color: app.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4]) if app.theme_mode == "light" else app.theme_config.get("colors", {}).get("shadow", [0.8, 0.8, 0.8, 0.3])
+            # DYNAMIC shadow color based on theme mode
+            color: [0.2, 0.2, 0.2, 0.4] if app.theme_mode == "light" else [0.8, 0.8, 0.8, 0.3]
             
         ThemedLabel:
             id: clock_label
@@ -87,6 +87,8 @@
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.5, "center_y": 0.57}
+            # DYNAMIC font color based on theme
+            color: app.theme_config.get("font_color", [1, 1, 1, 1])
 
         # Weather panel - MOVED DOWN 15px
         ThemedPanel:

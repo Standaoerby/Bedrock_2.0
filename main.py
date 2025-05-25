@@ -4,6 +4,8 @@ from kivymd.app import MDApp
 from kivymd.uix.pickers.timepicker import MDTimePickerInput
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
 from kivy.clock import Clock
+from kivy.core.image import Image as CoreImage
+from kivy.cache import Cache
 from services.alarm_service import AlarmService
 from classes.alarm_clock import AlarmClock
 from services.weather_service import WeatherService
@@ -80,6 +82,7 @@ def create_default_dark_theme():
                 "font_name": "Minecraftia",
                 "font_color": [0.9, 0.9, 0.9, 1],
                 "font_sizes": {
+                    "tiny": "12sp",
                     "small": "14sp",
                     "default": "18sp",
                     "medium": "20sp",
@@ -88,17 +91,23 @@ def create_default_dark_theme():
                     "huge": "240sp"
                 },
                 "colors": {
-                    "accent": [0.3, 0.5, 0.8, 1],
+                    "primary": [0.2, 0.4, 0.8, 1],
+                    "secondary": [0.6, 0.3, 0.8, 1],
+                    "accent": [1, 0.6, 0, 1],
                     "active": [0.2, 0.8, 0.2, 1],
                     "inactive": [0.4, 0.4, 0.4, 1],
-                    "semi_active": [0.6, 0.8, 0.6, 1],
-                    "font_highlight": [0.8, 0.8, 0.6, 1],
+                    "semi_active": [0.5, 0.7, 0.5, 1],
+                    "warning": [0.9, 0.7, 0.1, 1],
+                    "error": [0.9, 0.2, 0.2, 1],
+                    "success": [0.2, 0.8, 0.2, 1],
+                    "font_highlight": [0.8, 0.8, 0.9, 1],
                     "shadow": [0.9, 0.9, 0.9, 0.3],
                     "trend_up": [1, 0.5, 0.5, 1],
                     "trend_down": [0.4, 0.7, 1, 1]
                 },
                 "menu_selected_color": [0.9, 0.9, 0.9, 1],
                 "menu_unselected_color": [0.5, 0.5, 0.5, 1],
+                "menu_button_size": [180, 60],
                 "grid_unit": "32dp",
                 "grid_unit_half": "16dp",
                 "grid_unit_quarter": "8dp",
@@ -208,7 +217,7 @@ class BedrockApp(MDApp):
         'small_widget_height': 36,
     })
     
-    # Theme configuration as Kivy properties - ОТДЕЛЬНЫЕ СВОЙСТВА для лучшего обновления
+    # Theme configuration as properties
     theme_name = StringProperty("minecraft")
     theme_mode = StringProperty("light")
     theme_config = DictProperty({})
@@ -376,11 +385,22 @@ class BedrockApp(MDApp):
         if self._theme_switch_timer:
             self._theme_switch_timer.cancel()
         
-        # Stop services
-        for service_name in ['sensor_service', 'volume_service', 'sound_service']:
+        # Stop services with proper error handling
+        services_to_stop = [
+            ('sensor_service', 'stop'),
+            ('volume_service', 'stop'), 
+            ('sound_service', 'cleanup'),  # Используем cleanup вместо stop
+            ('alarm_clock', 'stop'),
+            ('alarm_service', 'stop')
+        ]
+        
+        for service_name, method_name in services_to_stop:
             if hasattr(self, service_name):
                 try:
-                    getattr(self, service_name).stop()
+                    service = getattr(self, service_name)
+                    if hasattr(service, method_name):
+                        getattr(service, method_name)()
+                        logger.info(f"{service_name} stopped successfully")
                 except Exception as e:
                     logger.error(f"Error stopping {service_name}: {e}")
 
@@ -446,12 +466,212 @@ class BedrockApp(MDApp):
             logger.error(f"Error executing theme switch: {e}")
         finally:
             self._theme_switch_timer = None
-    
+
+    def _clear_image_cache(self):
+        """Clear Kivy image cache to force reload of theme images"""
+        try:
+            # Clear all image caches
+            Cache.remove('kv.image')
+            Cache.remove('kv.texture')
+            Cache.remove('kv.loader')
+            
+            # Clear specific theme images
+            theme_images = []
+            
+            # Background images
+            theme_images.extend([
+                f"themes/{self.theme_name}/light/background.png",
+                f"themes/{self.theme_name}/dark/background.png"
+            ])
+            
+            # Overlay images for each screen
+            for screen in ['home', 'alarm', 'schedule', 'weather', 'pigs', 'settings']:
+                theme_images.extend([
+                    f"themes/{self.theme_name}/light/overlay_{screen}.png",
+                    f"themes/{self.theme_name}/dark/overlay_{screen}.png"
+                ])
+            
+            # Button images
+            theme_images.extend([
+                f"themes/{self.theme_name}/light/menu_button.png",
+                f"themes/{self.theme_name}/dark/menu_button.png",
+                f"themes/{self.theme_name}/light/button.png",
+                f"themes/{self.theme_name}/dark/button.png"
+            ])
+            
+            # Remove specific images from cache using different key formats
+            for img_path in theme_images:
+                if os.path.exists(img_path):
+                    # Try different cache key formats that Kivy uses
+                    cache_keys = [
+                        img_path,
+                        f"{img_path}|False|0",  # Format: path|keep_data|mipmap
+                        f"{img_path}|True|0",
+                        os.path.abspath(img_path),
+                        os.path.abspath(img_path) + "|False|0"
+                    ]
+                    
+                    for key in cache_keys:
+                        try:
+                            Cache.remove('kv.image', key)
+                            Cache.remove('kv.texture', key)
+                        except:
+                            pass
+            
+            # Clear CoreImage cache
+            if hasattr(CoreImage, '_cache'):
+                CoreImage._cache.clear()
+            
+            logger.info("Image cache cleared for theme switching")
+            
+        except Exception as e:
+            logger.error(f"Error clearing image cache: {e}")
+
+    def _reload_all_images(self, dt):
+        """Force reload all Image widgets in the app"""
+        try:
+            def reload_images_in_widget(widget):
+                """Recursively reload images in widget tree"""
+                if hasattr(widget, 'source') and widget.source:
+                    # This is an Image widget
+                    if hasattr(widget, 'reload'):
+                        try:
+                            widget.reload()
+                            logger.debug(f"Reloaded image: {widget.source}")
+                        except:
+                            # Fallback: clear and reset source
+                            old_source = widget.source
+                            widget.source = ""
+                            Clock.schedule_once(lambda dt: setattr(widget, 'source', old_source), 0.1)
+                
+                # Recurse through children
+                if hasattr(widget, 'children'):
+                    for child in widget.children:
+                        reload_images_in_widget(child)
+            
+            # Start from root widget
+            if self.root:
+                reload_images_in_widget(self.root)
+                
+            logger.info("All images reloaded")
+            
+        except Exception as e:
+            logger.error(f"Error reloading images: {e}")
+
+    def _update_background_images(self):
+        """Update only background images"""
+        try:
+            new_bg = self.theme_config.get("background_image", "")
+            
+            # Find and update background image
+            def find_and_update_bg(widget):
+                if hasattr(widget, 'source') and widget.source:
+                    if 'background' in widget.source or (hasattr(widget, 'id') and widget.id == 'background_image'):
+                        logger.info(f"Updating background: {widget.source} → {new_bg}")
+                        widget.source = ""
+                        Clock.schedule_once(lambda dt: setattr(widget, 'source', new_bg), 0.1)
+                        return True
+                
+                if hasattr(widget, 'children'):
+                    for child in widget.children:
+                        if find_and_update_bg(child):
+                            return True
+                return False
+            
+            if self.root:
+                find_and_update_bg(self.root)
+                
+        except Exception as e:
+            logger.error(f"Error updating background images: {e}")
+
+    def _update_overlay_images(self):
+        """Update overlay images for current screen"""
+        try:
+            current_screen_name = self.root.ids.screen_manager.current
+            current_screen = self.root.ids.screen_manager.get_screen(current_screen_name)
+            new_overlay = self.get_overlay_image(current_screen_name)
+            
+            def find_and_update_overlay(widget):
+                if hasattr(widget, 'source') and widget.source:
+                    if 'overlay_' in widget.source or current_screen_name in widget.source:
+                        logger.info(f"Updating overlay: {widget.source} → {new_overlay}")
+                        widget.source = ""
+                        Clock.schedule_once(lambda dt: setattr(widget, 'source', new_overlay), 0.1)
+                        return True
+                
+                if hasattr(widget, 'children'):
+                    for child in widget.children:
+                        if find_and_update_overlay(child):
+                            return True
+                return False
+            
+            find_and_update_overlay(current_screen)
+            
+        except Exception as e:
+            logger.error(f"Error updating overlay images: {e}")
+
+    def _force_complete_ui_refresh(self):
+        """Force complete UI refresh by rebuilding key elements"""
+        try:
+            # Получить текущий экран
+            current_screen_name = self.root.ids.screen_manager.current
+            current_screen = self.root.ids.screen_manager.get_screen(current_screen_name)
+            
+            # Обновить фоновое изображение
+            self._update_background_images()
+            
+            # Обновить overlay изображения на текущем экране
+            self._update_overlay_images()
+            
+            # Переключиться на другой экран и обратно для полного обновления
+            temp_screens = ["home", "settings", "alarm"]
+            temp_screen = next((s for s in temp_screens if s != current_screen_name), "home")
+            
+            Clock.schedule_once(lambda dt: self._switch_and_back(current_screen_name, temp_screen), 0.2)
+            
+            logger.info(f"Complete UI refresh initiated for theme: {self.theme_mode}")
+            
+        except Exception as e:
+            logger.error(f"Error in complete UI refresh: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
+    def _switch_and_back(self, target_screen, temp_screen):
+        """Switch to temp screen and back to force refresh"""
+        try:
+            # Переключиться на временный экран
+            self.root.ids.screen_manager.current = temp_screen
+            
+            # Вернуться на целевой экран
+            Clock.schedule_once(
+                lambda dt: setattr(self.root.ids.screen_manager, 'current', target_screen), 
+                0.3
+            )
+            
+            logger.info(f"Screen refresh: {target_screen} → {temp_screen} → {target_screen}")
+            
+        except Exception as e:
+            logger.error(f"Error in screen switching: {e}")
+
     def switch_theme_mode(self, mode):
-        """Switch theme mode with UI refresh - ИСПРАВЛЕНО"""
+        """Enhanced theme switching with complete UI refresh"""
         try:
             if mode not in ["light", "dark"]:
                 return False
+            
+            # Check if switching to the same mode
+            if mode == self.theme_mode:
+                logger.info(f"Already in {mode} mode")
+                return True
+            
+            # Check if dark theme files exist before switching
+            if mode == "dark":
+                dark_theme_path = f"themes/{self.theme_name}/dark/theme.json"
+                if not os.path.exists(dark_theme_path):
+                    logger.warning(f"Dark theme file not found: {dark_theme_path}")
+                    if not create_default_dark_theme():
+                        logger.error("Failed to create default dark theme")
+                        return False
             
             # Load new theme config
             new_theme_config = load_theme_config(self.theme_name, mode)
@@ -459,41 +679,250 @@ class BedrockApp(MDApp):
                 logger.error(f"Failed to load theme config for {mode}")
                 return False
             
-            # Update properties
+            logger.info(f"Switching theme from {self.theme_mode} to {mode}")
+            
+            # STEP 1: Clear image cache BEFORE any changes
+            self._clear_image_cache()
+            
+            # STEP 2: Update theme properties
             old_mode = self.theme_mode
             self.theme_mode = mode
+            
+            # STEP 3: Completely replace theme_config
             self.theme_config.clear()
             self.theme_config.update(new_theme_config)
             
-            # Update user config
+            # STEP 4: Save user config
             self.user_config["theme_mode"] = mode
             save_user_config(self.user_config)
             
-            # ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI через перезагрузку экрана
-            try:
-                current_screen = self.root.ids.screen_manager.current
-                # Временно переключаемся на другой экран и обратно для обновления
-                temp_screen = "home" if current_screen != "home" else "settings"
-                Clock.schedule_once(lambda dt: self._force_ui_refresh(current_screen, temp_screen), 0.1)
-            except Exception as e:
-                logger.error(f"Error refreshing UI: {e}")
+            # STEP 5: Force complete UI refresh with all theme properties
+            Clock.schedule_once(lambda dt: self._force_complete_theme_refresh(), 0.1)
             
-            logger.info(f"Theme mode switched: {old_mode} → {mode}")
+            logger.info(f"Theme switched: {old_mode} → {mode}")
+            logger.info(f"New background: {new_theme_config.get('background_image', 'none')}")
+            
             return True
             
         except Exception as e:
             logger.error(f"Error switching theme mode: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return False
-    
-    def _force_ui_refresh(self, target_screen, temp_screen):
-        """Force UI refresh by switching screens"""
+    def _force_complete_theme_refresh(self):
+        """Force complete theme refresh including colors, shadows, and backgrounds"""
         try:
-            # Switch to temp screen
-            self.root.ids.screen_manager.current = temp_screen
-            # Switch back to original screen after brief delay
-            Clock.schedule_once(lambda dt: setattr(self.root.ids.screen_manager, 'current', target_screen), 0.1)
+            logger.info("Starting complete theme refresh...")
+            
+            # Step 1: Update background images
+            self._update_background_images()
+            
+            # Step 2: Update overlay images
+            self._update_overlay_images()
+            
+            # Step 3: Force refresh all theme-dependent properties
+            self._refresh_theme_properties()
+            
+            # Step 4: Update canvas elements (shadows, backgrounds)
+            self._update_canvas_elements()
+            
+            # Step 5: Force screen refresh
+            current_screen = self.root.ids.screen_manager.current
+            Clock.schedule_once(lambda dt: self._final_screen_refresh(current_screen), 0.2)
+            
+            logger.info("Complete theme refresh completed")
+            
         except Exception as e:
-            logger.error(f"Error in force UI refresh: {e}")
+            logger.error(f"Error in complete theme refresh: {e}")
+#d
+    def _refresh_theme_properties(self):
+        """Force refresh of all theme-dependent Kivy properties"""
+        try:
+            # Trigger property updates on main app
+            self.property('theme_config').dispatch(self)
+            self.property('theme_mode').dispatch(self)
+            
+            # Update all screens
+            for screen_name in ['home', 'alarm', 'schedule', 'weather', 'pigs', 'settings']:
+                try:
+                    screen = self.root.ids.screen_manager.get_screen(screen_name)
+                    self._refresh_screen_properties(screen)
+                except Exception as e:
+                    logger.debug(f"Could not refresh screen {screen_name}: {e}")
+            
+        except Exception as e:
+            logger.error(f"Error refreshing theme properties: {e}")
+
+    def _refresh_screen_properties(self, screen):
+        """Refresh properties for a specific screen"""
+        try:
+            # Force update of all widgets in screen
+            def update_widget_properties(widget):
+                # Update theme-dependent properties if they exist
+                theme_props = ['color', 'background_color', 'canvas']
+                
+                for prop_name in theme_props:
+                    if hasattr(widget, prop_name):
+                        try:
+                            prop = getattr(widget, prop_name)
+                            if hasattr(prop, 'dispatch'):
+                                prop.dispatch(widget)
+                        except:
+                            pass
+                
+                # Special handling for labels with theme colors
+                if hasattr(widget, 'color') and hasattr(widget, 'text'):
+                    # Check if this should use theme colors
+                    if 'shadow' in str(getattr(widget, 'id', '')):
+                        # This is a shadow label - update color
+                        shadow_color = self.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
+                        widget.color = shadow_color
+                
+                # Recurse through children
+                if hasattr(widget, 'children'):
+                    for child in widget.children:
+                        update_widget_properties(child)
+            
+            update_widget_properties(screen)
+            
+        except Exception as e:
+            logger.error(f"Error refreshing screen properties: {e}")
+
+    def _update_canvas_elements(self):
+        """Update canvas elements like backgrounds and shadows"""
+        try:
+            def update_canvas_in_widget(widget):
+                # Update canvas if it has theme-dependent colors
+                if hasattr(widget, 'canvas'):
+                    try:
+                        # Force canvas update
+                        widget.canvas.ask_update()
+                        
+                        # Special handling for ThemedPanel widgets
+                        if 'ThemedPanel' in str(type(widget)):
+                            # These should get new panel background colors
+                            panel_bg = self.theme_config.get("panel_bg", [0, 0, 0, 0.2])
+                            # Canvas will be updated by the widget's drawing code
+                    except Exception as e:
+                        logger.debug(f"Error updating canvas for widget: {e}")
+                
+                # Recurse through children
+                if hasattr(widget, 'children'):
+                    for child in widget.children:
+                        update_canvas_in_widget(child)
+            
+            if self.root:
+                update_canvas_in_widget(self.root)
+            
+        except Exception as e:
+            logger.error(f"Error updating canvas elements: {e}")
+
+    def _final_screen_refresh(self, target_screen):
+        """Final screen refresh to ensure all changes are applied"""
+        try:
+            # Quick screen switch to force complete refresh
+            temp_screens = ["settings", "home", "alarm"]
+            temp_screen = next((s for s in temp_screens if s != target_screen), "home")
+            
+            # Switch away and back
+            self.root.ids.screen_manager.current = temp_screen
+            
+            # Force immediate update
+            Clock.schedule_once(lambda dt: self._return_to_screen(target_screen), 0.1)
+            
+        except Exception as e:
+            logger.error(f"Error in final screen refresh: {e}")
+
+    def _return_to_screen(self, target_screen):
+        """Return to the target screen after refresh"""
+        try:
+            self.root.ids.screen_manager.current = target_screen
+            
+            # Final canvas update for all widgets
+            Clock.schedule_once(lambda dt: self._final_canvas_update(), 0.1)
+            
+            logger.info(f"Theme refresh completed for screen: {target_screen}")
+            
+        except Exception as e:
+            logger.error(f"Error returning to screen: {e}")
+
+    def _final_canvas_update(self):
+        """Final update of all canvas elements"""
+        try:
+            def force_canvas_update(widget):
+                if hasattr(widget, 'canvas'):
+                    widget.canvas.ask_update()
+                
+                # Special handling for shadow labels
+                if hasattr(widget, 'id') and 'shadow' in str(widget.id):
+                    shadow_color = self.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
+                    if self.theme_mode == "light":
+                        shadow_color = [0.2, 0.2, 0.2, 0.4]  # Dark shadow for light theme
+                    else:
+                        shadow_color = [0.8, 0.8, 0.8, 0.3]  # Light shadow for dark theme
+                    
+                    if hasattr(widget, 'color'):
+                        widget.color = shadow_color
+                
+                if hasattr(widget, 'children'):
+                    for child in widget.children:
+                        force_canvas_update(child)
+            
+            if self.root:
+                force_canvas_update(self.root)
+                
+        except Exception as e:
+            logger.error(f"Error in final canvas update: {e}")
+#d
+
+    def debug_theme_state(self):
+        """Debug method to check theme state"""
+        logger.info("=== THEME DEBUG INFO ===")
+        logger.info(f"Current theme_name: {self.theme_name}")
+        logger.info(f"Current theme_mode: {self.theme_mode}")
+        
+        if hasattr(self, 'theme_config'):
+            bg_img = self.theme_config.get("background_image", "none")
+            logger.info(f"Background image: {bg_img}")
+            logger.info(f"Background exists: {os.path.exists(bg_img) if bg_img else False}")
+            
+            overlays = self.theme_config.get("overlay_images", {})
+            logger.info(f"Overlay images: {len(overlays)} defined")
+            for page, path in overlays.items():
+                logger.info(f"  {page}: {path} (exists: {os.path.exists(path) if path else False})")
+        
+        logger.info("========================")
+
+    def force_refresh_all_theme_images(self):
+        """Force refresh of all theme-related images"""
+        try:
+            logger.info("Force refreshing all theme images...")
+            
+            # Clear cache completely
+            self._clear_image_cache()
+            
+            # Update all properties that depend on theme
+            if hasattr(self, 'property'):
+                self.property('theme_config').dispatch(self)
+            
+            # Trigger updates for all screens
+            for screen_name in ['home', 'alarm', 'schedule', 'weather', 'pigs', 'settings']:
+                try:
+                    screen = self.root.ids.screen_manager.get_screen(screen_name)
+                    # Force property updates on screen
+                    if hasattr(screen, 'property'):
+                        for prop_name in ['theme_config', 'theme_mode']:
+                            if hasattr(screen, prop_name):
+                                prop = getattr(screen, prop_name)
+                                if hasattr(prop, 'dispatch'):
+                                    prop.dispatch(screen)
+                except:
+                    pass
+            
+            logger.info("Theme images refresh completed")
+            
+        except Exception as e:
+            logger.error(f"Error in force refresh: {e}")
     
     def set_auto_theme_enabled(self, enabled):
         """Enable/disable auto theme switching"""
