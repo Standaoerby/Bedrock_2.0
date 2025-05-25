@@ -131,41 +131,127 @@
                             halign: "left"
                             valign: "middle"
                     
-                    # NEW: Light sensor test and threshold
+                    # NEW: Light sensor test and threshold WITH AUTO THEME TEST
                     BoxLayout:
                         orientation: "horizontal" 
                         size_hint_y: None
                         height: "40dp"
-                        spacing: "10dp"
+                        spacing: "5dp"  # Reduced spacing to fit more buttons
                         
                         ThemedLabel:
                             text: "Switch Delay:"
-                            font_size: "18sp"
-                            size_hint_x: 0.3
+                            font_size: "16sp"  # Smaller font
+                            size_hint_x: 0.25  # Reduced
                             halign: "right"
                             valign: "middle"
                         
                         Slider:
                             id: threshold_slider
                             min: 1
-                            max: 10
+                            max: 5  # Reduced max to 5 seconds for faster testing
                             value: root.light_sensor_threshold
                             step: 1
-                            size_hint_x: 0.4
+                            size_hint_x: 0.25  # Reduced
                             on_value: root.set_threshold_delay(self.value)
                         
                         ThemedLabel:
                             text: f"{int(threshold_slider.value)}s"
-                            font_size: "16sp"
+                            font_size: "14sp"
                             size_hint_x: 0.1
                             halign: "center"
                             valign: "middle"
                         
                         ThemedButton:
                             text: "Test"
-                            size_hint_x: 0.2
-                            font_size: "16sp"
+                            size_hint_x: 0.15  # Reduced
+                            font_size: "14sp"
                             on_release: root.test_light_sensor()
+                        
+                        # NEW: Auto Theme Test Button
+                        ThemedButton:
+                            text: "Auto Test"
+                            size_hint_x: 0.25  # New button for auto theme test
+                            font_size: "14sp"
+                            disabled: not root.auto_theme_enabled or not root.light_sensor_available
+                            opacity: 1.0 if (root.auto_theme_enabled and root.light_sensor_available) else 0.5
+                            on_release: root.test_auto_theme_switching()
+
+                # NEW: Debug Information Panel (только для разработки)
+                ThemedPanel:
+                    orientation: "vertical"
+                    size_hint_y: None
+                    height: "120dp"
+                    padding: ["16dp", "12dp", "16dp", "12dp"]
+                    opacity: 0.7  # Полупрозрачная панель
+                    
+                    ThemedLabel:
+                        text: "Debug Info"
+                        font_size: "20sp"
+                        size_hint_y: None
+                        height: "30dp"
+                        halign: "center"
+                        bold: True
+                    
+                    BoxLayout:
+                        orientation: "horizontal"
+                        size_hint_y: None
+                        height: "30dp"
+                        spacing: "10dp"
+                        
+                        ThemedLabel:
+                            text: "Current Theme:"
+                            font_size: "16sp"
+                            size_hint_x: 0.4
+                            halign: "left"
+                            valign: "middle"
+                        
+                        ThemedLabel:
+                            id: debug_theme_info
+                            text: f"{app.theme_name}/{app.theme_mode}"
+                            font_size: "16sp"
+                            size_hint_x: 0.6
+                            halign: "left"
+                            valign: "middle"
+                            color: [0, 0.8, 0.8, 1]  # Cyan
+                    
+                    BoxLayout:
+                        orientation: "horizontal"
+                        size_hint_y: None
+                        height: "30dp"
+                        spacing: "10dp"
+                        
+                        ThemedLabel:
+                            text: "Auto Theme:"
+                            font_size: "16sp"
+                            size_hint_x: 0.4
+                            halign: "left"
+                            valign: "middle"
+                        
+                        ThemedLabel:
+                            id: debug_auto_theme
+                            text: f"{'ON' if root.auto_theme_enabled else 'OFF'} - Switch: {root.light_sensor_threshold}s"
+                            font_size: "16sp"
+                            size_hint_x: 0.6
+                            halign: "left"
+                            valign: "middle"
+                            color: [0, 1, 0, 1] if root.auto_theme_enabled else [0.6, 0.6, 0.6, 1]
+                    
+                    BoxLayout:
+                        orientation: "horizontal"
+                        size_hint_y: None
+                        height: "20dp"
+                        
+                        ThemedButton:
+                            text: "Start 30s Auto Theme Test"
+                            size_hint_x: 0.8
+                            font_size: "14sp"
+                            size_hint_y: None
+                            height: "30dp"
+                            disabled: not root.auto_theme_enabled
+                            on_release: root.test_auto_theme_switching()
+                        
+                        Widget:
+                            size_hint_x: 0.2
 
                 # NEW: Volume Control Panel
                 ThemedPanel:
