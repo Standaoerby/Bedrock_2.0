@@ -53,7 +53,7 @@
                 halign: "center"
                 valign: "middle"
                 shorten: False
-                color: app.theme_config.get("colors", {}).get("semi_active", [0.7, 1, 0.7, 1]) if root.alarm_active else [0.4, 0.4, 0.4, 1]
+                color: app.theme_config.get("colors", {}).get("semi_active", [0.7, 1, 0.7, 1]) if root.alarm_active else app.theme_config.get("colors", {}).get("inactive", [0.4, 0.4, 0.4, 1])
                 
             Button:
                 id: alarm_status_button
@@ -69,7 +69,7 @@
                 on_press: app.play_sound("click")
                 on_release: root.toggle_alarm()
 
-        # Main clock display with shadow effect
+        # FIXED: Main clock display with theme-aware shadow effect
         ThemedLabel:
             id: clock_shadow_label
             text: clock_label.text
@@ -77,7 +77,8 @@
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.51, "center_y": 0.56}
-            color: [0, 0, 0, 0.5]
+            # FIXED: Shadow color from theme (dark themes = light shadow, light themes = dark shadow)
+            color: app.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4]) if app.theme_mode == "light" else app.theme_config.get("colors", {}).get("shadow", [0.8, 0.8, 0.8, 0.3])
             
         ThemedLabel:
             id: clock_label
@@ -107,7 +108,7 @@
                     halign: "center"
                     valign: "middle"
                 
-                # Forecast temperature with colored trend indicator
+                # FIXED: Forecast temperature with theme-aware colored trend indicator
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint_x: 0.5
@@ -120,7 +121,8 @@
                         size_hint_x: 0.2
                         halign: "left"
                         valign: "middle"
-                        color: [0, 0.6, 1, 1] if root.weather_trend_arrow == "↓" else ([1, 0.3, 0.3, 1] if root.weather_trend_arrow == "↑" else [1, 1, 1, 1])
+                        # FIXED: Theme-aware arrow colors
+                        color: app.theme_config.get("colors", {}).get("trend_down", [0.2, 0.6, 1, 1]) if root.weather_trend_arrow == "↓" else (app.theme_config.get("colors", {}).get("trend_up", [1, 0.4, 0.4, 1]) if root.weather_trend_arrow == "↑" else app.theme_config.get("font_color", [1, 1, 1, 1]))
                         
                     ThemedLabel:
                         id: weather_forecast_label
