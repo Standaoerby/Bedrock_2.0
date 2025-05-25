@@ -208,12 +208,13 @@ class BedrockApp(MDApp):
         'small_widget_height': 36,
     })
     
-    # Theme configuration as Kivy property
+    # Theme configuration as Kivy properties - ОТДЕЛЬНЫЕ СВОЙСТВА для лучшего обновления
+    theme_name = StringProperty("minecraft")
+    theme_mode = StringProperty("light")
     theme_config = DictProperty({})
     
     # Auto theme properties
     auto_theme_enabled = BooleanProperty(True)
-    current_volume = NumericProperty(50)
 
     def __init__(self, **kwargs):
         # Load user configuration
@@ -238,8 +239,13 @@ class BedrockApp(MDApp):
         super(BedrockApp, self).__init__(**kwargs)
         
         # Load theme config
+        self._load_current_theme()
+
+    def _load_current_theme(self):
+        """Load current theme configuration"""
         try:
             self.theme_config = load_theme_config(self.theme_name, self.theme_mode)
+            logger.info(f"Loaded theme: {self.theme_name}/{self.theme_mode}")
         except Exception as e:
             logger.error(f"Error loading theme: {e}")
             self.theme_config = {"font_name": "Minecraftia", "font_color": [1, 1, 1, 1]}
@@ -280,7 +286,6 @@ class BedrockApp(MDApp):
             # Start volume control
             if self.volume_service.start():
                 self.volume_service.set_volume_change_callback(self._on_volume_changed)
-                self.current_volume = self.volume_service.get_volume()
                 
         except Exception as e:
             logger.error(f"Error starting services: {e}")
@@ -443,7 +448,7 @@ class BedrockApp(MDApp):
             self._theme_switch_timer = None
     
     def switch_theme_mode(self, mode):
-        """Switch theme mode with UI refresh"""
+        """Switch theme mode with UI refresh - ИСПРАВЛЕНО"""
         try:
             if mode not in ["light", "dark"]:
                 return False
@@ -451,24 +456,44 @@ class BedrockApp(MDApp):
             # Load new theme config
             new_theme_config = load_theme_config(self.theme_name, mode)
             if not new_theme_config:
+                logger.error(f"Failed to load theme config for {mode}")
                 return False
             
             # Update properties
+            old_mode = self.theme_mode
             self.theme_mode = mode
-            self.theme_config = new_theme_config
+            self.theme_config.clear()
+            self.theme_config.update(new_theme_config)
             
             # Update user config
             self.user_config["theme_mode"] = mode
             save_user_config(self.user_config)
             
-            # Force UI update
-            self.property('theme_config').dispatch(self)
+            # ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI через перезагрузку экрана
+            try:
+                current_screen = self.root.ids.screen_manager.current
+                # Временно переключаемся на другой экран и обратно для обновления
+                temp_screen = "home" if current_screen != "home" else "settings"
+                Clock.schedule_once(lambda dt: self._force_ui_refresh(current_screen, temp_screen), 0.1)
+            except Exception as e:
+                logger.error(f"Error refreshing UI: {e}")
             
+            logger.info(f"Theme mode switched: {old_mode} → {mode}")
             return True
             
         except Exception as e:
             logger.error(f"Error switching theme mode: {e}")
             return False
+    
+    def _force_ui_refresh(self, target_screen, temp_screen):
+        """Force UI refresh by switching screens"""
+        try:
+            # Switch to temp screen
+            self.root.ids.screen_manager.current = temp_screen
+            # Switch back to original screen after brief delay
+            Clock.schedule_once(lambda dt: setattr(self.root.ids.screen_manager, 'current', target_screen), 0.1)
+        except Exception as e:
+            logger.error(f"Error in force UI refresh: {e}")
     
     def set_auto_theme_enabled(self, enabled):
         """Enable/disable auto theme switching"""
@@ -486,7 +511,7 @@ class BedrockApp(MDApp):
     
     def _on_volume_changed(self, volume, action):
         """Callback for volume changes"""
-        self.current_volume = volume
+        pass  # Volume updates handled by service
 
 if __name__ == "__main__":
     logger.info("Starting Bedrock App")

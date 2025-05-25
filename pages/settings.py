@@ -26,19 +26,14 @@ class SettingsScreen(MDScreen):
     light_sensor_available = BooleanProperty(False)
     light_sensor_threshold = NumericProperty(2)
     
-    # Volume properties
-    current_volume = NumericProperty(50)
-    volume_buttons_available = BooleanProperty(False)
-    
     def on_pre_enter(self):
         """Called when entering the screen"""
         self.load_settings()
         self.check_dark_mode_availability()
         self.update_sensor_status()
-        self.update_volume_status()
         
         # Update sensor status periodically
-        self._sensor_update_event = Clock.schedule_interval(self.update_sensor_status, 3)
+        self._sensor_update_event = Clock.schedule_interval(self.update_sensor_status, 5)
     
     def on_leave(self):
         """Called when leaving the screen"""
@@ -87,7 +82,7 @@ class SettingsScreen(MDScreen):
             if app and hasattr(app, 'sensor_service') and app.sensor_service:
                 light_status = app.sensor_service.get_light_sensor_status()
                 
-                self.light_sensor_available = not light_status.get('using_mock', True) or True
+                self.light_sensor_available = True  # Always show as available
                 
                 # Update UI
                 if hasattr(self.ids, 'light_sensor_status'):
@@ -111,20 +106,6 @@ class SettingsScreen(MDScreen):
         except Exception as e:
             logger.error(f"Error updating sensor status: {e}")
     
-    def update_volume_status(self):
-        """Update volume status"""
-        try:
-            app = self.get_app()
-            if app and hasattr(app, 'volume_service') and app.volume_service:
-                volume_status = app.volume_service.get_status()
-                self.volume_buttons_available = volume_status.get('gpio_available', False)
-                self.current_volume = volume_status.get('current_volume', 50)
-            else:
-                self.volume_buttons_available = False
-                
-        except Exception as e:
-            logger.error(f"Error updating volume status: {e}")
-    
     def save_all_settings(self):
         """Save all settings"""
         try:
@@ -142,18 +123,10 @@ class SettingsScreen(MDScreen):
             settings = {
                 "theme": self.current_theme,
                 "theme_mode": "dark" if self.dark_mode_enabled else "light",
-                "auto_dark_mode": True,
                 "username": self.username,
                 "birthdate": self.get_birthdate_string(),
                 "auto_theme_enabled": self.auto_theme_enabled,
-                "theme_switch_delay": int(self.light_sensor_threshold),
-                "volume_settings": {
-                    "enabled": True,
-                    "step": 5,
-                    "min_volume": 0,
-                    "max_volume": 100,
-                    "feedback_sounds": True
-                }
+                "theme_switch_delay": int(self.light_sensor_threshold)
             }
             
             # Save to file
@@ -165,12 +138,12 @@ class SettingsScreen(MDScreen):
             if app:
                 old_mode = app.theme_mode
                 app.theme_name = self.current_theme
-                app.theme_mode = "dark" if self.dark_mode_enabled else "light"
+                new_mode = "dark" if self.dark_mode_enabled else "light"
                 app.set_auto_theme_enabled(self.auto_theme_enabled)
                 
                 # Switch theme if changed
-                if old_mode != app.theme_mode:
-                    app.switch_theme_mode(app.theme_mode)
+                if old_mode != new_mode:
+                    app.switch_theme_mode(new_mode)
                 
             logger.info("Settings saved successfully")
                 
@@ -221,66 +194,6 @@ class SettingsScreen(MDScreen):
                 else:
                     self.ids.auto_theme_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
     
-    def test_light_sensor(self):
-        """Test light sensor"""
-        app = self.get_app()
-        if app and hasattr(app, 'sensor_service') and app.sensor_service:
-            app.play_sound("click")
-            
-            # Simple test - just show current status
-            light_status = app.sensor_service.get_light_sensor_status()
-            current_level = "Light" if light_status.get('current_level', True) else "Dark"
-            using_mock = "Mock" if light_status.get('using_mock', True) else "Real"
-            
-            logger.info(f"Light sensor test: {current_level} ({using_mock})")
-            
-            # Show status in UI temporarily
-            if hasattr(self.ids, 'light_sensor_status'):
-                original_text = self.ids.light_sensor_status.text
-                self.ids.light_sensor_status.text = "Testing..."
-                self.ids.light_sensor_status.color = [1, 0.5, 0, 1]  # Orange
-                
-                # Restore after 3 seconds
-                Clock.schedule_once(lambda dt: self.update_sensor_status(), 3)
-        else:
-            if app:
-                app.play_sound("error")
-    
-    def test_auto_theme_switching(self):
-        """Test automatic theme switching"""
-        app = self.get_app()
-        if not app or not hasattr(app, 'sensor_service') or not app.sensor_service:
-            if app:
-                app.play_sound("error")
-            return
-        
-        app.play_sound("success")
-        logger.info("Starting auto theme test...")
-        
-        def run_test():
-            try:
-                # Test sequence
-                time.sleep(1)
-                
-                # Force dark
-                logger.info("Test: Setting DARK...")
-                if app.sensor_service.force_light_state(False):
-                    time.sleep(4)  # Wait for theme switch
-                    
-                    # Force light
-                    logger.info("Test: Setting LIGHT...")
-                    if app.sensor_service.force_light_state(True):
-                        time.sleep(4)  # Wait for theme switch
-                
-                logger.info("Auto theme test completed")
-                
-            except Exception as e:
-                logger.error(f"Error in auto theme test: {e}")
-        
-        # Run test in background
-        import threading
-        threading.Thread(target=run_test, daemon=True).start()
-    
     def set_threshold_delay(self, value):
         """Set theme switch delay"""
         self.light_sensor_threshold = max(1, min(int(value), 5))
@@ -289,31 +202,24 @@ class SettingsScreen(MDScreen):
         if app and hasattr(app, 'sensor_service') and app.sensor_service:
             app.sensor_service.calibrate_light_sensor(self.light_sensor_threshold)
     
-    def test_volume_up(self):
-        """Test volume up"""
+    def manual_theme_test(self):
+        """Simple manual theme test - just switch mode immediately"""
         app = self.get_app()
-        if app and hasattr(app, 'volume_service') and app.volume_service:
-            current = app.volume_service.get_volume()
-            new_volume = min(current + 10, 100)
-            if app.volume_service.set_volume(new_volume):
-                self.current_volume = new_volume
-                app.play_sound("success")
+        if not app:
+            return
+            
+        # Toggle theme mode for testing
+        new_mode = "dark" if app.theme_mode == "light" else "light"
+        
+        logger.info(f"Manual theme test: switching to {new_mode}")
+        
+        if app.switch_theme_mode(new_mode):
+            app.play_sound("success")
+            
+            # Switch back after 3 seconds
+            Clock.schedule_once(lambda dt: app.switch_theme_mode(app.theme_mode), 3)
         else:
-            if app:
-                app.play_sound("error")
-    
-    def test_volume_down(self):
-        """Test volume down"""
-        app = self.get_app()
-        if app and hasattr(app, 'volume_service') and app.volume_service:
-            current = app.volume_service.get_volume()
-            new_volume = max(current - 10, 0)
-            if app.volume_service.set_volume(new_volume):
-                self.current_volume = new_volume
-                app.play_sound("click")
-        else:
-            if app:
-                app.play_sound("error")
+            app.play_sound("error")
     
     def update_birthdate(self):
         """Update birth date from UI fields"""

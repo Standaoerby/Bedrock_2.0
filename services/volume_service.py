@@ -133,6 +133,7 @@ class VolumeControlService:
                 return True  # Not pressed
                 
             if self.gpio_lib == "lgpio":
+                import lgpio
                 return bool(lgpio.gpio_read(self.gpio_handle, pin))
             elif self.gpio_lib == "RPi.GPIO":
                 import RPi.GPIO as GPIO
@@ -309,6 +310,7 @@ class VolumeControlService:
         # Cleanup GPIO
         try:
             if self.gpio_lib == "lgpio" and self.gpio_handle is not None:
+                import lgpio
                 lgpio.gpiochip_close(self.gpio_handle)
             elif self.gpio_lib == "RPi.GPIO":
                 import RPi.GPIO as GPIO
@@ -366,38 +368,3 @@ class VolumeControlService:
                 'volume_down': VOLUME_DOWN_PIN
             }
         }
-    
-    def test_volume_buttons(self, duration=10):
-        """Test volume buttons for specified duration (for debugging)"""
-        if not self.gpio_available:
-            logger.error("GPIO not available for button testing")
-            return
-            
-        logger.info(f"Testing volume buttons for {duration} seconds...")
-        logger.info("Press volume buttons now...")
-        
-        start_time = time.time()
-        while time.time() - start_time < duration:
-            try:
-                up_state = self._read_button(VOLUME_UP_PIN)
-                down_state = self._read_button(VOLUME_DOWN_PIN)
-                
-                up_pressed = not up_state  # Inverted due to pull-up
-                down_pressed = not down_state
-                
-                if up_pressed or down_pressed:
-                    status = []
-                    if up_pressed:
-                        status.append("Volume Up")
-                    if down_pressed:
-                        status.append("Volume Down")
-                    logger.info(f"Buttons pressed: {', '.join(status)}")
-                
-                time.sleep(0.1)
-                
-            except KeyboardInterrupt:
-                break
-            except Exception as e:
-                logger.error(f"Error in button test: {e}")
-        
-        logger.info("Button test completed")

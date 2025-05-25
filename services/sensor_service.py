@@ -386,25 +386,6 @@ class SensorService:
             self._confidence_level = confidence
         logger.info(f"Fast switching: {enabled}, confidence: {confidence}")
     
-    def force_light_state(self, is_light):
-        """Force light state for testing"""
-        try:
-            if self.ldr and self.using_mock_sensors:
-                self.ldr.force_state(is_light)
-                
-                # Clear state for change detection
-                self._last_light_state = None
-                self._light_readings = [is_light] * 3
-                
-                logger.info(f"Forced light state: {'Light' if is_light else 'Dark'}")
-                return True
-            else:
-                logger.warning("Force state only available for mock sensors")
-                return False
-        except Exception as e:
-            logger.error(f"Error forcing light state: {e}")
-            return False
-    
     def update_readings(self):
         """Force update readings"""
         self._update_readings()

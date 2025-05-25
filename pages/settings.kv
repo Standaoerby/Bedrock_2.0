@@ -24,13 +24,13 @@
                 size_hint_y: None
                 height: self.minimum_height
                 spacing: "20dp"
-                padding: "10dp"
+                padding: "15dp"
 
                 # Theme settings panel
                 ThemedPanel:
                     orientation: "vertical"
                     size_hint_y: None
-                    height: "240dp"  # Increased for new auto theme settings
+                    height: "200dp"
                     padding: ["16dp", "12dp", "16dp", "12dp"]
                     
                     ThemedLabel:
@@ -40,29 +40,6 @@
                         height: "40dp"
                         halign: "center"
                         bold: True
-                    
-                    # Theme selection
-                    BoxLayout:
-                        orientation: "horizontal"
-                        size_hint_y: None
-                        height: "50dp"
-                        spacing: "10dp"
-                        
-                        ThemedLabel:
-                            text: "Theme:"
-                            font_size: "20sp"
-                            halign: "right"
-                            valign: "middle"
-                            size_hint_x: 0.3
-                        
-                        Spinner:
-                            id: theme_spinner
-                            text: root.current_theme
-                            values: root.available_themes
-                            font_name: app.theme_config.get("font_name", "Minecraftia")
-                            font_size: "20sp"
-                            size_hint_x: 0.7
-                            on_text: root.change_theme(self.text)
                     
                     # Dark mode toggle
                     BoxLayout:
@@ -76,7 +53,7 @@
                             size_hint_x: 0.7
                             
                             ThemedLabel:
-                                text: "Dark Mode" if root.dark_mode_available else "Dark Mode not available"
+                                text: "Dark Mode" if root.dark_mode_available else "Dark Mode (not available)"
                                 font_size: "20sp"
                                 halign: "right"
                                 valign: "middle"
@@ -94,7 +71,7 @@
                             on_press: app.play_sound("click")
                             on_release: root.toggle_dark_mode(not root.dark_mode_enabled)
                     
-                    # NEW: Auto theme by light sensor
+                    # Auto theme by light sensor
                     BoxLayout:
                         orientation: "horizontal"
                         size_hint_y: None
@@ -131,180 +108,41 @@
                             halign: "left"
                             valign: "middle"
                     
-                    # NEW: Light sensor test and threshold WITH AUTO THEME TEST
+                    # Light sensor threshold
                     BoxLayout:
                         orientation: "horizontal" 
                         size_hint_y: None
-                        height: "40dp"
-                        spacing: "5dp"  # Reduced spacing to fit more buttons
+                        height: "50dp"
+                        spacing: "10dp"
                         
                         ThemedLabel:
                             text: "Switch Delay:"
-                            font_size: "16sp"  # Smaller font
-                            size_hint_x: 0.25  # Reduced
+                            font_size: "18sp"
+                            size_hint_x: 0.3
                             halign: "right"
                             valign: "middle"
                         
                         Slider:
                             id: threshold_slider
                             min: 1
-                            max: 5  # Reduced max to 5 seconds for faster testing
+                            max: 5
                             value: root.light_sensor_threshold
                             step: 1
-                            size_hint_x: 0.25  # Reduced
+                            size_hint_x: 0.4
                             on_value: root.set_threshold_delay(self.value)
                         
                         ThemedLabel:
                             text: f"{int(threshold_slider.value)}s"
-                            font_size: "14sp"
+                            font_size: "18sp"
                             size_hint_x: 0.1
                             halign: "center"
                             valign: "middle"
                         
                         ThemedButton:
                             text: "Test"
-                            size_hint_x: 0.15  # Reduced
-                            font_size: "14sp"
-                            on_release: root.test_light_sensor()
-                        
-                        # NEW: Auto Theme Test Button
-                        ThemedButton:
-                            text: "Auto Test"
-                            size_hint_x: 0.25  # New button for auto theme test
-                            font_size: "14sp"
-                            disabled: not root.auto_theme_enabled or not root.light_sensor_available
-                            opacity: 1.0 if (root.auto_theme_enabled and root.light_sensor_available) else 0.5
-                            on_release: root.test_auto_theme_switching()
-
-                # NEW: Debug Information Panel (только для разработки)
-                ThemedPanel:
-                    orientation: "vertical"
-                    size_hint_y: None
-                    height: "120dp"
-                    padding: ["16dp", "12dp", "16dp", "12dp"]
-                    opacity: 0.7  # Полупрозрачная панель
-                    
-                    ThemedLabel:
-                        text: "Debug Info"
-                        font_size: "20sp"
-                        size_hint_y: None
-                        height: "30dp"
-                        halign: "center"
-                        bold: True
-                    
-                    BoxLayout:
-                        orientation: "horizontal"
-                        size_hint_y: None
-                        height: "30dp"
-                        spacing: "10dp"
-                        
-                        ThemedLabel:
-                            text: "Current Theme:"
-                            font_size: "16sp"
-                            size_hint_x: 0.4
-                            halign: "left"
-                            valign: "middle"
-                        
-                        ThemedLabel:
-                            id: debug_theme_info
-                            text: f"{app.theme_name}/{app.theme_mode}"
-                            font_size: "16sp"
-                            size_hint_x: 0.6
-                            halign: "left"
-                            valign: "middle"
-                            color: [0, 0.8, 0.8, 1]  # Cyan
-                    
-                    BoxLayout:
-                        orientation: "horizontal"
-                        size_hint_y: None
-                        height: "30dp"
-                        spacing: "10dp"
-                        
-                        ThemedLabel:
-                            text: "Auto Theme:"
-                            font_size: "16sp"
-                            size_hint_x: 0.4
-                            halign: "left"
-                            valign: "middle"
-                        
-                        ThemedLabel:
-                            id: debug_auto_theme
-                            text: f"{'ON' if root.auto_theme_enabled else 'OFF'} - Switch: {root.light_sensor_threshold}s"
-                            font_size: "16sp"
-                            size_hint_x: 0.6
-                            halign: "left"
-                            valign: "middle"
-                            color: [0, 1, 0, 1] if root.auto_theme_enabled else [0.6, 0.6, 0.6, 1]
-                    
-                    BoxLayout:
-                        orientation: "horizontal"
-                        size_hint_y: None
-                        height: "20dp"
-                        
-                        ThemedButton:
-                            text: "Start 30s Auto Theme Test"
-                            size_hint_x: 0.8
-                            font_size: "14sp"
-                            size_hint_y: None
-                            height: "30dp"
-                            disabled: not root.auto_theme_enabled
-                            on_release: root.test_auto_theme_switching()
-                        
-                        Widget:
                             size_hint_x: 0.2
-
-                # NEW: Volume Control Panel
-                ThemedPanel:
-                    orientation: "vertical"
-                    size_hint_y: None
-                    height: "140dp"
-                    padding: ["16dp", "12dp", "16dp", "12dp"]
-                    
-                    ThemedLabel:
-                        text: "Volume Control"
-                        font_size: "24sp"
-                        size_hint_y: None
-                        height: "40dp"
-                        halign: "center"
-                        bold: True
-                    
-                    BoxLayout:
-                        orientation: "horizontal"
-                        size_hint_y: None
-                        height: "50dp"
-                        spacing: "10dp"
-                        
-                        ThemedLabel:
-                            id: volume_status
-                            text: f"Volume: {root.current_volume}%"
-                            font_size: "20sp"
-                            size_hint_x: 0.4
-                            halign: "left"
-                            valign: "middle"
-                        
-                        ThemedButton:
-                            text: "Vol -"
-                            size_hint_x: 0.2
-                            font_size: "18sp"
-                            disabled: not root.volume_buttons_available
-                            opacity: 1.0 if root.volume_buttons_available else 0.5
-                            on_release: root.test_volume_down()
-                        
-                        ThemedLabel:
-                            text: f"{root.current_volume}%"
-                            font_size: "20sp"
-                            size_hint_x: 0.2
-                            halign: "center"
-                            valign: "middle"
-                            bold: True
-                        
-                        ThemedButton:
-                            text: "Vol +"
-                            size_hint_x: 0.2
-                            font_size: "18sp"
-                            disabled: not root.volume_buttons_available
-                            opacity: 1.0 if root.volume_buttons_available else 0.5
-                            on_release: root.test_volume_up()
+                            font_size: "16sp"
+                            on_release: root.manual_theme_test()
 
                 # User settings panel
                 ThemedPanel:
@@ -342,7 +180,6 @@
                             font_size: "20sp"
                             size_hint_x: 0.7
                             multiline: False
-                            on_text_validate: root.save_username(self.text)
                     
                     # Birth date
                     BoxLayout:
@@ -372,7 +209,6 @@
                                 size_hint_x: 0.2
                                 multiline: False
                                 input_filter: "int"
-                                on_text_validate: root.update_birthdate()
                             
                             ThemedLabel:
                                 text: "/"
@@ -389,7 +225,6 @@
                                 size_hint_x: 0.2
                                 multiline: False
                                 input_filter: "int"
-                                on_text_validate: root.update_birthdate()
                             
                             ThemedLabel:
                                 text: "/"
@@ -406,7 +241,6 @@
                                 size_hint_x: 0.3
                                 multiline: False
                                 input_filter: "int"
-                                on_text_validate: root.update_birthdate()
                 
                 # Save button
                 AnchorLayout:
