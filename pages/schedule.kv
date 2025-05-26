@@ -2,16 +2,16 @@
     FloatLayout:
         size_hint: 1, 1
         
-        # Screen overlay (matching other screens)
+        # ИСПРАВЛЕНО: Screen overlay с правильным id
         Image:
+            id: schedule_overlay
             source: app.get_overlay_image("schedule")
             allow_stretch: True
-            keep_ratio: True  # Changed to True to maintain aspect ratio
-            size_hint: None, None  # Using explicit sizes instead of size_hint
+            keep_ratio: True
+            size_hint: None, None
             width: self.parent.width
             height: self.parent.height
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            # opacity: app.theme_config.get("overlay_opacity", 0.5)
         
         BoxLayout:
             orientation: 'vertical'

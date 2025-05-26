@@ -2,8 +2,9 @@
     FloatLayout:
         size_hint: 1, 1
         
-        # Screen overlay only (no background image)
+        # ИСПРАВЛЕНО: Screen overlay с правильным id
         Image:
+            id: settings_overlay
             source: app.get_overlay_image("settings")
             allow_stretch: True
             keep_ratio: True

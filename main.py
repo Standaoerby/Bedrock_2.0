@@ -7,6 +7,8 @@ from kivy.clock import Clock, mainthread
 from kivy.core.image import Image as CoreImage
 from kivy.cache import Cache
 from kivy.core.window import Window
+from kivy.uix.boxlayout import BoxLayout
+from kivy.graphics import Color, RoundedRectangle
 from services.alarm_service import AlarmService
 from classes.alarm_clock import AlarmClock
 from services.weather_service import WeatherService
@@ -54,6 +56,54 @@ os.environ['SDL_VIDEO_FULLSCREEN_HEAD'] = '0'
 if sys.platform.startswith('linux'):
     os.environ['KIVY_WINDOW'] = 'sdl2'
     os.environ['KIVY_GL_BACKEND'] = 'sdl2'
+
+class ThemedPanel(BoxLayout):
+    """ИСПРАВЛЕННАЯ панель с автообновлением фона при смене темы"""
+    
+    def __init__(self, **kwargs):
+        super(ThemedPanel, self).__init__(**kwargs)
+        self.bg_color = None
+        self.bg_rect = None
+        
+        # Привязываемся к изменениям размера/позиции
+        self.bind(pos=self.update_rect, size=self.update_rect)
+        
+        # Инициализируем фон с задержкой (когда app будет доступен)
+        Clock.schedule_once(self.update_background, 0.1)
+    
+    def update_background(self, *args):
+        """Обновление фона панели"""
+        try:
+            from kivy.app import App
+            app = App.get_running_app()
+            if not app or not hasattr(app, 'theme_config'):
+                # Повторить попытку через некоторое время
+                Clock.schedule_once(self.update_background, 0.5)
+                return
+            
+            # Очищаем старый фон
+            self.canvas.before.clear()
+            
+            # Рисуем новый фон
+            with self.canvas.before:
+                panel_bg = app.theme_config.get("panel_bg", [0, 0, 0, 0.08])
+                panel_radius = app.theme_config.get("panel_radius", 16)
+                
+                self.bg_color = Color(*panel_bg)
+                self.bg_rect = RoundedRectangle(
+                    pos=self.pos, 
+                    size=self.size,
+                    radius=[panel_radius]
+                )
+                
+        except Exception as e:
+            logger.error(f"Error updating ThemedPanel background: {e}")
+    
+    def update_rect(self, *args):
+        """Обновление размера/позиции фона"""
+        if self.bg_rect:
+            self.bg_rect.pos = self.pos
+            self.bg_rect.size = self.size
 
 def load_user_config():
     """Load user configuration from file"""
@@ -125,52 +175,19 @@ class BedrockApp(MDApp):
         # Initialize sound service
         self.sound_service = SoundService()
         
-        # Auto theme event
+        # Theme switching state
+        self._switching = False
         self._auto_theme_event = None
         
         # Call parent init
         super(BedrockApp, self).__init__(**kwargs)
         
-        # Load theme config
-        self.load_theme_config()
-
-    def load_theme_config(self):
-        """УПРОЩЁННАЯ загрузка конфигурации темы"""
-        try:
-            theme_path = f"themes/{self.theme_name}/{self.theme_mode}/theme.json"
-            
-            if not os.path.exists(theme_path) and self.theme_mode == "dark":
-                # Create default dark theme
-                self.create_default_dark_theme()
-            
-            if os.path.exists(theme_path):
-                with open(theme_path, "r", encoding="utf-8") as f:
-                    self.theme_config = json.load(f)
-                logger.info(f"Loaded theme: {self.theme_name}/{self.theme_mode}")
-            else:
-                # Fallback config
-                self.theme_config = {
-                    "background_image": "", 
-                    "menu_button_normal": "", 
-                    "font_name": "Minecraftia", 
-                    "font_color": [1, 1, 1, 1], 
-                    "menu_selected_color": [1, 1, 1, 1], 
-                    "menu_unselected_color": [0.7, 0.7, 0.7, 1], 
-                    "overlay_images": {},
-                    "colors": {
-                        "shadow": [0.1, 0.1, 0.1, 0.5], 
-                        "trend_up": [1, 0.3, 0.3, 1], 
-                        "trend_down": [0.2, 0.6, 1, 1]
-                    }
-                }
-                logger.warning(f"Using fallback theme config")
-                
-        except Exception as e:
-            logger.error(f"Error loading theme config: {e}")
-            self.theme_config = {"font_name": "Minecraftia", "font_color": [1, 1, 1, 1]}
+        # Ensure dark theme exists and load current theme
+        self.create_default_dark_theme()
+        self._load_current_theme()
 
     def create_default_dark_theme(self):
-        """Создание дефолтной тёмной темы если её нет"""
+        """Create default dark theme if it doesn't exist"""
         try:
             dark_theme_dir = "themes/minecraft/dark"
             os.makedirs(dark_theme_dir, exist_ok=True)
@@ -178,214 +195,297 @@ class BedrockApp(MDApp):
             theme_file = os.path.join(dark_theme_dir, "theme.json")
             
             if not os.path.exists(theme_file):
-                # Load light theme as base
-                light_path = "themes/minecraft/light/theme.json"
-                if os.path.exists(light_path):
-                    with open(light_path, "r", encoding="utf-8") as f:
-                        light_config = json.load(f)
-                    
-                    # Modify for dark theme
-                    dark_config = light_config.copy()
-                    
-                    # Update paths to dark theme
-                    for key, value in dark_config.items():
-                        if isinstance(value, str) and "light/" in value:
-                            dark_config[key] = value.replace("light/", "dark/")
-                        elif isinstance(value, dict):
-                            for subkey, subvalue in value.items():
-                                if isinstance(subvalue, str) and "light/" in subvalue:
-                                    dark_config[key][subkey] = subvalue.replace("light/", "dark/")
-                    
-                    # Update dark theme specific colors
-                    dark_config.update({
-                        "theme_mode": "dark",
-                        "panel_bg": [0.1, 0.1, 0.1, 0.7],
-                        "font_color": [0.9, 0.9, 0.9, 1],
-                        "menu_selected_color": [0.9, 0.9, 0.9, 1],
-                        "menu_unselected_color": [0.5, 0.5, 0.5, 1]
-                    })
-                    
-                    with open(theme_file, "w", encoding="utf-8") as f:
-                        json.dump(dark_config, f, ensure_ascii=False, indent=2)
-                    
-                    logger.info("Created default dark theme")
-                    return True
-                    
+                dark_theme_config = {
+                    "background_image": "themes/minecraft/dark/background.png",
+                    "overlay_images": {
+                        "home": "themes/minecraft/dark/overlay_home.png",
+                        "alarm": "themes/minecraft/dark/overlay_alarm.png",
+                        "schedule": "themes/minecraft/dark/overlay_schedule.png",
+                        "weather": "themes/minecraft/dark/overlay_weather.png",
+                        "pigs": "themes/minecraft/dark/overlay_pigs.png",
+                        "settings": "themes/minecraft/dark/overlay_settings.png"
+                    },
+                    "menu_button_normal": "themes/minecraft/dark/menu_button.png",
+                    "menu_button_active": "themes/minecraft/dark/menu_button_active.png",
+                    "button_normal": "themes/minecraft/dark/button.png", 
+                    "button_active": "themes/minecraft/dark/button_active.png",
+                    "panel_bg": [0.1, 0.1, 0.1, 0.7],
+                    "panel_radius": 16,
+                    "font_name": "Minecraftia",
+                    "font_color": [0.9, 0.9, 0.9, 1],
+                    "font_sizes": {
+                        "tiny": "12sp", "small": "14sp", "default": "18sp",
+                        "medium": "20sp", "large": "26sp", "xlarge": "34sp", "huge": "240sp"
+                    },
+                    "colors": {
+                        "primary": [0.2, 0.4, 0.8, 1],
+                        "secondary": [0.6, 0.3, 0.8, 1],
+                        "accent": [1, 0.6, 0, 1],
+                        "active": [0.2, 0.8, 0.2, 1],
+                        "inactive": [0.4, 0.4, 0.4, 1],
+                        "semi_active": [0.5, 0.7, 0.5, 1],
+                        "warning": [0.9, 0.7, 0.1, 1],
+                        "error": [0.9, 0.2, 0.2, 1],
+                        "success": [0.2, 0.8, 0.2, 1],
+                        "font_highlight": [0.8, 0.8, 0.9, 1],
+                        "shadow": [0.9, 0.9, 0.9, 0.3],
+                        "trend_up": [1, 0.5, 0.5, 1],
+                        "trend_down": [0.4, 0.7, 1, 1]
+                    },
+                    "menu_selected_color": [0.9, 0.9, 0.9, 1],
+                    "menu_unselected_color": [0.5, 0.5, 0.5, 1],
+                    "menu_button_size": [180, 60],
+                    "grid_unit": "32dp", "grid_unit_half": "16dp", "grid_unit_quarter": "8dp",
+                    "grid_unit_1.5x": "48dp", "grid_unit_2x": "64dp",
+                    "padding": "15dp", "widget_font_size": "20sp"
+                }
+                
+                with open(theme_file, "w", encoding="utf-8") as f:
+                    json.dump(dark_theme_config, f, ensure_ascii=False, indent=2)
+                
+                logger.info(f"Created default dark theme")
+                return True
         except Exception as e:
             logger.error(f"Error creating default dark theme: {e}")
-            
+            return False
+        
         return False
+
+    def load_theme_config(self, theme="minecraft", mode="light"):
+        """Load theme configuration from file"""
+        path = f"themes/{theme}/{mode}/theme.json"
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            return config
+        except Exception as e:
+            logger.error(f"Error loading theme config from {path}: {e}")
+            
+            # If dark theme fails, create it
+            if mode == "dark":
+                if self.create_default_dark_theme():
+                    try:
+                        with open(path, "r", encoding="utf-8") as f:
+                            config = json.load(f)
+                        return config
+                    except Exception:
+                        pass
+            
+            # Return fallback config
+            return {
+                "background_image": "", "menu_button_normal": "", "font_name": "Minecraftia", 
+                "font_color": [1, 1, 1, 1], "menu_selected_color": [1, 1, 1, 1], 
+                "menu_unselected_color": [0.7, 0.7, 0.7, 1], "overlay_images": {},
+                "colors": {"shadow": [0.1, 0.1, 0.1, 0.5], "trend_up": [1, 0.3, 0.3, 1], "trend_down": [0.2, 0.6, 1, 1]}
+            }
+
+    def _load_current_theme(self):
+        """Load current theme configuration"""
+        try:
+            self.theme_config = self.load_theme_config(self.theme_name, self.theme_mode)
+            logger.info(f"Loaded theme: {self.theme_name}/{self.theme_mode}")
+        except Exception as e:
+            logger.error(f"Error loading theme: {e}")
+            self.theme_config = {"font_name": "Minecraftia", "font_color": [1, 1, 1, 1]}
 
     @mainthread
     def switch_theme_mode(self, mode):
-        """МАКСИМАЛЬНО УПРОЩЁННОЕ переключение темы"""
-        if mode not in ["light", "dark"] or mode == self.theme_mode:
-            return True
-            
-        logger.info(f"Switching theme: {self.theme_mode} → {mode}")
-        
+        """ИСПРАВЛЕННОЕ переключение режима темы - интегрировано в BedrockApp"""
         try:
-            # Update mode
+            # Проверка блокировки
+            if self._switching:
+                logger.warning("Theme switch already in progress")
+                return False
+                
+            if mode not in ["light", "dark"] or mode == self.theme_mode:
+                return True
+            
+            # Блокировка переключения
+            self._switching = True
+            
+            # Проверяем доступность тёмной темы
+            if mode == "dark":
+                dark_theme_path = f"themes/{self.theme_name}/dark/theme.json"
+                if not os.path.exists(dark_theme_path):
+                    if not self.create_default_dark_theme():
+                        self._switching = False
+                        return False
+            
+            logger.info(f"Switching theme: {self.theme_mode} → {mode}")
+            
+            # Загружаем новую конфигурацию темы
+            new_theme_config = self.load_theme_config(self.theme_name, mode)
+            if not new_theme_config:
+                self._switching = False
+                return False
+            
+            # ИСПРАВЛЕНО: Атомарное обновление theme_config
             old_mode = self.theme_mode
             self.theme_mode = mode
             
-            # Load new theme config
-            self.load_theme_config()
+            # Заменяем конфигурацию целиком, а не по частям
+            self.theme_config = new_theme_config.copy()
             
-            # Save to user config
+            # Сохраняем пользовательскую конфигурацию
             self.user_config["theme_mode"] = mode
-            self.save_user_config()
+            self._save_user_config()
             
-            # Simple UI refresh
-            self.refresh_ui()
+            # ИСПРАВЛЕНО: Комплексное обновление UI
+            self._clear_cache_and_refresh()
             
-            logger.info(f"Theme switched successfully to {mode}")
+            logger.info(f"Theme successfully switched to {mode}")
+            
+            # Разблокировка через 1 секунду
+            Clock.schedule_once(lambda dt: setattr(self, '_switching', False), 1.0)
             return True
             
         except Exception as e:
             logger.error(f"Error switching theme: {e}")
-            self.theme_mode = old_mode  # Revert
+            self._switching = False
             return False
 
-    def refresh_ui(self):
-        """ИСПРАВЛЕННОЕ обновление UI с принудительной перезагрузкой изображений"""
+    def _clear_cache_and_refresh(self):
+        """ИСПРАВЛЕННАЯ очистка кэша и обновление"""
         try:
-            # Агрессивная очистка всех кэшей
-            self._clear_all_caches()
-            
-            # Принудительное обновление property
-            Clock.schedule_once(self._force_property_update, 0.1)
-            
-            # Обновление UI
-            Clock.schedule_once(self._update_ui, 0.2)
-            
-        except Exception as e:
-            logger.error(f"Error refreshing UI: {e}")
-
-    def _clear_all_caches(self):
-        """Агрессивная очистка всех кэшей"""
-        try:
-            # Kivy image caches
-            cache_categories = ['kv.image', 'kv.texture', 'kv.atlas', 'kv.loader']
+            # Очистка кэша изображений
+            cache_categories = ['kv.image', 'kv.texture', 'kv.atlas']
             for category in cache_categories:
                 try:
                     Cache.remove(category)
                 except:
                     pass
             
-            # Core image cache
-            try:
-                if hasattr(CoreImage, '_texture_cache'):
-                    CoreImage._texture_cache.clear()
-                if hasattr(CoreImage, '_cache'):
-                    CoreImage._cache.clear()
-            except:
-                pass
-                
-        except Exception as e:
-            logger.error(f"Error clearing caches: {e}")
-
-    def _force_property_update(self, dt):
-        """Принудительное обновление theme_config property"""
-        try:
-            # Триггерим обновление property через временную замену
-            old_config = self.theme_config.copy()
-            self.theme_config = {}
-            
-            # Возвращаем через короткую задержку
-            Clock.schedule_once(
-                lambda dt: setattr(self, 'theme_config', old_config), 
-                0.05
-            )
+            # ИСПРАВЛЕНО: Комплексное обновление UI
+            Clock.schedule_once(self._comprehensive_refresh, 0.1)
             
         except Exception as e:
-            logger.error(f"Error forcing property update: {e}")
+            logger.error(f"Error clearing cache: {e}")
 
-    def _update_ui(self, dt):
-        """Принудительное обновление UI с перезагрузкой изображений"""
+    def _comprehensive_refresh(self, dt):
+        """ИСПРАВЛЕННОЕ комплексное обновление UI"""
         try:
-            if not self.root:
+            if not hasattr(self, 'root') or not self.root:
                 return
-                
-            # Update root canvas
-            self.root.canvas.ask_update()
             
-            # Обновляем фоновое изображение
+            # 1. Обновить фоновое изображение
             self._update_background_image()
             
-            # Update all screens
-            screen_manager = getattr(self.root.ids, 'screen_manager', None)
-            if screen_manager:
-                for screen in screen_manager.screens:
-                    self._update_screen_images(screen)
+            # 2. Обновить все экраны и их overlay
+            self._update_all_screens()
             
-            logger.info("UI refresh completed")
+            # 3. Принудительно обновить все панели
+            self._update_all_panels()
+            
+            # 4. Принудительно обновить все canvas
+            self._force_canvas_update()
+            
+            logger.info("Comprehensive theme refresh completed")
             
         except Exception as e:
-            logger.error(f"Error updating UI: {e}")
+            logger.error(f"Error in comprehensive refresh: {e}")
 
     def _update_background_image(self):
         """Обновление фонового изображения"""
         try:
-            if hasattr(self.root, 'ids') and hasattr(self.root.ids, 'background_image'):
-                bg_widget = self.root.ids.background_image
-                new_source = self.theme_config.get("background_image", "")
-                
-                if new_source:
-                    # Принудительная перезагрузка
-                    bg_widget.source = ''
-                    Clock.schedule_once(
-                        lambda dt: setattr(bg_widget, 'source', new_source),
-                        0.1
-                    )
-                    
+            if hasattr(self.root, 'ids'):
+                bg_widget = getattr(self.root.ids, 'background_image', None)
+                if bg_widget and hasattr(bg_widget, 'source'):
+                    new_source = self.theme_config.get("background_image", "")
+                    if new_source != bg_widget.source:
+                        bg_widget.source = new_source
+                        logger.debug(f"Background updated: {new_source}")
         except Exception as e:
-            logger.error(f"Error updating background image: {e}")
+            logger.error(f"Error updating background: {e}")
 
-    def _update_screen_images(self, screen):
-        """Обновление всех изображений на экране"""
+    def _update_all_screens(self):
+        """Обновление всех экранов"""
         try:
-            screen.canvas.ask_update()
+            screen_manager = getattr(self.root.ids, 'screen_manager', None)
+            if not screen_manager:
+                return
+                
+            for screen in screen_manager.screens:
+                self._update_screen_overlays(screen)
+                
+        except Exception as e:
+            logger.error(f"Error updating screens: {e}")
+
+    def _update_screen_overlays(self, screen):
+        """Обновление overlay изображений для экрана"""
+        try:
+            screen_name = getattr(screen, 'name', '')
+            if not screen_name:
+                return
+                
+            # Получить новый источник overlay
+            new_overlay_source = self.get_overlay_image(screen_name)
             
-            # Найти и обновить все Image виджеты
+            # Найти и обновить overlay виджеты
             for widget in screen.walk():
-                if hasattr(widget, 'source') and hasattr(widget, 'id'):
-                    widget_id = getattr(widget, 'id', '')
-                    
-                    if widget_id:
-                        # Определяем новый source на основе id виджета
-                        new_source = self._get_new_source_for_widget(widget_id, screen.name)
+                if self._is_overlay_widget(widget, screen_name):
+                    if hasattr(widget, 'source') and widget.source != new_overlay_source:
+                        widget.source = new_overlay_source
+                        logger.debug(f"Overlay updated for {screen_name}: {new_overlay_source}")
                         
-                        if new_source and new_source != widget.source:
-                            # Принудительная перезагрузка
-                            widget.source = ''
-                            Clock.schedule_once(
-                                lambda dt, w=widget, src=new_source: setattr(w, 'source', src),
-                                0.1
-                            )
+        except Exception as e:
+            logger.error(f"Error updating overlays for {getattr(screen, 'name', 'unknown')}: {e}")
+
+    def _is_overlay_widget(self, widget, screen_name):
+        """Проверить, является ли виджет overlay изображением"""
+        if not (hasattr(widget, 'source') and hasattr(widget, 'id')):
+            return False
+            
+        widget_id = getattr(widget, 'id', '')
+        if not widget_id:
+            return False
+            
+        # Проверяем разные паттерны ID для overlay
+        overlay_patterns = [
+            f"{screen_name}_overlay",
+            "overlay" in str(widget_id).lower()
+        ]
+        
+        return any(pattern and (pattern == str(widget_id) or pattern in str(widget_id)) for pattern in overlay_patterns if pattern)
+
+    def _update_all_panels(self):
+        """Обновление всех ThemedPanel виджетов"""
+        try:
+            if not hasattr(self, 'root') or not self.root:
+                return
+                
+            # Найти все ThemedPanel виджеты и обновить их фон
+            screen_manager = getattr(self.root.ids, 'screen_manager', None)
+            if screen_manager:
+                for screen in screen_manager.screens:
+                    for widget in screen.walk():
+                        if isinstance(widget, ThemedPanel):
+                            widget.update_background()
                             
         except Exception as e:
-            logger.error(f"Error updating screen {screen.name} images: {e}")
+            logger.error(f"Error updating panels: {e}")
 
-    def _get_new_source_for_widget(self, widget_id, screen_name):
-        """Получить новый source для виджета на основе его ID"""
+    def _force_canvas_update(self):
+        """Принудительное обновление всех canvas"""
         try:
-            # Фоновое изображение
-            if widget_id == 'background_image':
-                return self.theme_config.get('background_image', '')
+            if not hasattr(self, 'root') or not self.root:
+                return
+                
+            # Обновить корневой canvas
+            self.root.canvas.ask_update()
             
-            # Overlay изображения
-            elif 'overlay' in widget_id or widget_id.endswith('_overlay'):
-                return self.get_overlay_image(screen_name)
-            
-            # Другие изображения возвращаем как есть для принудительной перезагрузки
-            return None
-            
+            # Обновить canvas всех виджетов
+            screen_manager = getattr(self.root.ids, 'screen_manager', None)
+            if screen_manager:
+                for screen in screen_manager.screens:
+                    screen.canvas.ask_update()
+                    for widget in screen.walk():
+                        if hasattr(widget, 'canvas'):
+                            widget.canvas.ask_update()
+                            
         except Exception as e:
-            logger.error(f"Error getting new source for widget {widget_id}: {e}")
-            return None
+            logger.error(f"Error forcing canvas update: {e}")
 
-    def save_user_config(self):
+    def _save_user_config(self):
         """Сохранение пользовательской конфигурации"""
         try:
             os.makedirs("config", exist_ok=True)
@@ -501,8 +601,8 @@ class BedrockApp(MDApp):
         try:
             self.root.ids.screen_manager.bind(current=self._update_current_screen)
             
-            # Initialize theme based on current light level
-            Clock.schedule_once(self._initialize_startup_theme, 2)
+            # Initialize correct theme based on current light level
+            Clock.schedule_once(self._initialize_theme_on_startup, 2)
             
             # Start auto theme monitoring
             Clock.schedule_once(self._start_auto_theme, 4)
@@ -510,15 +610,19 @@ class BedrockApp(MDApp):
         except Exception as e:
             logger.error(f"Error in on_start: {e}")
     
-    def _initialize_startup_theme(self, dt):
+    def _initialize_theme_on_startup(self, dt):
         """Set correct theme based on current light level at startup"""
         try:
             if not self.auto_theme_enabled or not self.sensor_service:
                 return
                 
+            # Get current light level
             current_light = self.sensor_service.get_light_level()
             target_mode = "light" if current_light else "dark"
             
+            logger.info(f"Startup light level: {'Light' if current_light else 'Dark'}")
+            
+            # Switch theme if needed
             if target_mode != self.theme_mode:
                 logger.info(f"Setting startup theme: {self.theme_mode} → {target_mode}")
                 self.switch_theme_mode(target_mode)
@@ -573,17 +677,19 @@ class BedrockApp(MDApp):
         self.menu_navigation = False
     
     def _check_auto_theme(self, dt):
-        """УПРОЩЁННАЯ проверка автопереключения темы"""
+        """УПРОЩЕННАЯ проверка автопереключения темы"""
         if not self.auto_theme_enabled or not self.sensor_service:
             return
             
         try:
+            # Check for light level changes
             if self.sensor_service.is_light_changed():
                 current_light = self.sensor_service.get_light_level()
                 target_mode = "light" if current_light else "dark"
                 
                 if target_mode != self.theme_mode:
-                    logger.info(f"Auto theme switch: {self.theme_mode} → {target_mode}")
+                    logger.info(f"Auto theme switch triggered: {self.theme_mode} → {target_mode}")
+                    # ИСПРАВЛЕНО: Прямое переключение без задержек
                     if self.switch_theme_mode(target_mode):
                         self.notification_service.add(f"Theme switched to {target_mode}", "system")
                         self.play_sound("success")
@@ -595,7 +701,7 @@ class BedrockApp(MDApp):
         """Enable/disable auto theme switching"""
         self.auto_theme_enabled = enabled
         self.user_config["auto_theme_enabled"] = enabled
-        self.save_user_config()
+        self._save_user_config()
         
         if enabled and not self._auto_theme_event:
             Clock.schedule_once(self._start_auto_theme, 1)

@@ -40,25 +40,14 @@
     height: app.ui_metrics['widget_height']
     on_press: app.play_sound("click")
 
-<ThemedPanel@BoxLayout>:
-    canvas.before:
-        Color:
-            rgba: app.theme_config.get("panel_bg", [0, 0, 0, 0.08])
-        RoundedRectangle:
-            pos: self.pos
-            size: self.size
-            radius: [app.theme_config.get("panel_radius", 16)]
-
 # Main layout - FloatLayout for background, menu and content
 FloatLayout:
-    # Application background with proper ID
+    # Application background
     Image:
         id: background_image
         source: app.theme_config.get("background_image", "")
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y": 0.5}
-        allow_stretch: True
-        keep_ratio: False
     
     # Vertical layout for menu and content
     BoxLayout:
