@@ -1,7 +1,7 @@
 <HomeScreen>:
     FloatLayout:
         size_hint: 1, 1
-        # Fixed overlay for this screen
+        # Fixed overlay for this screen with proper ID
         Image:
             id: home_overlay
             source: app.get_overlay_image("home")
@@ -71,7 +71,7 @@
                 on_press: app.play_sound("click")
                 on_release: root.toggle_alarm()
 
-        # ИСПРАВЛЕНО: Главные часы БЕЗ принудительных обновлений
+        # Main clock
         ThemedLabel:
             id: clock_shadow_label
             text: clock_label.text if clock_label else "00:00"
@@ -112,7 +112,7 @@
                     halign: "center"
                     valign: "middle"
                 
-                # ИСПРАВЛЕНО: Forecast temperature БЕЗ принудительных обновлений
+                # Forecast temperature
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint_x: 0.5

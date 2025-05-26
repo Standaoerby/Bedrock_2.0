@@ -51,12 +51,14 @@
 
 # Main layout - FloatLayout for background, menu and content
 FloatLayout:
-    # Application background - УБРАНО принудительное обновление
+    # Application background with proper ID
     Image:
         id: background_image
         source: app.theme_config.get("background_image", "")
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y": 0.5}
+        allow_stretch: True
+        keep_ratio: False
     
     # Vertical layout for menu and content
     BoxLayout:

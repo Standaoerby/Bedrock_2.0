@@ -1,10 +1,9 @@
 from kivymd.uix.screen import MDScreen
 from kivy.clock import Clock
 from datetime import datetime
-from kivy.properties import StringProperty, BooleanProperty, NumericProperty
+from kivy.properties import StringProperty, BooleanProperty
 import logging
 
-# Добавляем логирование
 logger = logging.getLogger("HomeScreen")
 
 class HomeScreen(MDScreen):
@@ -15,41 +14,37 @@ class HomeScreen(MDScreen):
     weather_trend_arrow = StringProperty("")  # "↑", "↓", or "="
     notification_text = StringProperty("")
     current_date = StringProperty("")
-    current_day = StringProperty("")
-    # Add property to track clock initialization
-    _clock_initialized = BooleanProperty(False)
-    _retry_count = NumericProperty(0)
 
     def on_pre_enter(self):
-        logger.info("Entering HomeScreen - initializing")
-        self._clock_initialized = False  # Сбрасываем флаг инициализации часов
+        logger.info("Entering HomeScreen")
         
-        # Обновляем дату и данные немедленно
+        # Update all data immediately
         self.update_date()
         self.update_alarm()
         self.update_weather()
         self.update_notification()
         
-        # Инициализируем часы сразу
-        Clock.schedule_once(self.initialize_clock, 0.1)
+        # Start clock - УПРОЩЁННО
+        Clock.schedule_once(self.start_clock, 0.5)
         
         # Schedule regular updates
-        Clock.schedule_interval(lambda dt: self.update_alarm(), 300)
-        Clock.schedule_interval(lambda dt: self.update_weather(), 900)
-        Clock.schedule_interval(lambda dt: self.update_notification(), 30)
-        Clock.schedule_interval(lambda dt: self.update_date(), 300)
+        self._alarm_update_ev = Clock.schedule_interval(lambda dt: self.update_alarm(), 300)  # 5 min
+        self._weather_update_ev = Clock.schedule_interval(lambda dt: self.update_weather(), 900)  # 15 min
+        self._notification_update_ev = Clock.schedule_interval(lambda dt: self.update_notification(), 30)  # 30 sec
+        self._date_update_ev = Clock.schedule_interval(lambda dt: self.update_date(), 300)  # 5 min
     
-    def initialize_clock(self, dt):
-        """Улучшенная инициализация часов"""
-        logger.info("Initializing clock")
-        
-        # Обновляем часы сразу
-        self.update_clock(None)
-        
-        # Запускаем таймер для обновления часов каждую секунду
-        self._clock_ev = Clock.schedule_interval(self.update_clock, 1)
-        self._clock_initialized = True
-        logger.info("Clock initialization complete")
+    def start_clock(self, dt):
+        """УПРОЩЁННЫЙ запуск часов"""
+        try:
+            # Update clock immediately
+            self.update_clock(None)
+            
+            # Start clock timer
+            self._clock_ev = Clock.schedule_interval(self.update_clock, 1)
+            logger.info("Clock started")
+            
+        except Exception as e:
+            logger.error(f"Error starting clock: {e}")
     
     def update_date(self):
         """Update the current date and day of week"""
@@ -69,8 +64,6 @@ class HomeScreen(MDScreen):
     def toggle_alarm(self):
         """Toggle the alarm active state on button press"""
         app = self.get_app()
-        # The click sound is already played by the button's on_press event
-        # Don't play it again here
         
         alarm = app.alarm_service.get_alarm()
         if alarm:
@@ -87,10 +80,12 @@ class HomeScreen(MDScreen):
         w = app.weather_service.get_weather()
         now = w.get("current", {})
         f5 = w.get("forecast_5h", {})
+        
         if now:
             self.weather_now_str = f'{now.get("temperature", "--")}°C {now.get("condition", "")}'
         else:
             self.weather_now_str = ""
+            
         if f5:
             self.weather_5h_str = f'{f5.get("temperature", "--")}°C in 5h'
             # Trend - modified to use equals sign when temperatures are the same
@@ -118,41 +113,43 @@ class HomeScreen(MDScreen):
         else:
             self.notification_text = ""
 
+    def update_clock(self, dt):
+        """УПРОЩЁННОЕ обновление часов"""
+        try:
+            now = datetime.now().strftime("%H:%M")
+            
+            # Update clock widgets if they exist
+            if hasattr(self, 'ids') and self.ids:
+                if hasattr(self.ids, 'clock_label') and self.ids.clock_label:
+                    self.ids.clock_label.text = now
+                
+                if hasattr(self.ids, 'clock_shadow_label') and self.ids.clock_shadow_label:
+                    self.ids.clock_shadow_label.text = now
+                    
+        except Exception as e:
+            logger.error(f"Error updating clock: {e}")
+
     def get_app(self):
         from kivy.app import App
         return App.get_running_app()
     
     def on_leave(self):
-        # Останавливаем таймер часов при выходе с экрана
-        logger.info("Leaving HomeScreen - cleaning up")
-        if hasattr(self, '_clock_ev'):
-            self._clock_ev.cancel()
-            logger.info("Clock timer canceled")
-            
-        # Сбрасываем флаг инициализации часов
-        self._clock_initialized = False
-
-    def update_clock(self, dt):
-        """Обновление часов с проверкой наличия виджетов"""
-        now = datetime.now().strftime("%H:%M")
+        """УПРОЩЁННАЯ очистка при выходе с экрана"""
+        logger.info("Leaving HomeScreen")
         
-        try:
-            # Проверяем наличие элементов UI
-            if hasattr(self, 'ids') and self.ids and 'clock_label' in self.ids:
-                # Обновляем текст часов
-                self.ids.clock_label.text = now
-                
-                # Обновляем тень часов, если она есть
-                if 'clock_shadow_label' in self.ids:
-                    self.ids.clock_shadow_label.text = now
-                    
-                # Журналируем обновление раз в минуту (чтобы не засорять логи)
-                if now.endswith(':00'):
-                    logger.debug(f"Clock updated: {now}")
-            else:
-                # Если виджеты не найдены, выводим предупреждение
-                logger.warning("Clock widgets not found in ids")
-                available_ids = list(self.ids.keys()) if hasattr(self, 'ids') and self.ids else []
-                logger.warning(f"Available ids: {available_ids}")
-        except Exception as e:
-            logger.error(f"Error updating clock: {e}")
+        # Stop all timers
+        timers_to_stop = [
+            '_clock_ev', '_alarm_update_ev', '_weather_update_ev', 
+            '_notification_update_ev', '_date_update_ev'
+        ]
+        
+        for timer_name in timers_to_stop:
+            if hasattr(self, timer_name):
+                try:
+                    timer = getattr(self, timer_name)
+                    if timer:
+                        timer.cancel()
+                except Exception as e:
+                    logger.error(f"Error canceling {timer_name}: {e}")
+                finally:
+                    setattr(self, timer_name, None)
