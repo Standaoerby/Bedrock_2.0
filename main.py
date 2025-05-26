@@ -62,7 +62,10 @@ class ThemeManager:
         self.app = app
         self.logger = logging.getLogger("ThemeManager")
         self._switching = False  # Флаг блокировки переключения
-        
+    def is_switching(self):
+        """Проверка блокировки - ДОБАВИТЬ этот метод"""
+        return self._switching
+
     def create_default_dark_theme(self):
         """Create default dark theme if it doesn't exist"""
         try:
@@ -202,6 +205,7 @@ class ThemeManager:
             self._clear_cache_and_refresh()
             
             self.logger.info(f"Theme successfully switched to {mode}")
+            return True
             
             # Разблокировка через 1 секунду
             Clock.schedule_once(lambda dt: setattr(self, '_switching', False), 1.0)

@@ -174,8 +174,141 @@ class SettingsScreen(MDScreen):
             logger.error(f"Error updating sensor status: {e}")
     
     @ErrorHandler.handle_exception
+    def toggle_dark_mode(self, enabled):
+        """УПРОЩЕННОЕ переключение dark mode"""
+        app = self.get_app()
+        
+        # Check if dark mode is available
+        if enabled and not self.dark_mode_available:
+            logger.warning("Cannot enable dark mode - not available")
+            if app:
+                app.play_sound("error")
+            self.dark_mode_enabled = False
+            
+            # Update UI button
+            if hasattr(self, 'ids') and hasattr(self.ids, 'dark_mode_button'):
+                self.ids.dark_mode_button.text = "OFF"
+            return
+        
+        # Update state
+        self.dark_mode_enabled = enabled
+        
+        # Play sound
+        if app:
+            if enabled:
+                app.play_sound("success")
+            else:
+                app.play_sound("click")
+        
+        # Update UI button text
+        if hasattr(self, 'ids') and hasattr(self.ids, 'dark_mode_button'):
+            self.ids.dark_mode_button.text = "ON" if enabled else "OFF"
+        
+        logger.info(f"Dark mode toggled: {enabled}")
+    
+    @ErrorHandler.handle_exception
+    def toggle_auto_theme(self, enabled):
+        """Toggle auto theme switching"""
+        app = self.get_app()
+        
+        # Check prerequisites for auto theme
+        if enabled and not self.dark_mode_available:
+            logger.warning("Cannot enable auto theme - dark theme not available")
+            if app:
+                app.play_sound("error")
+            self.auto_theme_enabled = False
+            
+            # Update UI button
+            if hasattr(self, 'ids') and hasattr(self.ids, 'auto_theme_button'):
+                self.ids.auto_theme_button.text = "OFF"
+            return
+        
+        # Update state
+        self.auto_theme_enabled = enabled
+        
+        # Play sound
+        if app and enabled:
+            app.play_sound("success")
+        
+        # Update UI button text
+        if hasattr(self, 'ids') and hasattr(self.ids, 'auto_theme_button'):
+            self.ids.auto_theme_button.text = "ON" if enabled else "OFF"
+        
+        logger.info(f"Auto theme toggled: {enabled}")
+    
+    @ErrorHandler.handle_exception
+    def set_threshold_delay(self, value):
+        """Set theme switch delay"""
+        try:
+            new_threshold = max(1, min(int(value), 5))
+            self.light_sensor_threshold = new_threshold
+            
+            # Update sensor calibration immediately
+            app = self.get_app()
+            if app and hasattr(app, 'sensor_service') and app.sensor_service:
+                app.sensor_service.calibrate_light_sensor(self.light_sensor_threshold)
+                logger.info(f"Sensor threshold updated: {new_threshold}s")
+                
+        except Exception as e:
+            logger.error(f"Error setting threshold delay: {e}")
+    
+    @ErrorHandler.handle_exception
+    def manual_theme_test(self):
+        """УПРОЩЕННЫЙ manual theme test"""
+        app = self.get_app()
+        if not app:
+            return
+            
+        try:
+            # Check if we can perform the test
+            if not self.dark_mode_available:
+                logger.warning("Cannot test theme - dark mode not available")
+                app.play_sound("error")
+                return
+            
+            # Check if switching is in progress
+            if app.theme_manager.is_switching():
+                logger.warning("Theme switch in progress, test cancelled")
+                app.play_sound("error")
+                return
+            
+            # Toggle theme mode for testing
+            current_mode = app.theme_mode
+            new_mode = "dark" if current_mode == "light" else "light"
+            
+            logger.info(f"Manual theme test: switching to {new_mode} for 3 seconds")
+            
+            # Switch theme
+            if app.switch_theme_mode(new_mode):
+                app.play_sound("success")
+                
+                # Schedule switch back after 3 seconds
+                def switch_back(dt):
+                    try:
+                        # Only switch back if we're still in test mode
+                        if app.theme_mode == new_mode:
+                            if app.switch_theme_mode(current_mode):
+                                logger.info(f"Theme test completed - switched back to {current_mode}")
+                            else:
+                                logger.error("Failed to switch back after theme test")
+                        else:
+                            logger.info("Theme changed during test - skip switch back")
+                    except Exception as e:
+                        logger.error(f"Error switching back after theme test: {e}")
+                
+                Clock.schedule_once(switch_back, 3)
+            else:
+                app.play_sound("error")
+                logger.error("Theme test failed - could not switch theme")
+                
+        except Exception as e:
+            logger.error(f"Error in manual theme test: {e}")
+            if app:
+                app.play_sound("error")
+    
+    @ErrorHandler.handle_exception
     def save_all_settings(self):
-        """ИСПРАВЛЕННОЕ сохранение настроек"""
+        """УПРОЩЕННОЕ сохранение настроек"""
         try:
             app = self.get_app()
             if app:
@@ -232,176 +365,19 @@ class SettingsScreen(MDScreen):
                 if hasattr(app, 'sensor_service') and app.sensor_service:
                     app.sensor_service.calibrate_light_sensor(int(self.light_sensor_threshold))
                 
-                # ИСПРАВЛЕНО: Switch theme if manually changed
+                # Switch theme if manually changed
                 if old_mode != new_mode:
                     logger.info(f"Manual theme change requested: {old_mode} → {new_mode}")
-                    # ИСПРАВЛЕНО: Задержка для предотвращения конфликтов
-                    Clock.schedule_once(
-                        lambda dt: self._switch_theme_delayed(new_mode), 
-                        0.5
-                    )
+                    if not app.theme_manager.is_switching():
+                        app.switch_theme_mode(new_mode)
+                    else:
+                        logger.info("Theme switch delayed - another switch in progress")
                 
             logger.info("All settings saved successfully")
                 
         except Exception as e:
             logger.error(f"Error saving settings: {e}")
             app = self.get_app()
-            if app:
-                app.play_sound("error")
-    
-    def _switch_theme_delayed(self, new_mode):
-        """ИСПРАВЛЕНО: Отложенное переключение темы"""
-        try:
-            app = self.get_app()
-            if not app:
-                return
-                
-            if app.switch_theme_mode(new_mode):
-                logger.info("Theme switched successfully")
-            else:
-                logger.error("Theme switch failed")
-                app.play_sound("error")
-                # Revert UI state
-                self.dark_mode_enabled = app.theme_mode == "dark"
-                if hasattr(self, 'ids') and hasattr(self.ids, 'dark_mode_button'):
-                    self.ids.dark_mode_button.text = "ON" if self.dark_mode_enabled else "OFF"
-                    
-        except Exception as e:
-            logger.error(f"Error in delayed theme switch: {e}")
-    
-    @ErrorHandler.handle_exception
-    def toggle_dark_mode(self, enabled):
-        """ИСПРАВЛЕННОЕ переключение dark mode"""
-        app = self.get_app()
-        
-        # Check if dark mode is available
-        if enabled and not self.dark_mode_available:
-            logger.warning("Cannot enable dark mode - not available")
-            if app:
-                app.play_sound("error")
-            self.dark_mode_enabled = False
-            
-            # Try to update UI button
-            if hasattr(self, 'ids') and hasattr(self.ids, 'dark_mode_button'):
-                self.ids.dark_mode_button.text = "OFF"
-            return
-        
-        # Update state
-        old_enabled = self.dark_mode_enabled
-        self.dark_mode_enabled = enabled
-        
-        # Play sound
-        if app:
-            if enabled:
-                app.play_sound("success")
-            else:
-                app.play_sound("click")
-        
-        # Update UI button text
-        if hasattr(self, 'ids') and hasattr(self.ids, 'dark_mode_button'):
-            self.ids.dark_mode_button.text = "ON" if enabled else "OFF"
-        
-        logger.info(f"Dark mode toggled: {old_enabled} → {enabled}")
-    
-    @ErrorHandler.handle_exception
-    def toggle_auto_theme(self, enabled):
-        """Toggle auto theme switching"""
-        app = self.get_app()
-        
-        # Check prerequisites for auto theme
-        if enabled:
-            if not self.dark_mode_available:
-                logger.warning("Cannot enable auto theme - dark theme not available")
-                if app:
-                    app.play_sound("error")
-                self.auto_theme_enabled = False
-                
-                # Update UI button
-                if hasattr(self, 'ids') and hasattr(self.ids, 'auto_theme_button'):
-                    self.ids.auto_theme_button.text = "OFF"
-                return
-            
-            if not self.light_sensor_available:
-                logger.warning("Auto theme enabled without light sensor - will use mock sensor")
-        
-        # Update state
-        old_enabled = self.auto_theme_enabled
-        self.auto_theme_enabled = enabled
-        
-        # Play sound
-        if app and enabled:
-            app.play_sound("success")
-        
-        # Update UI button text
-        if hasattr(self, 'ids') and hasattr(self.ids, 'auto_theme_button'):
-            self.ids.auto_theme_button.text = "ON" if enabled else "OFF"
-        
-        logger.info(f"Auto theme toggled: {old_enabled} → {enabled}")
-    
-    @ErrorHandler.handle_exception
-    def set_threshold_delay(self, value):
-        """Set theme switch delay"""
-        try:
-            new_threshold = max(1, min(int(value), 5))
-            old_threshold = self.light_sensor_threshold
-            self.light_sensor_threshold = new_threshold
-            
-            # Update sensor calibration immediately
-            app = self.get_app()
-            if app and hasattr(app, 'sensor_service') and app.sensor_service:
-                app.sensor_service.calibrate_light_sensor(self.light_sensor_threshold)
-                logger.info(f"Sensor threshold updated: {old_threshold}s → {new_threshold}s")
-                
-        except Exception as e:
-            logger.error(f"Error setting threshold delay: {e}")
-    
-    @ErrorHandler.handle_exception
-    def manual_theme_test(self):
-        """ИСПРАВЛЕННЫЙ manual theme test"""
-        app = self.get_app()
-        if not app:
-            return
-            
-        try:
-            # Check if we can perform the test
-            if not self.dark_mode_available:
-                logger.warning("Cannot test theme - dark mode not available")
-                app.play_sound("error")
-                return
-            
-            # Toggle theme mode for testing
-            current_mode = app.theme_mode
-            new_mode = "dark" if current_mode == "light" else "light"
-            
-            logger.info(f"Manual theme test: switching to {new_mode} for 3 seconds")
-            
-            # ИСПРАВЛЕНО: Проверяем блокировку переключения
-            if hasattr(app.theme_manager, '_switching') and app.theme_manager._switching:
-                logger.warning("Theme switch in progress, test cancelled")
-                app.play_sound("error")
-                return
-            
-            # Switch theme
-            if app.switch_theme_mode(new_mode):
-                app.play_sound("success")
-                
-                # Schedule switch back after 3 seconds
-                def switch_back(dt):
-                    try:
-                        if app.switch_theme_mode(current_mode):
-                            logger.info(f"Theme test completed - switched back to {current_mode}")
-                        else:
-                            logger.error("Failed to switch back after theme test")
-                    except Exception as e:
-                        logger.error(f"Error switching back after theme test: {e}")
-                
-                Clock.schedule_once(switch_back, 3)
-            else:
-                app.play_sound("error")
-                logger.error("Theme test failed - could not switch theme")
-                
-        except Exception as e:
-            logger.error(f"Error in manual theme test: {e}")
             if app:
                 app.play_sound("error")
     
