@@ -4,8 +4,8 @@
   "description": "Minecraft-style dark theme with retro pixel aesthetics",
   
   "background_image": "themes/minecraft/dark/background.png",
-  "menu_button_normal": "themes/minecraft/dark/button_normal.png",
-  "menu_button_active": "themes/minecraft/dark/button_active.png",
+  "menu_button_normal": "themes/minecraft/dark/menu_button.png",
+  "menu_button_active": "themes/minecraft/dark/menu_button_active.png",
   
   "overlay_images": {
     "home": "themes/minecraft/dark/overlay_home.png",
@@ -16,8 +16,8 @@
     "settings": "themes/minecraft/dark/overlay_settings.png"
   },
   
-  "button_normal": "themes/minecraft/dark/btn_normal.png",
-  "button_active": "themes/minecraft/dark/btn_active.png",
+  "button_normal": "themes/minecraft/dark/button.png",
+  "button_active": "themes/minecraft/dark/button_active.png",
   
   "panel_bg": [0.1, 0.1, 0.15, 0.85],
   "panel_radius": 8,
@@ -45,7 +45,10 @@
     "warning": [0.9, 0.7, 0.1, 1],
     "error": [0.9, 0.2, 0.2, 1],
     "success": [0.2, 0.8, 0.2, 1],
+    "font_default": [0.9, 0.9, 0.95, 1],
     "font_highlight": [0.8, 0.8, 0.9, 1],
+    "font_secondary": [0.7, 0.8, 0.9, 1],
+    "font_action": [0.4, 0.8, 0.4, 1],
     "shadow": [0.9, 0.9, 0.9, 0.3],
     "trend_up": [1, 0.5, 0.5, 1],
     "trend_down": [0.4, 0.7, 1, 1]
@@ -58,11 +61,23 @@
   "grid_unit": "32dp",
   "grid_unit_half": "16dp", 
   "grid_unit_quarter": "8dp",
+  "grid_unit_eighth": "4dp",
   "grid_unit_1.5x": "48dp",
   "grid_unit_2x": "64dp",
+  "grid_unit_3x": "96dp",
+  "grid_unit_4x": "128dp",
   
+  "spacing": "10dp",
   "padding": "15dp",
   "widget_font_size": "18sp",
+  
+  "widget_heights": {
+    "small": "36dp",
+    "medium": "48dp",
+    "large": "60dp",
+    "button": "48dp",
+    "button_small": "36dp"
+  },
   
   "window": {
     "background_color": [0.05, 0.05, 0.1, 1]

@@ -30,26 +30,49 @@ class HomeScreen(MDScreen):
         self.update_weather()
         self.update_notification()
         
-        # Инициализируем часы сразу
-        Clock.schedule_once(self.initialize_clock, 0.1)
+        # ИСПРАВЛЕНО: Инициализируем часы сразу без задержки
+        self.initialize_clock(None)
         
-        # Schedule regular updates
-        Clock.schedule_interval(lambda dt: self.update_alarm(), 300)
-        Clock.schedule_interval(lambda dt: self.update_weather(), 900)
-        Clock.schedule_interval(lambda dt: self.update_notification(), 30)
-        Clock.schedule_interval(lambda dt: self.update_date(), 300)
+        # Schedule regular updates с увеличенными интервалами
+        self._alarm_update_ev = Clock.schedule_interval(lambda dt: self.update_alarm(), 300)  # 5 min
+        self._weather_update_ev = Clock.schedule_interval(lambda dt: self.update_weather(), 900)  # 15 min
+        self._notification_update_ev = Clock.schedule_interval(lambda dt: self.update_notification(), 30)  # 30 sec
+        self._date_update_ev = Clock.schedule_interval(lambda dt: self.update_date(), 300)  # 5 min
     
     def initialize_clock(self, dt):
-        """Улучшенная инициализация часов"""
+        """ИСПРАВЛЕННАЯ инициализация часов"""
         logger.info("Initializing clock")
+        
+        # ИСПРАВЛЕНО: Проверяем доступность виджетов
+        if not self._check_clock_widgets():
+            if self._retry_count < 5:
+                self._retry_count += 1
+                logger.warning(f"Clock widgets not ready, retry {self._retry_count}/5")
+                Clock.schedule_once(self.initialize_clock, 0.5)
+                return
+            else:
+                logger.error("Clock widgets failed to initialize after 5 retries")
+                return
         
         # Обновляем часы сразу
         self.update_clock(None)
         
-        # Запускаем таймер для обновления часов каждую секунду
-        self._clock_ev = Clock.schedule_interval(self.update_clock, 1)
-        self._clock_initialized = True
-        logger.info("Clock initialization complete")
+        # ИСПРАВЛЕНО: Запускаем таймер только если виджеты готовы
+        if not hasattr(self, '_clock_ev') or not self._clock_ev:
+            self._clock_ev = Clock.schedule_interval(self.update_clock, 1)
+            self._clock_initialized = True
+            logger.info("Clock initialization complete")
+    
+    def _check_clock_widgets(self):
+        """Проверка доступности виджетов часов"""
+        try:
+            return (hasattr(self, 'ids') and 
+                    self.ids and 
+                    'clock_label' in self.ids and 
+                    self.ids.clock_label is not None)
+        except Exception as e:
+            logger.error(f"Error checking clock widgets: {e}")
+            return False
     
     def update_date(self):
         """Update the current date and day of week"""
@@ -123,36 +146,56 @@ class HomeScreen(MDScreen):
         return App.get_running_app()
     
     def on_leave(self):
-        # Останавливаем таймер часов при выходе с экрана
+        """ИСПРАВЛЕННАЯ очистка при выходе с экрана"""
         logger.info("Leaving HomeScreen - cleaning up")
-        if hasattr(self, '_clock_ev'):
-            self._clock_ev.cancel()
-            logger.info("Clock timer canceled")
-            
-        # Сбрасываем флаг инициализации часов
+        
+        # Останавливаем все таймеры
+        timers_to_stop = [
+            '_clock_ev', '_alarm_update_ev', '_weather_update_ev', 
+            '_notification_update_ev', '_date_update_ev'
+        ]
+        
+        for timer_name in timers_to_stop:
+            if hasattr(self, timer_name):
+                try:
+                    timer = getattr(self, timer_name)
+                    if timer:
+                        timer.cancel()
+                        logger.debug(f"{timer_name} canceled")
+                except Exception as e:
+                    logger.error(f"Error canceling {timer_name}: {e}")
+                finally:
+                    setattr(self, timer_name, None)
+        
+        # Сбрасываем флаги
         self._clock_initialized = False
+        self._retry_count = 0
 
     def update_clock(self, dt):
-        """Обновление часов с проверкой наличия виджетов"""
+        """ИСПРАВЛЕННОЕ обновление часов с проверкой доступности виджетов"""
         now = datetime.now().strftime("%H:%M")
         
         try:
-            # Проверяем наличие элементов UI
-            if hasattr(self, 'ids') and self.ids and 'clock_label' in self.ids:
-                # Обновляем текст часов
-                self.ids.clock_label.text = now
+            # ИСПРАВЛЕНО: Более тщательная проверка виджетов
+            if not self._check_clock_widgets():
+                logger.warning("Clock widgets not available during update")
+                return
+            
+            # Обновляем текст часов
+            self.ids.clock_label.text = now
+            
+            # Обновляем тень часов, если она есть
+            if 'clock_shadow_label' in self.ids and self.ids.clock_shadow_label:
+                self.ids.clock_shadow_label.text = now
                 
-                # Обновляем тень часов, если она есть
-                if 'clock_shadow_label' in self.ids:
-                    self.ids.clock_shadow_label.text = now
-                    
-                # Журналируем обновление раз в минуту (чтобы не засорять логи)
-                if now.endswith(':00'):
-                    logger.debug(f"Clock updated: {now}")
-            else:
-                # Если виджеты не найдены, выводим предупреждение
-                logger.warning("Clock widgets not found in ids")
-                available_ids = list(self.ids.keys()) if hasattr(self, 'ids') and self.ids else []
-                logger.warning(f"Available ids: {available_ids}")
+            # Журналируем обновление раз в минуту (чтобы не засорять логи)
+            if now.endswith(':00'):
+                logger.debug(f"Clock updated: {now}")
+                
         except Exception as e:
             logger.error(f"Error updating clock: {e}")
+            # ИСПРАВЛЕНО: При ошибке перезапускаем инициализацию часов
+            if self._retry_count < 3:
+                self._retry_count += 1
+                logger.info(f"Reinitializing clock, attempt {self._retry_count}")
+                Clock.schedule_once(self.initialize_clock, 1.0)

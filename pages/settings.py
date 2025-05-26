@@ -175,7 +175,7 @@ class SettingsScreen(MDScreen):
     
     @ErrorHandler.handle_exception
     def save_all_settings(self):
-        """Save all settings"""
+        """ИСПРАВЛЕННОЕ сохранение настроек"""
         try:
             app = self.get_app()
             if app:
@@ -232,16 +232,14 @@ class SettingsScreen(MDScreen):
                 if hasattr(app, 'sensor_service') and app.sensor_service:
                     app.sensor_service.calibrate_light_sensor(int(self.light_sensor_threshold))
                 
-                # Switch theme if manually changed
+                # ИСПРАВЛЕНО: Switch theme if manually changed
                 if old_mode != new_mode:
                     logger.info(f"Manual theme change requested: {old_mode} → {new_mode}")
-                    if app.switch_theme_mode(new_mode):
-                        logger.info("Theme switched successfully")
-                    else:
-                        logger.error("Theme switch failed")
-                        if app:
-                            app.play_sound("error")
-                        return
+                    # ИСПРАВЛЕНО: Задержка для предотвращения конфликтов
+                    Clock.schedule_once(
+                        lambda dt: self._switch_theme_delayed(new_mode), 
+                        0.5
+                    )
                 
             logger.info("All settings saved successfully")
                 
@@ -251,9 +249,29 @@ class SettingsScreen(MDScreen):
             if app:
                 app.play_sound("error")
     
+    def _switch_theme_delayed(self, new_mode):
+        """ИСПРАВЛЕНО: Отложенное переключение темы"""
+        try:
+            app = self.get_app()
+            if not app:
+                return
+                
+            if app.switch_theme_mode(new_mode):
+                logger.info("Theme switched successfully")
+            else:
+                logger.error("Theme switch failed")
+                app.play_sound("error")
+                # Revert UI state
+                self.dark_mode_enabled = app.theme_mode == "dark"
+                if hasattr(self, 'ids') and hasattr(self.ids, 'dark_mode_button'):
+                    self.ids.dark_mode_button.text = "ON" if self.dark_mode_enabled else "OFF"
+                    
+        except Exception as e:
+            logger.error(f"Error in delayed theme switch: {e}")
+    
     @ErrorHandler.handle_exception
     def toggle_dark_mode(self, enabled):
-        """Toggle dark mode"""
+        """ИСПРАВЛЕННОЕ переключение dark mode"""
         app = self.get_app()
         
         # Check if dark mode is available
@@ -339,7 +357,7 @@ class SettingsScreen(MDScreen):
     
     @ErrorHandler.handle_exception
     def manual_theme_test(self):
-        """Manual theme test - toggle theme temporarily"""
+        """ИСПРАВЛЕННЫЙ manual theme test"""
         app = self.get_app()
         if not app:
             return
@@ -356,6 +374,12 @@ class SettingsScreen(MDScreen):
             new_mode = "dark" if current_mode == "light" else "light"
             
             logger.info(f"Manual theme test: switching to {new_mode} for 3 seconds")
+            
+            # ИСПРАВЛЕНО: Проверяем блокировку переключения
+            if hasattr(app.theme_manager, '_switching') and app.theme_manager._switching:
+                logger.warning("Theme switch in progress, test cancelled")
+                app.play_sound("error")
+                return
             
             # Switch theme
             if app.switch_theme_mode(new_mode):

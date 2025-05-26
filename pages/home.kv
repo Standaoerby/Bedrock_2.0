@@ -1,7 +1,7 @@
 <HomeScreen>:
     FloatLayout:
         size_hint: 1, 1
-        # Fixed overlay for this screen (with proper aspect ratio and dynamic update)
+        # Fixed overlay for this screen
         Image:
             id: home_overlay
             source: app.get_overlay_image("home")
@@ -11,11 +11,8 @@
             width: self.parent.width
             height: self.parent.height
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            # Принудительное обновление overlay при изменении темы
-            on_parent:
-                if self.parent: self.source = app.get_overlay_image("home")
             
-        # Date panel with dynamic theme updates
+        # Date panel
         ThemedPanel:
             id: date_panel
             orientation: "vertical"
@@ -32,7 +29,7 @@
                 valign: "middle"
                 shorten: False
 
-        # Alarm panel with dynamic theme updates
+        # Alarm panel
         ThemedPanel:
             id: alarm_panel
             orientation: "horizontal"
@@ -73,11 +70,8 @@
                 background_down: app.theme_config.get("button_active", "atlas://data/images/defaulttheme/button_pressed")
                 on_press: app.play_sound("click")
                 on_release: root.toggle_alarm()
-                # Принудительное обновление кнопки при изменении темы
-                on_parent:
-                    if self.parent: self.background_normal = app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
 
-        # ИСПРАВЛЕНО: Главные часы с динамически обновляемой тенью
+        # ИСПРАВЛЕНО: Главные часы БЕЗ принудительных обновлений
         ThemedLabel:
             id: clock_shadow_label
             text: clock_label.text if clock_label else "00:00"
@@ -85,11 +79,7 @@
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.51, "center_y": 0.56}
-            # ИСПРАВЛЕНО: Динамический цвет тени в зависимости от режима темы
             color: app.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
-            # Принудительное обновление тени при изменении темы
-            on_parent:
-                if self.parent: self.color = app.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
             
         ThemedLabel:
             id: clock_label
@@ -98,13 +88,9 @@
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.5, "center_y": 0.57}
-            # ИСПРАВЛЕНО: Динамический цвет шрифта
             color: app.theme_config.get("font_color", [1, 1, 1, 1])
-            # Принудительное обновление цвета при изменении темы
-            on_parent:
-                if self.parent: self.color = app.theme_config.get("font_color", [1, 1, 1, 1])
 
-        # Weather panel with dynamic theme updates
+        # Weather panel
         ThemedPanel:
             id: weather_panel
             orientation: "vertical"
@@ -126,7 +112,7 @@
                     halign: "center"
                     valign: "middle"
                 
-                # ИСПРАВЛЕНО: Forecast temperature с динамически обновляемыми цветами стрелок
+                # ИСПРАВЛЕНО: Forecast temperature БЕЗ принудительных обновлений
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint_x: 0.5
@@ -139,11 +125,7 @@
                         size_hint_x: 0.2
                         halign: "left"
                         valign: "middle"
-                        # ИСПРАВЛЕНО: Динамические цвета стрелок с принудительным обновлением
                         color: app.theme_config.get("colors", {}).get("trend_down", [0.2, 0.6, 1, 1]) if root.weather_trend_arrow == "↓" else (app.theme_config.get("colors", {}).get("trend_up", [1, 0.4, 0.4, 1]) if root.weather_trend_arrow == "↑" else app.theme_config.get("font_color", [1, 1, 1, 1]))
-                        # Принудительное обновление цвета при изменении темы
-                        on_parent:
-                            if self.parent: self.color = app.theme_config.get("colors", {}).get("trend_down", [0.2, 0.6, 1, 1]) if root.weather_trend_arrow == "↓" else (app.theme_config.get("colors", {}).get("trend_up", [1, 0.4, 0.4, 1]) if root.weather_trend_arrow == "↑" else app.theme_config.get("font_color", [1, 1, 1, 1]))
                         
                     ThemedLabel:
                         id: weather_forecast_label
@@ -153,7 +135,7 @@
                         halign: "left"
                         valign: "middle"
 
-        # Notification widget (bottom) with theme updates
+        # Notification widget (bottom)
         BoxLayout:
             id: notification_container
             orientation: "horizontal"
@@ -167,6 +149,3 @@
                 font_name: app.theme_config.get("font_name", "Minecraftia")
                 color: app.theme_config.get("font_color", [1, 1, 1, 1])
                 font_size: app.theme_config.get("widget_font_size", "20sp")
-                # Принудительное обновление цвета уведомлений при изменении темы
-                on_parent:
-                    if self.parent: self.color = app.theme_config.get("font_color", [1, 1, 1, 1])

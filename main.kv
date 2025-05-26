@@ -12,10 +12,6 @@
     font_name: app.theme_config.get("font_name", "Minecraftia")
     color: app.theme_config.get("font_color", [1, 1, 1, 1])
     font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
-    # Принудительное обновление при изменении темы
-    on_parent: 
-        self.color = app.theme_config.get("font_color", [1, 1, 1, 1])
-        self.font_name = app.theme_config.get("font_name", "Minecraftia")
 
 <MenuButton@Button>:
     background_normal: app.theme_config.get("menu_button_normal", "")
@@ -34,9 +30,6 @@
         app.menu_navigation = True
     on_release:
         app.root.ids.screen_manager.current = self.screen_name
-    # Принудительное обновление фона при изменении темы
-    on_parent:
-        if self.parent: self.background_normal = app.theme_config.get("menu_button_normal", "")
 
 <ThemedButton@Button>:
     background_normal: app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
@@ -46,38 +39,24 @@
     size_hint_y: None
     height: app.ui_metrics['widget_height']
     on_press: app.play_sound("click")
-    # Принудительное обновление фона при изменении темы
-    on_parent:
-        if self.parent: self.background_normal = app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
 
 <ThemedPanel@BoxLayout>:
     canvas.before:
         Color:
-            # DYNAMIC panel background based on theme with forced update
             rgba: app.theme_config.get("panel_bg", [0, 0, 0, 0.08])
         RoundedRectangle:
             pos: self.pos
             size: self.size
             radius: [app.theme_config.get("panel_radius", 16)]
-    # Принудительное обновление canvas при изменении темы или размера
-    on_parent: 
-        self.canvas.ask_update()
-    on_size: 
-        self.canvas.ask_update()
-    on_pos: 
-        self.canvas.ask_update()
 
 # Main layout - FloatLayout for background, menu and content
 FloatLayout:
-    # Application background with dynamic update
+    # Application background - УБРАНО принудительное обновление
     Image:
         id: background_image
         source: app.theme_config.get("background_image", "")
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y": 0.5}
-        # Принудительное обновление фона при изменении темы
-        on_parent:
-            if self.parent: self.source = app.theme_config.get("background_image", "")
     
     # Vertical layout for menu and content
     BoxLayout:

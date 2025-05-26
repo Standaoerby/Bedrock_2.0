@@ -56,11 +56,12 @@ if sys.platform.startswith('linux'):
     os.environ['KIVY_GL_BACKEND'] = 'sdl2'
 
 class ThemeManager:
-    """Отдельный класс для управления темами"""
+    """ИСПРАВЛЕННЫЙ класс для управления темами"""
     
     def __init__(self, app):
         self.app = app
         self.logger = logging.getLogger("ThemeManager")
+        self._switching = False  # Флаг блокировки переключения
         
     def create_default_dark_theme(self):
         """Create default dark theme if it doesn't exist"""
@@ -155,78 +156,27 @@ class ThemeManager:
                 "colors": {"shadow": [0.1, 0.1, 0.1, 0.5], "trend_up": [1, 0.3, 0.3, 1], "trend_down": [0.2, 0.6, 1, 1]}
             }
 
-    def clear_theme_cache_and_refresh(self):
-        """Очистка кэша и принуждение к обновлению виджетов"""
-        try:
-            self.logger.info("Clearing theme cache and refreshing widgets")
-            
-            # Очистка всех категорий кэша
-            cache_categories = ['kv.image', 'kv.texture', 'kv.atlas', 'kv.loader']
-            for category in cache_categories:
-                try:
-                    Cache.remove(category)
-                    self.logger.debug(f"Cleared cache category: {category}")
-                except:
-                    pass
-            
-            # Принудительное обновление виджетов
-            Clock.schedule_once(self._refresh_all_widgets, 0.1)
-            
-        except Exception as e:
-            self.logger.error(f"Error clearing theme cache: {e}")
-
-    def _refresh_all_widgets(self, dt):
-        """Обновление всех виджетов после очистки кэша"""
-        try:
-            if not hasattr(self.app, 'root') or not self.app.root:
-                return
-                
-            # Получаем screen manager
-            screen_manager = getattr(self.app.root.ids, 'screen_manager', None)
-            if not screen_manager:
-                return
-            
-            for screen in screen_manager.screens:
-                self._update_widget_tree(screen)
-                
-            self.logger.info("All widgets refreshed successfully")
-            
-        except Exception as e:
-            self.logger.error(f"Error refreshing widgets: {e}")
-
-    def _update_widget_tree(self, parent):
-        """Рекурсивное обновление дерева виджетов"""
-        try:
-            # Обновляем canvas родительского виджета
-            if hasattr(parent, 'canvas'):
-                parent.canvas.ask_update()
-            
-            # Обновляем Image виджеты
-            if hasattr(parent, 'source') and parent.source:
-                temp_source = parent.source
-                parent.source = ''
-                Clock.schedule_once(lambda dt: setattr(parent, 'source', temp_source), 0.05)
-            
-            # Рекурсивно обрабатываем детей
-            if hasattr(parent, 'children'):
-                for child in parent.children:
-                    self._update_widget_tree(child)
-                    
-        except Exception as e:
-            self.logger.error(f"Error updating widget tree: {e}")
-
     @mainthread
     def switch_theme_mode(self, mode):
-        """Переключение режима темы с полным обновлением UI"""
+        """ИСПРАВЛЕННОЕ переключение режима темы"""
         try:
+            # Проверка блокировки
+            if self._switching:
+                self.logger.warning("Theme switch already in progress")
+                return False
+                
             if mode not in ["light", "dark"] or mode == self.app.theme_mode:
                 return True
+            
+            # Блокировка переключения
+            self._switching = True
             
             # Проверяем доступность тёмной темы
             if mode == "dark":
                 dark_theme_path = f"themes/{self.app.theme_name}/dark/theme.json"
                 if not os.path.exists(dark_theme_path):
                     if not self.create_default_dark_theme():
+                        self._switching = False
                         return False
             
             self.logger.info(f"Switching theme: {self.app.theme_mode} → {mode}")
@@ -234,69 +184,83 @@ class ThemeManager:
             # Загружаем новую конфигурацию темы
             new_theme_config = self.load_theme_config(self.app.theme_name, mode)
             if not new_theme_config:
+                self._switching = False
                 return False
             
-            # Обновляем свойства темы
+            # ИСПРАВЛЕНО: Атомарное обновление theme_config
             old_mode = self.app.theme_mode
             self.app.theme_mode = mode
             
-            # Очищаем и обновляем theme_config
-            self.app.theme_config.clear()
-            self.app.theme_config.update(new_theme_config)
+            # Заменяем конфигурацию целиком, а не по частям
+            self.app.theme_config = new_theme_config.copy()
             
             # Сохраняем пользовательскую конфигурацию
             self.app.user_config["theme_mode"] = mode
             self._save_user_config()
             
-            # Принудительно обновляем свойство
-            self.app.property('theme_config').dispatch(self.app)
-            
-            # Очищаем кэш и обновляем виджеты
-            self.clear_theme_cache_and_refresh()
-            
-            # Планируем полное обновление UI
-            Clock.schedule_once(lambda dt: self._force_ui_refresh(), 0.2)
+            # ИСПРАВЛЕНО: Простое обновление без множественных таймеров
+            self._clear_cache_and_refresh()
             
             self.logger.info(f"Theme successfully switched to {mode}")
+            
+            # Разблокировка через 1 секунду
+            Clock.schedule_once(lambda dt: setattr(self, '_switching', False), 1.0)
             return True
             
         except Exception as e:
             self.logger.error(f"Error switching theme: {e}")
+            self._switching = False
             return False
 
-    def _force_ui_refresh(self):
-        """Принудительное обновление UI"""
+    def _clear_cache_and_refresh(self):
+        """УПРОЩЕННАЯ очистка кэша и обновление"""
+        try:
+            # Очистка кэша изображений
+            cache_categories = ['kv.image', 'kv.texture', 'kv.atlas']
+            for category in cache_categories:
+                try:
+                    Cache.remove(category)
+                except:
+                    pass
+            
+            # ИСПРАВЛЕНО: Одно простое обновление вместо множественных
+            Clock.schedule_once(self._simple_refresh, 0.1)
+            
+        except Exception as e:
+            self.logger.error(f"Error clearing cache: {e}")
+
+    def _simple_refresh(self, dt):
+        """УПРОЩЕННОЕ обновление UI"""
         try:
             if not hasattr(self.app, 'root') or not self.app.root:
                 return
-                
-            # Получаем текущий экран
+            
+            # Простое обновление корневого canvas
+            self.app.root.canvas.ask_update()
+            
+            # Обновление всех экранов без переключения
             screen_manager = getattr(self.app.root.ids, 'screen_manager', None)
-            if not screen_manager:
-                return
-                
-            current_screen = screen_manager.current
+            if screen_manager:
+                for screen in screen_manager.screens:
+                    try:
+                        screen.canvas.ask_update()
+                        # Обновление Image виджетов
+                        for widget in screen.walk():
+                            if hasattr(widget, 'source') and widget.source:
+                                # Принудительное обновление источника изображения
+                                temp_source = widget.source
+                                widget.source = ''
+                                Clock.schedule_once(
+                                    lambda dt, w=widget, s=temp_source: setattr(w, 'source', s), 
+                                    0.05
+                                )
+                    except Exception as e:
+                        self.logger.error(f"Error updating screen {screen.name}: {e}")
             
-            # Находим временный экран или создаём его
-            temp_screens = [s for s in screen_manager.screens if s.name in ['settings', 'home']]
-            if not temp_screens:
-                return
-                
-            temp_screen_name = temp_screens[0].name
-            if temp_screen_name == current_screen:
-                temp_screen_name = temp_screens[1].name if len(temp_screens) > 1 else 'home'
-            
-            # Быстрое переключение экранов для обновления
-            screen_manager.current = temp_screen_name
-            Clock.schedule_once(
-                lambda dt: setattr(screen_manager, 'current', current_screen), 
-                0.1
-            )
-            
-            self.logger.info("UI refresh completed")
+            self.logger.info("Theme refresh completed")
             
         except Exception as e:
-            self.logger.error(f"Error in UI refresh: {e}")
+            self.logger.error(f"Error in simple refresh: {e}")
 
     def _save_user_config(self):
         """Сохранение пользовательской конфигурации"""
@@ -383,8 +347,7 @@ class BedrockApp(MDApp):
         # Initialize sound service
         self.sound_service = SoundService()
         
-        # Theme switching state
-        self._theme_switch_timer = None
+        # Theme switching state - УПРОЩЕНО
         self._auto_theme_event = None
         
         # Call parent init
@@ -547,8 +510,8 @@ class BedrockApp(MDApp):
             switch_delay = self.user_config.get("theme_switch_delay", 2)
             self.sensor_service.calibrate_light_sensor(switch_delay)
             
-            # Check every 3 seconds
-            self._auto_theme_event = Clock.schedule_interval(self._check_auto_theme, 3)
+            # Check every 5 seconds - УВЕЛИЧЕН интервал
+            self._auto_theme_event = Clock.schedule_interval(self._check_auto_theme, 5)
     
     def on_stop(self):
         """Clean up when the application exits"""
@@ -557,8 +520,6 @@ class BedrockApp(MDApp):
         # Stop auto theme monitoring
         if self._auto_theme_event:
             self._auto_theme_event.cancel()
-        if self._theme_switch_timer:
-            self._theme_switch_timer.cancel()
         
         # Stop services
         services_to_stop = [
@@ -587,7 +548,7 @@ class BedrockApp(MDApp):
         self.menu_navigation = False
     
     def _check_auto_theme(self, dt):
-        """Check if theme should be switched based on light sensor"""
+        """УПРОЩЕННАЯ проверка автопереключения темы"""
         if not self.auto_theme_enabled or not self.sensor_service:
             return
             
@@ -599,37 +560,13 @@ class BedrockApp(MDApp):
                 
                 if target_mode != self.theme_mode:
                     logger.info(f"Auto theme switch triggered: {self.theme_mode} → {target_mode}")
-                    self._schedule_theme_switch(target_mode)
+                    # ИСПРАВЛЕНО: Прямое переключение без задержек
+                    if self.switch_theme_mode(target_mode):
+                        self.notification_service.add(f"Theme switched to {target_mode}", "system")
+                        self.play_sound("success")
                     
         except Exception as e:
             logger.error(f"Error in auto theme check: {e}")
-    
-    def _schedule_theme_switch(self, target_mode):
-        """Schedule theme switch with delay"""
-        if self._theme_switch_timer:
-            self._theme_switch_timer.cancel()
-            
-        delay = max(1, self.user_config.get("theme_switch_delay", 2))
-        logger.info(f"Scheduling theme switch to {target_mode} in {delay}s")
-        
-        self._theme_switch_timer = Clock.schedule_once(
-            lambda dt: self._execute_theme_switch(target_mode), 
-            delay
-        )
-    
-    def _execute_theme_switch(self, target_mode):
-        """Execute the theme switch"""
-        try:
-            if target_mode != self.theme_mode:
-                if self.switch_theme_mode(target_mode):
-                    self.notification_service.add(f"Theme switched to {target_mode}", "system")
-                    self.play_sound("success")
-                    logger.info(f"Theme switched to {target_mode}")
-                    
-        except Exception as e:
-            logger.error(f"Error executing theme switch: {e}")
-        finally:
-            self._theme_switch_timer = None
 
     def switch_theme_mode(self, mode):
         """Switch theme mode with UI refresh - Wrapper для theme_manager"""
