@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Bedrock 2.0 - Pi 5 Kiosk
+Comment=Bedrock 2.0 fullscreen application for Raspberry Pi 5 (1024x600 touchscreen)
+Exec=bash -c "sleep 15 && cd /home/standa/bedrock-app && source venv/bin/activate && python bedrock_launcher.py >> logs/autostart.log 2>&1"
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+Terminal=false
+Categories=Kiosk;System;Utility;
+Icon=/home/standa/bedrock-app/assets/images/bedrock_icon.png

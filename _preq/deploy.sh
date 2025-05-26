@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # =============================================================================
-# BEDROCK 2.0 - УЛУЧШЕННЫЙ ФИНАЛЬНЫЙ СКРИПТ ДЕПЛОЯ ДЛЯ RASPBERRY PI 5
-# Версия с рефакторингом и улучшениями (май 2025)
+# BEDROCK 2.0 - ИСПРАВЛЕННЫЙ ФИНАЛЬНЫЙ СКРИПТ ДЕПЛОЯ ДЛЯ RASPBERRY PI 5
+# Финальная проверенная версия с исправлениями (май 2025)
 # =============================================================================
 
 set -e
 
-# Color codes
+# Color codes - стандартизированные
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -17,19 +17,13 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Configuration - ОБНОВИТЕ ПОД ВАШУ КОНФИГУРАЦИЮ
-PI_HOST="${PI_HOST:-192.168.1.234}"  # Можно задать через переменную окружения
-PI_USER="${PI_USER:-standa}"
-PI_PASS="${PI_PASS:-crossover}"
-LOCAL_PROJECT_PATH="${LOCAL_PROJECT_PATH:-/mnt/c/_PROJECTS/Bedrock_2.0}"
-REMOTE_APP_PATH="${REMOTE_APP_PATH:-/home/$PI_USER/bedrock-app}"
+PI_HOST="192.168.1.234"  # ВАША IP АДРЕС PI
+PI_USER="standa"         # ВАШ ПОЛЬЗОВАТЕЛЬ
+PI_PASS="crossover"      # ВАШ ПАРОЛЬ
+LOCAL_PROJECT_PATH="/mnt/c/_PROJECTS/Bedrock_2.0"  # ПУТЬ К ПРОЕКТУ НА WINDOWS
+REMOTE_APP_PATH="/home/standa/bedrock-app"          # ПУТЬ НА PI
 
-# Load configuration from file if exists
-if [[ -f "deploy_config.env" ]]; then
-    source deploy_config.env
-    echo -e "${GREEN}[INFO]${NC} Loaded configuration from deploy_config.env"
-fi
-
-# Logging functions
+# Logging functions - единообразные
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
@@ -52,7 +46,7 @@ log_both() {
     log_to_file "$1"
 }
 
-# SSH execution function with better error handling
+# SSH execution function with error handling
 ssh_execute() {
     local command="$1"
     local description="${2:-Executing command}"
@@ -132,6 +126,26 @@ check_prerequisites() {
     log_success "Prerequisites check passed ✓"
 }
 
+# Check Pi OS version
+check_pi_os_version() {
+    log_step "🔍 Checking Pi OS version..."
+    
+    local os_info
+    if os_info=$(ssh_execute "cat /etc/os-release" "Getting OS version"); then
+        log_info "Pi OS Information:"
+        echo "$os_info" | grep -E "(PRETTY_NAME|VERSION_CODENAME)" || true
+        
+        if echo "$os_info" | grep -q "bookworm"; then
+            log_success "Pi OS Bookworm detected ✓"
+        else
+            log_warning "Pi OS version may not be Bookworm - some paths may differ"
+            log_warning "This script is optimized for Pi OS Bookworm"
+        fi
+    else
+        log_warning "Could not determine Pi OS version"
+    fi
+}
+
 # Create backup
 create_backup() {
     log_step "💾 Creating backup..."
@@ -147,10 +161,47 @@ create_backup() {
     fi
 }
 
+# Rollback function
+rollback_deployment() {
+    if [[ -n "$BACKUP_DIR" ]]; then
+        log_critical "🔄 Rolling back to backup..."
+        if ssh_execute "rm -rf '$REMOTE_APP_PATH' && mv '$BACKUP_DIR' '$REMOTE_APP_PATH'" "Rolling back"; then
+            log_success "Rollback completed"
+        else
+            log_error "Rollback failed"
+        fi
+    else
+        log_error "No backup available for rollback"
+    fi
+}
+
+# Show deployment plan
+show_deployment_plan() {
+    log_step "📋 DEPLOYMENT PLAN"
+    echo ""
+    log_critical "PI 5 FIXES THAT WILL BE APPLIED:"
+    echo ""
+    echo "✓ KivyMD Fix: Install working 2.0.1.dev0 from master"
+    echo "✓ Pi 5 GPIO Fix: Use rpi-lgpio instead of RPi.GPIO"  
+    echo "✓ Fullscreen Fix: Proper Kivy configuration + kiosk mode"
+    echo "✓ Touch Fix: Calibrated for 1024x600 display"
+    echo "✓ Audio Fix: HDMI audio for Pi 5 dual HDMI"
+    echo "✓ Sensors Fix: I2C enabled with real hardware support"
+    echo "✓ Autostart Fix: Desktop autostart with monitoring"
+    echo ""
+    log_info "Target Configuration:"
+    echo "  • Host: $PI_USER@$PI_HOST"
+    echo "  • Local:  $LOCAL_PROJECT_PATH"
+    echo "  • Remote: $REMOTE_APP_PATH"
+    echo "  • Backup: ${REMOTE_APP_PATH}_backup_$(date +%Y%m%d_%H%M%S)"
+    echo ""
+}
+
 # Stop existing processes
 stop_existing_app() {
     log_step "🛑 Stopping existing processes..."
     
+    # More thorough process stopping
     ssh_execute "
         # Kill Python processes
         timeout 10 pkill -f 'python.*main.py' 2>/dev/null || true
@@ -175,7 +226,7 @@ stop_existing_app() {
     log_success "Processes stopped ✓"
 }
 
-# Install system dependencies
+# Install system dependencies with verification
 install_system_dependencies() {
     log_step "📦 Installing Pi 5 system dependencies..."
     
@@ -289,6 +340,43 @@ EOF
     ssh_execute "chmod +x /tmp/config_update_verified.sh && /tmp/config_update_verified.sh" "Updating boot configuration"
     rm /tmp/config_update_verified.sh
     
+    # Audio configuration
+    log_info "Configuring HDMI audio for Pi 5..."
+    cat > /tmp/asound.conf << 'EOF'
+# Pi 5 HDMI Audio Configuration
+pcm.!default {
+    type hw
+    card 0
+    device 0
+}
+ctl.!default {
+    type hw
+    card 0
+}
+EOF
+    
+    scp_copy "/tmp/asound.conf" "/tmp/" "Copying audio config"
+    ssh_execute "sudo cp /tmp/asound.conf /etc/asound.conf" "Installing audio configuration"
+    rm /tmp/asound.conf
+    
+    # Touchscreen calibration
+    log_info "Configuring touchscreen calibration..."
+    cat > /tmp/99-touchscreen.conf << 'EOF'
+Section "InputClass"
+    Identifier "touchscreen catchall"
+    MatchIsTouchscreen "on"
+    Driver "evdev"
+    Option "Calibration" "0 1024 0 600"
+    Option "SwapAxes" "0"
+    Option "InvertX" "0"
+    Option "InvertY" "0"
+EndSection
+EOF
+    
+    scp_copy "/tmp/99-touchscreen.conf" "/tmp/" "Copying touchscreen config"
+    ssh_execute "sudo mkdir -p /usr/share/X11/xorg.conf.d/ && sudo cp /tmp/99-touchscreen.conf /usr/share/X11/xorg.conf.d/" "Installing touchscreen configuration"
+    rm /tmp/99-touchscreen.conf
+    
     log_success "Hardware configuration completed ✓"
 }
 
@@ -339,9 +427,9 @@ EOF
     ssh_execute "cd $REMOTE_APP_PATH && rm -rf venv && python3 -m venv --system-site-packages venv" "Creating virtual environment"
     ssh_execute "cd $REMOTE_APP_PATH && source venv/bin/activate && pip install --upgrade pip setuptools wheel" "Upgrading pip tools"
     
-    # Create verified requirements file for reworked architecture
+    # Create verified requirements file
     cat > /tmp/requirements_pi5_final.txt << 'EOF'
-# Bedrock 2.0 - Refactored requirements for Pi 5 (Mai 2025)
+# Bedrock 2.0 - Final working requirements for Pi 5 (Verified May 2025)
 
 # Core GUI framework - tested working versions
 kivy>=2.3.0,<2.4.0
@@ -397,11 +485,11 @@ EOF
 create_fullscreen_launcher() {
     log_step "🎯 Creating fullscreen launcher..."
     
-    cat > /tmp/bedrock_fullscreen_pi5_refactored.py << 'EOF'
+    cat > /tmp/bedrock_fullscreen_pi5_final.py << 'EOF'
 #!/usr/bin/env python3
 
-# Bedrock 2.0 - Pi 5 Fullscreen Launcher (REFACTORED VERSION)
-# Optimized for refactored architecture with ThemeManager and ConfigManager
+# Bedrock 2.0 - Pi 5 Fullscreen Launcher (FINAL VERIFIED VERSION)
+# This script forces fullscreen configuration before any Kivy imports
 
 import os
 import sys
@@ -439,7 +527,7 @@ try:
     # Import and run the main application
     from main import BedrockApp
     
-    print("🎯 Launching Refactored Bedrock App...")
+    print("🎯 Launching Bedrock App...")
     
     # Create and run app
     app = BedrockApp()
@@ -451,20 +539,16 @@ except Exception as e:
     traceback.print_exc()
     
     # Log error for debugging
-    try:
-        os.makedirs('logs', exist_ok=True)
-        with open('logs/startup_error.log', 'a') as f:
-            f.write(f"\n[{datetime.now()}] Startup Error: {e}\n")
-            f.write(traceback.format_exc())
-    except:
-        pass
+    with open('/home/standa/bedrock-app/logs/startup_error.log', 'a') as f:
+        f.write(f"\n[{datetime.now()}] Startup Error: {e}\n")
+        f.write(traceback.format_exc())
     
     sys.exit(1)
 EOF
     
-    scp_copy "/tmp/bedrock_fullscreen_pi5_refactored.py" "/tmp/" "Copying fullscreen launcher"
-    ssh_execute "cp /tmp/bedrock_fullscreen_pi5_refactored.py $REMOTE_APP_PATH/ && chmod +x $REMOTE_APP_PATH/bedrock_fullscreen_pi5_refactored.py" "Installing fullscreen launcher"
-    rm /tmp/bedrock_fullscreen_pi5_refactored.py
+    scp_copy "/tmp/bedrock_fullscreen_pi5_final.py" "/tmp/" "Copying fullscreen launcher"
+    ssh_execute "cp /tmp/bedrock_fullscreen_pi5_final.py $REMOTE_APP_PATH/ && chmod +x $REMOTE_APP_PATH/bedrock_fullscreen_pi5_final.py" "Installing fullscreen launcher"
+    rm /tmp/bedrock_fullscreen_pi5_final.py
     
     log_success "Fullscreen launcher created ✓"
 }
@@ -475,12 +559,12 @@ setup_autostart() {
     
     ssh_execute "mkdir -p ~/.config/autostart" "Creating autostart directory"
     
-    cat > /tmp/bedrock_autostart_refactored.desktop << 'EOF'
+    cat > /tmp/bedrock_autostart_final.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
-Name=Bedrock Pi 5 Refactored Fullscreen
-Comment=Bedrock 2.0 - Pi 5 Fullscreen Kiosk Mode (Refactored Architecture)
-Exec=bash -c "sleep 15 && cd /home/standa/bedrock-app && source venv/bin/activate && python bedrock_fullscreen_pi5_refactored.py >> logs/autostart.log 2>&1"
+Name=Bedrock Pi 5 Fullscreen Kiosk
+Comment=Bedrock 2.0 - Pi 5 Fullscreen Kiosk Mode with Monitoring
+Exec=bash -c "sleep 15 && cd /home/standa/bedrock-app && source venv/bin/activate && python bedrock_fullscreen_pi5_final.py >> logs/autostart.log 2>&1"
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
@@ -489,23 +573,23 @@ Terminal=false
 Categories=Kiosk;System;
 EOF
     
-    scp_copy "/tmp/bedrock_autostart_refactored.desktop" "/tmp/" "Copying autostart file"
-    ssh_execute "cp /tmp/bedrock_autostart_refactored.desktop ~/.config/autostart/bedrock_pi5_refactored.desktop && chmod +x ~/.config/autostart/bedrock_pi5_refactored.desktop" "Installing autostart"
-    rm /tmp/bedrock_autostart_refactored.desktop
+    scp_copy "/tmp/bedrock_autostart_final.desktop" "/tmp/" "Copying autostart file"
+    ssh_execute "cp /tmp/bedrock_autostart_final.desktop ~/.config/autostart/bedrock_pi5_final.desktop && chmod +x ~/.config/autostart/bedrock_pi5_final.desktop" "Installing autostart"
+    rm /tmp/bedrock_autostart_final.desktop
     
     # Create management script
-    cat > /tmp/manage_bedrock_refactored.sh << 'EOF'
+    cat > /tmp/manage_bedrock.sh << 'EOF'
 #!/bin/bash
 
-# Bedrock 2.0 Management Script (Refactored)
+# Bedrock 2.0 Management Script
 
 APP_DIR="/home/standa/bedrock-app"
 APP_NAME="python.*main.py"
-LAUNCHER="bedrock_fullscreen_pi5_refactored.py"
+LAUNCHER="bedrock_fullscreen_pi5_final.py"
 
 case "$1" in
     start)
-        echo "Starting Refactored Bedrock App..."
+        echo "Starting Bedrock App..."
         cd "$APP_DIR"
         source venv/bin/activate
         python "$LAUNCHER" &
@@ -541,36 +625,39 @@ case "$1" in
         echo "Autostart logs:"
         tail -10 "$APP_DIR/logs/autostart.log" 2>/dev/null || echo "No autostart log found"
         ;;
-    test-theme)
-        echo "Testing theme switching..."
+    force-full)
+        echo "Force starting in fullscreen..."
+        pkill -f "$APP_NAME" || true
+        sleep 2
+        export DISPLAY=:0
         cd "$APP_DIR"
         source venv/bin/activate
-        python -c "from utils.theme_manager import ThemeManager; from main import BedrockApp; app = BedrockApp(); tm = ThemeManager(app); print('Theme manager test OK')"
+        python "$LAUNCHER" &
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status|logs|test-theme}"
+        echo "Usage: $0 {start|stop|restart|status|logs|force-full}"
         exit 1
         ;;
 esac
 EOF
     
-    scp_copy "/tmp/manage_bedrock_refactored.sh" "/tmp/" "Copying management script"
-    ssh_execute "cp /tmp/manage_bedrock_refactored.sh /home/$PI_USER/manage_bedrock.sh && chmod +x /home/$PI_USER/manage_bedrock.sh" "Installing management script"
-    rm /tmp/manage_bedrock_refactored.sh
+    scp_copy "/tmp/manage_bedrock.sh" "/tmp/" "Copying management script"
+    ssh_execute "cp /tmp/manage_bedrock.sh /home/$PI_USER/ && chmod +x /home/$PI_USER/manage_bedrock.sh" "Installing management script"
+    rm /tmp/manage_bedrock.sh
     
     log_success "Autostart and management configured ✓"
 }
 
 # Comprehensive testing
 test_installation() {
-    log_step "🧪 Testing refactored installation..."
+    log_step "🧪 Testing installation..."
     
     # Test Python imports
     log_info "Testing critical Python imports..."
     
     local test_results=""
     
-    # Test core dependencies
+    # Test Kivy
     if ssh_execute "cd $REMOTE_APP_PATH && source venv/bin/activate && python -c 'import kivy; print(f\"Kivy: {kivy.__version__}\")'" "Testing Kivy import"; then
         test_results+="✓ Kivy "
     else
@@ -578,26 +665,12 @@ test_installation() {
         log_error "Kivy import failed"
     fi
     
+    # Test KivyMD
     if ssh_execute "cd $REMOTE_APP_PATH && source venv/bin/activate && python -c 'import kivymd; print(f\"KivyMD: {kivymd.__version__}\")'" "Testing KivyMD import"; then
         test_results+="✓ KivyMD "
     else
         test_results+="✗ KivyMD "
         log_error "KivyMD import failed - CRITICAL"
-    fi
-    
-    # Test refactored modules
-    if ssh_execute "cd $REMOTE_APP_PATH && source venv/bin/activate && python -c 'from utils.common import BasePage, ConfigManager; print(\"Common utils: OK\")'" "Testing common utils"; then
-        test_results+="✓ CommonUtils "
-    else
-        test_results+="✗ CommonUtils "
-        log_error "Common utils import failed"
-    fi
-    
-    if ssh_execute "cd $REMOTE_APP_PATH && source venv/bin/activate && python -c 'from utils.theme_manager import ThemeManager; print(\"ThemeManager: OK\")'" "Testing ThemeManager"; then
-        test_results+="✓ ThemeManager "
-    else
-        test_results+="✗ ThemeManager "
-        log_error "ThemeManager import failed"
     fi
     
     # Test main application import
@@ -606,6 +679,34 @@ test_installation() {
     else
         test_results+="✗ MainApp "
         log_error "Main app import failed"
+    fi
+    
+    # Test hardware
+    log_info "Testing hardware configuration..."
+    
+    # Test I2C
+    if ssh_execute "sudo i2cdetect -y 1" "Testing I2C"; then
+        test_results+="✓ I2C "
+        log_info "I2C devices detected (check output above for sensor addresses)"
+    else
+        test_results+="⚠ I2C "
+        log_warning "I2C test failed - sensors may not be connected"
+    fi
+    
+    # Test audio
+    if ssh_execute "aplay -l" "Testing audio devices"; then
+        test_results+="✓ Audio "
+    else
+        test_results+="⚠ Audio "
+        log_warning "Audio test failed"
+    fi
+    
+    # Test GPIO libraries
+    if ssh_execute "cd $REMOTE_APP_PATH && source venv/bin/activate && python -c 'import lgpio; print(\"GPIO: OK\")'" "Testing GPIO libraries"; then
+        test_results+="✓ GPIO "
+    else
+        test_results+="✗ GPIO "
+        log_error "GPIO libraries failed"
     fi
     
     echo ""
@@ -624,10 +725,10 @@ test_installation() {
 create_update_scripts() {
     log_step "📝 Creating update scripts..."
     
-    # Quick update script for refactored version
-    cat > "update_bedrock_pi5_refactored.sh" << EOF
+    # Quick update script
+    cat > "update_bedrock_pi5.sh" << EOF
 #!/bin/bash
-# Quick update for Refactored Bedrock Pi 5 - Generated by deploy script
+# Quick update for Bedrock Pi 5 - Generated by deploy script
 
 PI_HOST="$PI_HOST"
 PI_USER="$PI_USER"
@@ -635,7 +736,7 @@ PI_PASS="$PI_PASS"
 LOCAL_PROJECT_PATH="$LOCAL_PROJECT_PATH"
 REMOTE_APP_PATH="$REMOTE_APP_PATH"
 
-echo "🔄 Quick update - syncing refactored files..."
+echo "🔄 Quick update - syncing changed files..."
 
 # Stop app
 sshpass -p "\$PI_PASS" ssh -o StrictHostKeyChecking=no "\$PI_USER@\$PI_HOST" "pkill -f 'python.*main.py' || true"
@@ -646,35 +747,81 @@ sshpass -p "\$PI_PASS" rsync -avz --checksum \\
     -e "ssh -o StrictHostKeyChecking=no" \\
     "\$LOCAL_PROJECT_PATH/" "\$PI_USER@\$PI_HOST:\$REMOTE_APP_PATH/"
 
-echo "✅ Refactored files synced. App will restart automatically via autostart."
+echo "✅ Files synced. App will restart automatically via autostart."
 echo "Manual start: ssh \$PI_USER@\$PI_HOST '/home/$PI_USER/manage_bedrock.sh start'"
-echo "Test theme: ssh \$PI_USER@\$PI_HOST '/home/$PI_USER/manage_bedrock.sh test-theme'"
 EOF
     
-    chmod +x "update_bedrock_pi5_refactored.sh"
+    chmod +x "update_bedrock_pi5.sh"
     
-    log_success "Update scripts created"
+    # Windows batch file
+    cat > "update_bedrock_pi5.bat" << 'EOF'
+@echo off
+echo Starting Bedrock Pi 5 update from Windows...
+
+REM Check for WSL
+where wsl >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo WSL not found. Trying Git Bash...
+    where bash >nul 2>nul
+    if %ERRORLEVEL% NEQ 0 (
+        echo Neither WSL nor Git Bash found. Please install one of them.
+        pause
+        exit /b 1
+    )
+    bash update_bedrock_pi5.sh
+) else (
+    wsl ./update_bedrock_pi5.sh
+)
+
+pause
+EOF
+    
+    log_success "Update scripts created:"
+    log_info "  • update_bedrock_pi5.sh - Bash script for quick updates"
+    log_info "  • update_bedrock_pi5.bat - Windows batch file"
+}
+
+# Cleanup function
+cleanup_deployment() {
+    log_info "🧹 Cleaning up temporary files..."
+    rm -f /tmp/bedrock_* /tmp/install_* /tmp/config_* /tmp/asound.conf /tmp/99-touchscreen.conf /tmp/manage_bedrock.sh /tmp/requirements_*.txt 2>/dev/null || true
+}
+
+# Error handler
+handle_error() {
+    local exit_code=$?
+    log_error "Deployment failed at step: $1"
+    log_error "Check deployment log: $DEPLOYMENT_LOG"
+    
+    if [[ "$2" == "rollback" ]] && [[ -n "$BACKUP_DIR" ]]; then
+        read -p "Do you want to rollback to backup? (y/n): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            rollback_deployment
+        fi
+    fi
+    
+    cleanup_deployment
+    exit $exit_code
 }
 
 # Show final summary
 show_final_summary() {
     echo ""
-    log_success "🎉 BEDROCK 2.0 PI 5 REFACTORED DEPLOYMENT COMPLETED!"
+    log_success "🎉 BEDROCK 2.0 PI 5 DEPLOYMENT COMPLETED SUCCESSFULLY!"
     echo ""
-    log_critical "=== REFACTORED DEPLOYMENT SUMMARY ==="
-    echo ""
-    echo "🎯 Architecture Improvements:"
-    echo "  • ThemeManager: Centralized theme switching"
-    echo "  • ConfigManager: Unified configuration management"
-    echo "  • BasePage: Simplified page inheritance"
-    echo "  • Common utilities: Reduced code duplication"
-    echo "  • Enhanced error handling and logging"
+    log_critical "=== DEPLOYMENT SUMMARY ==="
     echo ""
     echo "🎯 Configuration:"
     echo "  • Target: $PI_USER@$PI_HOST"
     echo "  • App Location: $REMOTE_APP_PATH"
     echo "  • Display: 1024x600 fullscreen kiosk mode"
-    echo "  • Architecture: Refactored with improved maintainability"
+    echo "  • Touch: Calibrated for direct input"
+    echo "  • Audio: HDMI output (Pi 5 dual HDMI compatible)"
+    echo "  • I2C: Sensors enabled (ENS160 + AHT21 support)"
+    echo "  • GPIO: Pi 5 compatible (rpi-lgpio)"
+    echo "  • KivyMD: 2.0.1.dev0 (Pi 5 working version)"
+    echo "  • Autostart: Desktop autostart configured"
     if [[ -n "$BACKUP_DIR" ]]; then
         echo "  • Backup: $BACKUP_DIR"
     fi
@@ -685,66 +832,101 @@ show_final_summary() {
     echo "  • Stop app:     ssh $PI_USER@$PI_HOST './manage_bedrock.sh stop'"
     echo "  • Restart app:  ssh $PI_USER@$PI_HOST './manage_bedrock.sh restart'"
     echo "  • View logs:    ssh $PI_USER@$PI_HOST './manage_bedrock.sh logs'"
-    echo "  • Test theme:   ssh $PI_USER@$PI_HOST './manage_bedrock.sh test-theme'"
+    echo "  • Force full:   ssh $PI_USER@$PI_HOST './manage_bedrock.sh force-full'"
     echo ""
     echo "🔄 Update Commands:"
-    echo "  • Quick update: ./update_bedrock_pi5_refactored.sh"
+    echo "  • Quick update: ./update_bedrock_pi5.sh"
+    echo "  • From Windows: Double-click update_bedrock_pi5.bat"
     echo ""
     log_critical "⚠️ IMPORTANT: REBOOT REQUIRED for all hardware changes to take effect!"
     echo ""
     echo "To reboot Pi: ssh $PI_USER@$PI_HOST 'sudo reboot'"
     echo ""
-    echo "After reboot, the refactored app will start automatically!"
+    echo "After reboot, the app will start automatically in fullscreen kiosk mode!"
     echo ""
     log_info "📊 Deployment log saved to: $DEPLOYMENT_LOG"
-    log_success "🎉 REFACTORED DEPLOYMENT SUCCESSFUL!"
+    log_success "🎉 DEPLOYMENT SUCCESSFUL! Your Pi 5 is ready for Bedrock 2.0!"
 }
 
 # Main deployment function
 main() {
     echo ""
-    log_critical "🚀 BEDROCK 2.0 - REFACTORED PI 5 DEPLOYMENT"
+    log_critical "🚀 BEDROCK 2.0 - ИСПРАВЛЕННЫЙ ФИНАЛЬНЫЙ ДЕПЛОЙ НА PI 5"
     echo ""
     log_info "Deployment started at: $(date)"
-    log_to_file "=== BEDROCK 2.0 REFACTORED PI 5 DEPLOYMENT STARTED ==="
+    log_to_file "=== BEDROCK 2.0 PI 5 DEPLOYMENT STARTED ==="
+    log_to_file "Timestamp: $(date)"
     log_to_file "Configuration: $PI_USER@$PI_HOST - $LOCAL_PROJECT_PATH -> $REMOTE_APP_PATH"
     
+    # Set up error handling
+    trap 'handle_error "Prerequisites Check"' ERR
+    
+    show_deployment_plan
     check_prerequisites
+    check_pi_os_version
+    
+    trap 'handle_error "Backup Creation"' ERR
     create_backup
+    
+    trap 'handle_error "Stop Existing App" rollback' ERR
     stop_existing_app
+    
+    trap 'handle_error "System Dependencies Installation" rollback' ERR
     install_system_dependencies
+    
+    trap 'handle_error "Hardware Configuration" rollback' ERR
     configure_hardware
+    
+    trap 'handle_error "Application Setup" rollback' ERR
     setup_application
+    
+    trap 'handle_error "Fullscreen Launcher Creation" rollback' ERR
     create_fullscreen_launcher
+    
+    trap 'handle_error "Autostart Setup" rollback' ERR
     setup_autostart
     
+    trap 'handle_error "Installation Testing" rollback' ERR
     if ! test_installation; then
         log_warning "Some tests failed, but deployment may still work"
         read -p "Continue anyway? (y/n): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
+            handle_error "User aborted after test failures" rollback
         fi
     fi
     
     create_update_scripts
+    cleanup_deployment
     
-    log_to_file "=== REFACTORED DEPLOYMENT COMPLETED SUCCESSFULLY ==="
+    log_to_file "=== DEPLOYMENT COMPLETED SUCCESSFULLY ==="
     show_final_summary
 }
 
 # Handle script arguments
 case "${1:-}" in
+    "update-only")
+        log_info "Running update-only mode..."
+        check_prerequisites
+        stop_existing_app
+        # Quick file sync
+        sshpass -p "$PI_PASS" rsync -avz --checksum \
+            --exclude="__pycache__" --exclude="*.pyc" --exclude=".git" --exclude="venv" --exclude="logs/*.log" \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            "$LOCAL_PROJECT_PATH/" "$PI_USER@$PI_HOST:$REMOTE_APP_PATH/"
+        log_success "Update completed"
+        ;;
     "--help"|"-h")
-        echo "Bedrock 2.0 Refactored Pi 5 Deployment Script"
+        echo "Bedrock 2.0 Pi 5 Deployment Script"
         echo ""
         echo "Usage: $0 [option]"
         echo ""
         echo "Options:"
-        echo "  (no args)    - Full refactored deployment"
+        echo "  (no args)    - Full deployment"
+        echo "  update-only  - Quick file sync only"
         echo "  -h, --help   - Show this help"
         echo ""
-        echo "Configuration (update these or use deploy_config.env):"
+        echo "Configuration (update these variables in the script):"
         echo "  PI_HOST: $PI_HOST"
         echo "  PI_USER: $PI_USER"
         echo "  LOCAL_PROJECT_PATH: $LOCAL_PROJECT_PATH"
