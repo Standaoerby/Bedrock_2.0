@@ -1,22 +1,21 @@
-from kivymd.uix.screen import MDScreen
-from kivy.clock import Clock
-import os
-from kivy.uix.boxlayout import BoxLayout
+# pages/pigs.py
+from utils.common import BasePage
 from kivy.properties import NumericProperty, ColorProperty
+from kivy.uix.boxlayout import BoxLayout
 from kivy.graphics import Color, Rectangle
+import os
 import logging
-from utils.error_handler import ErrorHandler
 
-# Set up logging
 logger = logging.getLogger("PigsScreen")
 
-# Custom progress bar class
 class CustomProgressBar(BoxLayout):
-    value = NumericProperty(50)  # Default value
-    bar_color = ColorProperty([0, 0.6, 0.8, 1])  # Default blue color
+    """Кастомный прогресс бар"""
+    
+    value = NumericProperty(50)
+    bar_color = ColorProperty([0, 0.6, 0.8, 1])
     
     def __init__(self, **kwargs):
-        super(CustomProgressBar, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.bind(size=self.update_canvas)
         self.bind(pos=self.update_canvas)
         self.bind(value=self.update_canvas)
@@ -32,6 +31,7 @@ class CustomProgressBar(BoxLayout):
             self.fg_rect = Rectangle(pos=self.pos, size=(0, 0))
     
     def update_canvas(self, *args):
+        """Обновить канвас"""
         # Update background rectangle
         self.bg_rect.pos = self.pos
         self.bg_rect.size = self.size
@@ -41,39 +41,46 @@ class CustomProgressBar(BoxLayout):
         self.fg_rect.pos = self.pos
         self.fg_rect.size = (self.width * (self.value / 100), self.height)
 
-class PigsScreen(MDScreen):
-    def on_enter(self):
+class PigsScreen(BasePage):
+    """Экран ухода за питомцами"""
+    
+    def on_pre_enter(self):
+        """Вход на экран"""
+        logger.info("Entering PigsScreen")
         self.update_bars()
+        
         # Check status every 20 minutes
-        self._clock_ev = Clock.schedule_interval(lambda dt: self.update_bars(), 20 * 60)  
+        self.schedule_timer(lambda dt: self.update_bars(), 20 * 60)
 
-    def on_leave(self):
-        if hasattr(self, "_clock_ev"):
-            self._clock_ev.cancel()
-
-    @ErrorHandler.handle_exception
     def update_bars(self):
-        """Update all bars and pig image"""
+        """Обновить все полосы и изображение питомцев"""
         app = self.get_app()
         vals, integral = app.pigs_service.get_all_values()
         
         # Update progress bars
-        self.ids.water_bar.value = vals["water"]
-        self.ids.food_bar.value = vals["food"]
-        self.ids.clean_bar.value = vals["clean"]
+        water_bar = self.safe_get_widget('water_bar')
+        food_bar = self.safe_get_widget('food_bar')
+        clean_bar = self.safe_get_widget('clean_bar')
         
-        # Log values at debug level
+        if water_bar:
+            water_bar.value = vals["water"]
+        if food_bar:
+            food_bar.value = vals["food"]
+        if clean_bar:
+            clean_bar.value = vals["clean"]
+        
+        # Log values
         logger.debug(f"Bar values: Water={vals['water']:.1f}, Food={vals['food']:.1f}, Clean={vals['clean']:.1f}")
         
         # Update status display
         percent = int(integral * 100)
-        self.ids.pigs_status_label.text = f"Status: {percent}%"
+        self.safe_set_widget_text('pigs_status_label', f"Status: {percent}%")
         
         # Update the pigs image based on status percentage
         self.update_pigs_image(percent)
 
     def update_pigs_image(self, percent):
-        """Update the pigs image based on the status percentage"""
+        """Обновить изображение питомцев на основе статуса"""
         if 85 <= percent <= 100:
             image_file = "pigs_1.png"
         elif 50 <= percent < 85:
@@ -87,20 +94,16 @@ class PigsScreen(MDScreen):
         image_path = os.path.join("assets", "images", image_file)
         
         # Check if the image exists before setting
-        if os.path.exists(image_path):
-            self.ids.pigs_image.source = image_path
-        else:
-            logger.warning(f"Image not found: {image_path}")
+        pigs_image = self.safe_get_widget('pigs_image')
+        if pigs_image:
+            if os.path.exists(image_path):
+                pigs_image.source = image_path
+            else:
+                logger.warning(f"Image not found: {image_path}")
 
-    @ErrorHandler.handle_exception
     def reset_bar(self, key):
-        """Reset a specific bar to full"""
+        """Сбросить определённую полосу"""
         app = self.get_app()
         app.pigs_service.reset_bar(key)
-        # Update both bars and image immediately
         self.update_bars()
         logger.info(f"Reset bar: {key}")
-
-    def get_app(self):
-        from kivy.app import App
-        return App.get_running_app()

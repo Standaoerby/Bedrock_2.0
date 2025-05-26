@@ -1,47 +1,44 @@
-from kivymd.uix.screen import MDScreen
+from utils.common import BasePage
 from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
 import os
 import logging
-from utils.error_handler import ErrorHandler
 
 logger = logging.getLogger("AlarmScreen")
 
 DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-class AlarmScreen(MDScreen):
+class AlarmScreen(BasePage):
+    """Экран настройки будильника"""
+    
     alarm_time = StringProperty("07:30")
     alarm_active = BooleanProperty(True)
     alarm_repeat = ListProperty(["Mon", "Tue", "Wed", "Thu", "Fri"])
     selected_ringtone = StringProperty("morning.mp3")
     ringtone_list = ListProperty([])
     alarm_fadein = BooleanProperty(False)
-    current_sound = ObjectProperty(None, allownone=True)  # Store the sound object
+    current_sound = ObjectProperty(None, allownone=True)
 
     def on_pre_enter(self):
-        # Ensure no active sound from previous screen usage
+        """Вход на экран"""
         self.stop_ringtone()
         self.load_ringtones()
         self.load_alarm_config()
         self.update_ui()
 
-    @ErrorHandler.handle_exception
     def load_ringtones(self):
-        """Load available ringtones from media directory"""
+        """Загрузить доступные мелодии"""
         folder = "media/ringtones"
         if os.path.exists(folder):
             try:
-                # Support formats that pygame supports
                 self.ringtone_list = [f for f in os.listdir(folder) 
                     if f.lower().endswith((".mp3", ".ogg", ".wav"))]
                 if self.selected_ringtone not in self.ringtone_list and self.ringtone_list:
                     self.selected_ringtone = self.ringtone_list[0]
-                logger.info(f"Loaded {len(self.ringtone_list)} ringtones from {folder}")
+                logger.info(f"Loaded {len(self.ringtone_list)} ringtones")
             except Exception as e:
                 logger.error(f"Error loading ringtones: {e}")
-                # Fallback to defaults
                 self.ringtone_list = ["morning.mp3", "gentle.mp3", "loud.mp3", "robot.mp3"]
         else:
-            # If folder doesn't exist, create it and use defaults
             try:
                 os.makedirs(folder, exist_ok=True)
                 logger.info(f"Created ringtones folder: {folder}")
@@ -50,9 +47,8 @@ class AlarmScreen(MDScreen):
             
             self.ringtone_list = ["morning.mp3", "gentle.mp3", "loud.mp3", "robot.mp3"]
 
-    @ErrorHandler.handle_exception
     def load_alarm_config(self):
-        """Load alarm configuration from service"""
+        """Загрузить конфигурацию будильника"""
         app = self.get_app()
         alarm = app.alarm_service.get_alarm()
         if alarm:
@@ -60,7 +56,7 @@ class AlarmScreen(MDScreen):
             self.alarm_active = alarm.get("enabled", True)
             repeat = alarm.get("repeat", ["Mon", "Tue", "Wed", "Thu", "Fri"])
             
-            # Handle numeric day format (compatibility with older configs)
+            # Handle numeric day format (compatibility)
             if repeat and all(isinstance(x, int) for x in repeat):
                 days_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
                 self.alarm_repeat = [days_map[i-1] for i in repeat if 1 <= i <= 7]
@@ -71,11 +67,9 @@ class AlarmScreen(MDScreen):
             self.alarm_fadein = alarm.get("fadein", False)
             logger.info(f"Loaded alarm config: {alarm}")
 
-    @ErrorHandler.handle_exception
     def save_alarm(self):
-        """Save alarm settings to service"""
+        """Сохранить настройки будильника"""
         app = self.get_app()
-        # Play success sound when saving
         app.play_sound("success")
         
         alarm = {
@@ -90,74 +84,81 @@ class AlarmScreen(MDScreen):
         self.update_ui()
 
     def update_ui(self):
-        """Update UI elements to match current settings"""
+        """Обновить UI элементы"""
         # Update hours and minutes
         hours, minutes = self.alarm_time.split(':')
-        self.ids.hour_label.text = hours
-        self.ids.minute_label.text = minutes
+        self.safe_set_widget_text('hour_label', hours)
+        self.safe_set_widget_text('minute_label', minutes)
         
         # Update the active button
-        if hasattr(self.ids, 'active_button'):
-            self.ids.active_button.text = "ON" if self.alarm_active else "OFF"
-            # Update color based on state
+        active_button = self.safe_get_widget('active_button')
+        if active_button:
+            active_button.text = "ON" if self.alarm_active else "OFF"
             app = self.get_app()
             if self.alarm_active:
-                self.ids.active_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
+                active_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
             else:
-                self.ids.active_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
+                active_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
         
         # Update fadein button
-        if hasattr(self.ids, 'fadein_button'):
-            self.ids.fadein_button.text = "ON" if self.alarm_fadein else "OFF"
-            # Update color based on state
+        fadein_button = self.safe_get_widget('fadein_button')
+        if fadein_button:
+            fadein_button.text = "ON" if self.alarm_fadein else "OFF"
             app = self.get_app()
             if self.alarm_fadein:
-                self.ids.fadein_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
+                fadein_button.color = app.theme_config.get("colors", {}).get("active", [0, 1, 0, 1])
             else:
-                self.ids.fadein_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
+                fadein_button.color = app.theme_config.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
         
         # Update day buttons
         for day in DAYS_EN:
             btn_id = f"repeat_{day.lower()}"
-            if btn_id in self.ids:
-                self.ids[btn_id].state = "down" if day in self.alarm_repeat else "normal"
+            button = self.safe_get_widget(btn_id)
+            if button:
+                button.state = "down" if day in self.alarm_repeat else "normal"
         
-        if hasattr(self.ids, 'ringtone_spinner'):
-            self.ids.ringtone_spinner.text = self.selected_ringtone
+        # Update ringtone spinner
+        spinner = self.safe_get_widget('ringtone_spinner')
+        if spinner:
+            spinner.text = self.selected_ringtone
         
         # Reset play button state
-        if hasattr(self.ids, 'play_button'):
-            self.ids.play_button.state = 'normal'
-            self.ids.play_button.text = 'Play'
+        play_button = self.safe_get_widget('play_button')
+        if play_button:
+            play_button.state = 'normal'
+            play_button.text = 'Play'
 
     def increment_hour(self):
+        """Увеличить час"""
         hours, minutes = self.alarm_time.split(':')
         new_hour = (int(hours) + 1) % 24
         self.alarm_time = f"{new_hour:02d}:{minutes}"
-        self.ids.hour_label.text = f"{new_hour:02d}"
+        self.safe_set_widget_text('hour_label', f"{new_hour:02d}")
 
     def decrement_hour(self):
+        """Уменьшить час"""
         hours, minutes = self.alarm_time.split(':')
         new_hour = (int(hours) - 1) % 24
         self.alarm_time = f"{new_hour:02d}:{minutes}"
-        self.ids.hour_label.text = f"{new_hour:02d}"
+        self.safe_set_widget_text('hour_label', f"{new_hour:02d}")
 
     def increment_minute(self):
+        """Увеличить минуты"""
         hours, minutes = self.alarm_time.split(':')
         new_minute = (int(minutes) + 1) % 60
         self.alarm_time = f"{hours}:{new_minute:02d}"
-        self.ids.minute_label.text = f"{new_minute:02d}"
+        self.safe_set_widget_text('minute_label', f"{new_minute:02d}")
 
     def decrement_minute(self):
+        """Уменьшить минуты"""
         hours, minutes = self.alarm_time.split(':')
         new_minute = (int(minutes) - 1) % 60
         self.alarm_time = f"{hours}:{new_minute:02d}"
-        self.ids.minute_label.text = f"{new_minute:02d}"
+        self.safe_set_widget_text('minute_label', f"{new_minute:02d}")
 
     def on_active_toggled(self, active):
-        """Handle active button toggle"""
+        """Переключить активность будильника"""
         app = self.get_app()
-        # Only play success sound when turning ON
         if active and not self.alarm_active:
             app.play_sound("success")
         
@@ -165,7 +166,7 @@ class AlarmScreen(MDScreen):
         self.update_ui()
 
     def toggle_repeat(self, day, state):
-        """Toggle day in repeat list based on button state"""
+        """Переключить день повтора"""
         day = day.capitalize()
         if state == "down" and day not in self.alarm_repeat:
             self.alarm_repeat.append(day)
@@ -173,31 +174,29 @@ class AlarmScreen(MDScreen):
             self.alarm_repeat.remove(day)
 
     def select_ringtone(self, name):
-        """Select ringtone by name"""
+        """Выбрать мелодию"""
         self.selected_ringtone = name
-        # Stop any playing sound when ringtone is changed
         self.stop_ringtone()
-        # Reset play button
-        if hasattr(self.ids, 'play_button'):
-            self.ids.play_button.state = 'normal'
-            self.ids.play_button.text = 'Play'
+        
+        play_button = self.safe_get_widget('play_button')
+        if play_button:
+            play_button.state = 'normal'
+            play_button.text = 'Play'
 
     def toggle_play_ringtone(self, state):
-        """Toggle between play and stop based on button state"""
+        """Переключить воспроизведение мелодии"""
         app = self.get_app()
-        app.play_sound("click")  # Play UI sound
+        app.play_sound("click")
         
         if state == 'down':
             self.play_ringtone()
-            self.ids.play_button.text = 'Stop'
+            self.safe_set_widget_text('play_button', 'Stop')
         else:
             self.stop_ringtone()
-            self.ids.play_button.text = 'Play'
+            self.safe_set_widget_text('play_button', 'Play')
 
-    @ErrorHandler.handle_exception
     def play_ringtone(self):
-        """Play the selected ringtone"""
-        # Stop any currently playing sound
+        """Воспроизвести мелодию"""
         self.stop_ringtone()
         
         try:
@@ -206,12 +205,10 @@ class AlarmScreen(MDScreen):
             
             if not os.path.exists(path):
                 logger.warning(f"Ringtone file not found: {path}")
-                # If file not found, play standard sound
                 app = self.get_app()
                 app.play_sound("click")
                 return
                 
-            # Use app's sound service
             app = self.get_app()
             self.current_sound = app.sound_service.load_sound_file(path)
             
@@ -221,13 +218,13 @@ class AlarmScreen(MDScreen):
 
         except Exception as e:
             logger.error(f"Error playing ringtone: {e}")
-            if hasattr(self.ids, 'play_button'):
-                self.ids.play_button.state = 'normal'
-                self.ids.play_button.text = 'Play'
+            play_button = self.safe_get_widget('play_button')
+            if play_button:
+                play_button.state = 'normal'
+                play_button.text = 'Play'
 
-    @ErrorHandler.handle_exception
     def stop_ringtone(self):
-        """Stop the currently playing ringtone"""
+        """Остановить воспроизведение мелодии"""
         try:
             if self.current_sound:
                 if hasattr(self.current_sound, 'stop'):
@@ -239,27 +236,23 @@ class AlarmScreen(MDScreen):
             self.current_sound = None
 
     def on_fadein_toggled(self, active):
-        """Handle fade-in toggle button"""
+        """Переключить fade-in"""
         app = self.get_app()
         
-        # Play success sound when turning ON
         if active and not self.alarm_fadein:
             app.play_sound("success")
         
         self.alarm_fadein = active
         self.update_ui()
 
-    def get_app(self):
-        """Get the running app instance"""
-        from kivy.app import App
-        return App.get_running_app()
-        
     def on_leave(self):
-        """Clean up when leaving the screen"""
-        # Stop any playing sound
+        """Очистка при выходе с экрана"""
         self.stop_ringtone()
-        # Reset play button state
-        if hasattr(self.ids, 'play_button'):
-            self.ids.play_button.state = 'normal'
-            self.ids.play_button.text = 'Play'
+        
+        play_button = self.safe_get_widget('play_button')
+        if play_button:
+            play_button.state = 'normal'
+            play_button.text = 'Play'
+        
+        super().on_leave()
         logger.info("Leaving alarm screen, resources cleaned up")

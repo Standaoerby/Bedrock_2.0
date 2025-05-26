@@ -1,18 +1,16 @@
-from kivymd.uix.screen import MDScreen
+from utils.common import BasePage, config_manager
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty
-from kivy.clock import Clock
-import json
-import os
 from datetime import datetime
+import os
 import logging
-from utils.error_handler import ErrorHandler
 
 logger = logging.getLogger("SettingsScreen")
 
-class SettingsScreen(MDScreen):
+class SettingsScreen(BasePage):
+    """Экран настроек"""
+    
     # Theme properties
     current_theme = StringProperty("minecraft")
-    available_themes = ["minecraft"]
     dark_mode_enabled = BooleanProperty(False)
     dark_mode_available = BooleanProperty(False)
     
@@ -26,52 +24,34 @@ class SettingsScreen(MDScreen):
     auto_theme_enabled = BooleanProperty(True)
     light_sensor_available = BooleanProperty(False)
     light_sensor_threshold = NumericProperty(2)
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._sensor_update_event = None
 
     def on_pre_enter(self):
-        """Called when entering the screen"""
+        """Вход на экран"""
         try:
             self.load_settings()
             self.check_dark_mode_availability()
             self.update_sensor_status()
             
             # Update sensor status periodically
-            if self._sensor_update_event:
-                self._sensor_update_event.cancel()
-            self._sensor_update_event = Clock.schedule_interval(self.update_sensor_status, 5)
+            self.schedule_timer(self.update_sensor_status, 5)
             
             logger.info("Settings screen initialized")
             
         except Exception as e:
             logger.error(f"Error in on_pre_enter: {e}")
     
-    def on_leave(self):
-        """Called when leaving the screen"""
-        try:
-            if self._sensor_update_event:
-                self._sensor_update_event.cancel()
-                self._sensor_update_event = None
-        except Exception as e:
-            logger.error(f"Error in on_leave: {e}")
-    
-    @ErrorHandler.handle_exception
     def check_dark_mode_availability(self):
-        """УПРОЩЁННАЯ проверка доступности тёмной темы"""
+        """Проверить доступность тёмной темы"""
         try:
             app = self.get_app()
             if not app:
                 self.dark_mode_available = False
                 return
                 
-            dark_theme_path = f"themes/{self.current_theme}/dark/theme.json"
-            self.dark_mode_available = os.path.exists(dark_theme_path)
+            self.dark_mode_available = app.theme_manager.is_dark_theme_available()
             
             if not self.dark_mode_available:
-                # Try to create dark theme
-                if app.create_default_dark_theme():
+                if app.theme_manager.create_default_dark_theme():
                     self.dark_mode_available = True
                     logger.info("Dark theme created successfully")
                 else:
@@ -84,25 +64,11 @@ class SettingsScreen(MDScreen):
             logger.error(f"Error checking dark mode availability: {e}")
             self.dark_mode_available = False
     
-    @ErrorHandler.handle_exception
     def load_settings(self):
-        """Load settings from config file"""
+        """Загрузить настройки"""
         try:
-            config_path = "config/user.json"
-            if os.path.exists(config_path):
-                with open(config_path, "r", encoding="utf-8") as f:
-                    settings = json.load(f)
-            else:
-                # Create default settings
-                settings = {
-                    "theme": "minecraft",
-                    "theme_mode": "light",
-                    "username": "",
-                    "birthdate": "2000-01-01",
-                    "auto_theme_enabled": True,
-                    "theme_switch_delay": 2
-                }
-                
+            settings = config_manager.get_config('user')
+            
             # Load basic settings
             self.current_theme = settings.get("theme", "minecraft")
             self.dark_mode_enabled = settings.get("theme_mode", "light") == "dark"
@@ -135,59 +101,57 @@ class SettingsScreen(MDScreen):
             self.auto_theme_enabled = True
             self.light_sensor_threshold = 2
     
-    @ErrorHandler.handle_exception
     def update_sensor_status(self, dt=None):
-        """Update sensor status"""
+        """Обновить статус датчиков"""
         try:
             app = self.get_app()
             if not app:
                 return
                 
-            # Check if sensor service is available and running
             if hasattr(app, 'sensor_service') and app.sensor_service:
                 light_status = app.sensor_service.get_light_sensor_status()
-                
                 self.light_sensor_available = True
                 
-                # Update UI if IDs are available
-                if hasattr(self, 'ids') and hasattr(self.ids, 'light_sensor_status'):
+                # Update UI if available
+                status_widget = self.safe_get_widget('light_sensor_status')
+                if status_widget:
                     current_level = light_status.get('current_level', True)
                     using_mock = light_status.get('using_mock', True)
                     
                     status_text = "Light" if current_level else "Dark"
                     sensor_type = "Mock" if using_mock else "Real"
                     
-                    self.ids.light_sensor_status.text = f"Sensor: {status_text} ({sensor_type})"
+                    status_widget.text = f"Sensor: {status_text} ({sensor_type})"
                     
                     # Set color based on sensor type
                     if using_mock:
-                        self.ids.light_sensor_status.color = [0.8, 0.8, 0, 1]  # Yellow for mock
+                        status_widget.color = [0.8, 0.8, 0, 1]  # Yellow
                     else:
-                        self.ids.light_sensor_status.color = [0, 0.8, 0, 1]  # Green for real
+                        status_widget.color = [0, 0.8, 0, 1]  # Green
             else:
                 self.light_sensor_available = False
-                if hasattr(self, 'ids') and hasattr(self.ids, 'light_sensor_status'):
-                    self.ids.light_sensor_status.text = "Sensor: Offline"
-                    self.ids.light_sensor_status.color = [0.8, 0, 0, 1]  # Red for offline
+                status_widget = self.safe_get_widget('light_sensor_status')
+                if status_widget:
+                    status_widget.text = "Sensor: Offline"
+                    status_widget.color = [0.8, 0, 0, 1]  # Red
                     
         except Exception as e:
             logger.error(f"Error updating sensor status: {e}")
     
-    @ErrorHandler.handle_exception
     def save_all_settings(self):
-        """УПРОЩЁННОЕ сохранение настроек"""
+        """Сохранить все настройки"""
         try:
             app = self.get_app()
             if app:
                 app.play_sound("success")
             
             # Get values from UI
-            if hasattr(self, 'ids'):
-                if hasattr(self.ids, 'username_input'):
-                    self.username = self.ids.username_input.text
-                
-                # Update birthdate from UI fields
-                self.update_birthdate()
+            username_widget = self.safe_get_widget('username_input')
+            if username_widget:
+                self.username = username_widget.text
+            
+            # Update birthdate from UI fields
+            self.update_birthdate()
             
             # Create settings object
             settings = {
@@ -211,10 +175,9 @@ class SettingsScreen(MDScreen):
                 }
             }
             
-            # Save to file
-            os.makedirs("config", exist_ok=True)
-            with open("config/user.json", "w", encoding="utf-8") as f:
-                json.dump(settings, f, ensure_ascii=False, indent=2)
+            # Save configuration
+            config_manager.update_config('user', settings)
+            config_manager.save_config('user')
             
             # Update app
             if app:
@@ -245,9 +208,8 @@ class SettingsScreen(MDScreen):
             if app:
                 app.play_sound("error")
     
-    @ErrorHandler.handle_exception
     def toggle_dark_mode(self, enabled):
-        """УПРОЩЁННОЕ переключение dark mode"""
+        """Переключить dark mode"""
         app = self.get_app()
         
         # Check if dark mode is available
@@ -258,8 +220,9 @@ class SettingsScreen(MDScreen):
             self.dark_mode_enabled = False
             
             # Update UI button
-            if hasattr(self, 'ids') and hasattr(self.ids, 'dark_mode_button'):
-                self.ids.dark_mode_button.text = "OFF"
+            button = self.safe_get_widget('dark_mode_button')
+            if button:
+                button.text = "OFF"
             return
         
         # Update state
@@ -273,28 +236,28 @@ class SettingsScreen(MDScreen):
                 app.play_sound("click")
         
         # Update UI button text
-        if hasattr(self, 'ids') and hasattr(self.ids, 'dark_mode_button'):
-            self.ids.dark_mode_button.text = "ON" if enabled else "OFF"
+        button = self.safe_get_widget('dark_mode_button')
+        if button:
+            button.text = "ON" if enabled else "OFF"
         
         logger.info(f"Dark mode toggled: {enabled}")
     
-    @ErrorHandler.handle_exception
     def toggle_auto_theme(self, enabled):
-        """Toggle auto theme switching"""
+        """Переключить автотему"""
         app = self.get_app()
         
         # Check prerequisites for auto theme
-        if enabled:
-            if not self.dark_mode_available:
-                logger.warning("Cannot enable auto theme - dark theme not available")
-                if app:
-                    app.play_sound("error")
-                self.auto_theme_enabled = False
-                
-                # Update UI button
-                if hasattr(self, 'ids') and hasattr(self.ids, 'auto_theme_button'):
-                    self.ids.auto_theme_button.text = "OFF"
-                return
+        if enabled and not self.dark_mode_available:
+            logger.warning("Cannot enable auto theme - dark theme not available")
+            if app:
+                app.play_sound("error")
+            self.auto_theme_enabled = False
+            
+            # Update UI button
+            button = self.safe_get_widget('auto_theme_button')
+            if button:
+                button.text = "OFF"
+            return
         
         # Update state
         self.auto_theme_enabled = enabled
@@ -304,14 +267,14 @@ class SettingsScreen(MDScreen):
             app.play_sound("success")
         
         # Update UI button text
-        if hasattr(self, 'ids') and hasattr(self.ids, 'auto_theme_button'):
-            self.ids.auto_theme_button.text = "ON" if enabled else "OFF"
+        button = self.safe_get_widget('auto_theme_button')
+        if button:
+            button.text = "ON" if enabled else "OFF"
         
         logger.info(f"Auto theme toggled: {enabled}")
     
-    @ErrorHandler.handle_exception
     def set_threshold_delay(self, value):
-        """Set theme switch delay"""
+        """Установить задержку переключения темы"""
         try:
             new_threshold = max(1, min(int(value), 5))
             self.light_sensor_threshold = new_threshold
@@ -325,9 +288,8 @@ class SettingsScreen(MDScreen):
         except Exception as e:
             logger.error(f"Error setting threshold delay: {e}")
     
-    @ErrorHandler.handle_exception
     def manual_theme_test(self):
-        """УПРОЩЁННЫЙ manual theme test"""
+        """Тест ручного переключения темы"""
         app = self.get_app()
         if not app:
             return
@@ -350,7 +312,7 @@ class SettingsScreen(MDScreen):
                 app.play_sound("success")
                 
                 # Schedule switch back after 3 seconds
-                Clock.schedule_once(
+                self.schedule_once(
                     lambda dt: app.switch_theme_mode(current_mode), 
                     3
                 )
@@ -363,22 +325,17 @@ class SettingsScreen(MDScreen):
             if app:
                 app.play_sound("error")
     
-    @ErrorHandler.handle_exception
     def update_birthdate(self):
-        """Update birth date from UI fields"""
+        """Обновить дату рождения из UI"""
         try:
-            if not hasattr(self, 'ids'):
-                return
-                
-            # Get values from UI
-            day_text = getattr(self.ids, 'birth_day', None)
-            month_text = getattr(self.ids, 'birth_month', None)
-            year_text = getattr(self.ids, 'birth_year', None)
+            day_widget = self.safe_get_widget('birth_day')
+            month_widget = self.safe_get_widget('birth_month')
+            year_widget = self.safe_get_widget('birth_year')
             
-            if day_text and month_text and year_text:
-                day_str = day_text.text.strip() if hasattr(day_text, 'text') else str(self.birth_day)
-                month_str = month_text.text.strip() if hasattr(month_text, 'text') else str(self.birth_month)
-                year_str = year_text.text.strip() if hasattr(year_text, 'text') else str(self.birth_year)
+            if day_widget and month_widget and year_widget:
+                day_str = day_widget.text.strip()
+                month_str = month_widget.text.strip()
+                year_str = year_widget.text.strip()
                 
                 if day_str and month_str and year_str:
                     day = int(day_str)
@@ -400,7 +357,7 @@ class SettingsScreen(MDScreen):
             logger.error(f"Unexpected error updating birthdate: {e}")
     
     def get_birthdate_string(self):
-        """Get birth date as formatted string"""
+        """Получить дату рождения как строку"""
         try:
             day = int(self.birth_day) if self.birth_day else 1
             month = int(self.birth_month) if self.birth_month else 1
@@ -415,8 +372,3 @@ class SettingsScreen(MDScreen):
         except Exception as e:
             logger.error(f"Error formatting birthdate: {e}")
             return "2000-01-01"
-    
-    def get_app(self):
-        """Get app instance"""
-        from kivy.app import App
-        return App.get_running_app()
