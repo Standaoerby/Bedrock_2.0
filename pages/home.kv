@@ -71,23 +71,23 @@
                 on_press: app.play_sound("click")
                 on_release: root.toggle_alarm()
 
-        # ИСПРАВЛЕНО: Главные часы без принудительных обновлений
+        # ИСПРАВЛЕНО: Уменьшенные часы сдвинутые вправо на 30%
         ThemedLabel:
             id: clock_shadow_label
             text: clock_label.text if clock_label else "00:00"
-            font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "240").replace("sp", "")) * 1.5, Window.height * 0.375)) + "sp"
+            font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "240").replace("sp", "")) * 1.2, Window.height * 0.3)) + "sp"
             halign: "center"
             valign: "middle"
-            pos_hint: {"center_x": 0.51, "center_y": 0.56}
+            pos_hint: {"center_x": 0.66, "center_y": 0.56}
             color: app.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
             
         ThemedLabel:
             id: clock_label
             text: "00:00"
-            font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "240").replace("sp", "")) * 1.5, Window.height * 0.375)) + "sp"
+            font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "240").replace("sp", "")) * 1.2, Window.height * 0.3)) + "sp"
             halign: "center"
             valign: "middle"
-            pos_hint: {"center_x": 0.5, "center_y": 0.57}
+            pos_hint: {"center_x": 0.65, "center_y": 0.57}
             color: app.theme_config.get("font_color", [1, 1, 1, 1])
 
         # Weather panel

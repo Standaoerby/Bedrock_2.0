@@ -10,6 +10,7 @@ from datetime import datetime
 import os
 import logging
 import subprocess
+import re
 from services.sound_service import PyGameSound
 from utils.common import config_manager
 
@@ -42,17 +43,22 @@ class AlarmPopup(ModalView):
         self.theme = app.theme_config if app else {}
         self.font_name = self.theme.get("font_name", "Minecraftia")
         
-        # ИСПРАВЛЕНО: Правильные параметры fade-in
+        # ИСПРАВЛЕНО: Улучшенные параметры громкости
         self.sound = None
         self.sound_path = None
         self.ringtone = ringtone
         self.fadein = fadein
         
-        # ИСПРАВЛЕНО: Начинаем с 10% и идем к максимальной системной громкости
-        self.start_volume = 0.2  # 10% начальная громкость
+        # ИСПРАВЛЕНО: Новые параметры громкости для максимального звука
+        self.start_volume = 0.15  # Начинаем с 15% для плавности
         self.current_volume = self.start_volume
-        self.max_volume = self._get_system_max_volume()  # Получаем максимальную системную громкость
-        self.fade_time = 15.0  # ИСПРАВЛЕНО: 15 секунд fade-in
+        
+        # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Устанавливаем системную громкость на максимум
+        self._ensure_max_system_volume()
+        
+        # ИСПРАВЛЕНО: Максимальная громкость теперь может быть выше 100%
+        self.max_volume = self._get_optimal_max_volume()  # Может быть > 1.0
+        self.fade_time = 12.0  # ИСПРАВЛЕНО: Сократили время fade-in до 12 секунд
         self._fade_event = None
         self._loop_event = None  # Для зацикливания звука
         
@@ -62,23 +68,91 @@ class AlarmPopup(ModalView):
         logger.info(f"🚨 AlarmPopup created: user={self.username}, ringtone={ringtone}, fadein={fadein}")
         logger.info(f"🔊 Volume settings: start={int(self.start_volume*100)}%, max={int(self.max_volume*100)}%, fade_time={self.fade_time}s")
     
-    def _get_system_max_volume(self):
-        """Получить максимальную системную громкость"""
+    def _ensure_max_system_volume(self):
+        """НОВОЕ: Принудительно устанавливаем системную громкость на максимум"""
         try:
-            # Пытаемся получить текущую громкость системы
+            logger.info("🔊 Setting system volume to maximum for alarm...")
+            
+            # Получаем текущую системную громкость
+            current_vol = self._get_current_system_volume()
+            logger.info(f"🔊 Current system volume: {current_vol}%")
+            
+            # Если громкость меньше 95%, устанавливаем на максимум
+            if current_vol < 95:
+                result = subprocess.run(['amixer', 'set', 'Master', '100%'], 
+                                      capture_output=True, text=True, timeout=5)
+                
+                if result.returncode == 0:
+                    logger.info("✅ System volume set to 100%")
+                    
+                    # Также попробуем установить PCM если есть
+                    try:
+                        subprocess.run(['amixer', 'set', 'PCM', '100%'], 
+                                     capture_output=True, text=True, timeout=3)
+                        logger.debug("✅ PCM volume also set to 100%")
+                    except:
+                        pass  # Не критично если PCM недоступен
+                        
+                else:
+                    logger.warning(f"⚠️ Failed to set system volume: {result.stderr}")
+            else:
+                logger.info("✅ System volume already at maximum")
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Could not set system volume: {e}")
+    
+    def _get_current_system_volume(self):
+        """ИСПРАВЛЕНО: Правильно получаем текущую системную громкость"""
+        try:
             result = subprocess.run(['amixer', 'get', 'Master'], 
                                   capture_output=True, text=True, timeout=5)
             
             if result.returncode == 0:
-                # Парсим максимальную громкость (обычно это 100%)
-                return 1  # 100% от максимума
-            else:
-                logger.warning("Could not get system volume, using default max")
-                return 0.85  # Fallback к 85%
+                # Ищем строки с процентами громкости
+                # Пример: "  Mono: Playback 31 [100%] [0.00dB] [on]"
+                lines = result.stdout.split('\n')
+                for line in lines:
+                    if '[' in line and '%' in line and ('Playback' in line or 'Front Left:' in line):
+                        # Используем regex для извлечения процента
+                        match = re.search(r'\[(\d+)%\]', line)
+                        if match:
+                            volume = int(match.group(1))
+                            logger.debug(f"Found system volume: {volume}% in line: {line.strip()}")
+                            return volume
                 
+                logger.warning("Could not parse volume from amixer output")
+                logger.debug(f"Amixer output: {result.stdout}")
+                
+            return 50  # Fallback
+            
         except Exception as e:
-            logger.warning(f"Error getting system max volume: {e}")
-            return 0.85  # Safe fallback
+            logger.warning(f"Error getting current system volume: {e}")
+            return 50
+    
+    def _get_optimal_max_volume(self):
+        """ИСПРАВЛЕНО: Определяем оптимальную максимальную громкость"""
+        try:
+            # Проверяем актуальную системную громкость
+            system_vol = self._get_current_system_volume()
+            
+            if system_vol >= 95:
+                # Система на максимуме - можем попробовать превышение
+                optimal_volume = 1.3  # 130% - пробуем усиление
+                logger.info(f"🔊 System at {system_vol}%, trying enhanced volume: {int(optimal_volume*100)}%")
+            elif system_vol >= 80:
+                # Хорошая системная громкость
+                optimal_volume = 1.1  # 110%
+                logger.info(f"🔊 System at {system_vol}%, using boosted volume: {int(optimal_volume*100)}%")
+            else:
+                # Системная громкость низкая
+                optimal_volume = 1.0  # 100%
+                logger.warning(f"🔊 System volume low ({system_vol}%), using standard max: {int(optimal_volume*100)}%")
+            
+            return optimal_volume
+            
+        except Exception as e:
+            logger.error(f"Error determining optimal volume: {e}")
+            return 1.0  # Safe fallback
     
     def _get_username(self):
         """Get username from user config"""
@@ -179,7 +253,7 @@ class AlarmPopup(ModalView):
         
         # Snooze button (5 minutes) - используем warning цвет
         snooze_button = Button(
-            text="SNOOZE\n5 min",
+            text="SNOOZE",
             font_name=self.font_name,
             font_size="24sp",
             size_hint_x=0.4,
@@ -243,7 +317,7 @@ class AlarmPopup(ModalView):
         Clock.schedule_once(lambda dt: pulse_cycle(), 0.5)
     
     def start_alarm(self):
-        """Start playing the alarm sound with improved fade-in"""
+        """Start playing the alarm sound with MAXIMUM volume fade-in"""
         if self._sound_stopped:
             logger.warning("⚠️ Sound already stopped, not starting")
             return
@@ -257,7 +331,7 @@ class AlarmPopup(ModalView):
                 logger.warning(f"❌ Ringtone file not found: {path}")
                 return
                 
-            logger.info(f"🎵 Loading alarm sound: {path}")
+            logger.info(f"🎵 Loading alarm sound with MAXIMUM volume: {path}")
             
             # ИСПРАВЛЕНО: Улучшенная загрузка звука
             try:
@@ -298,12 +372,12 @@ class AlarmPopup(ModalView):
             # НЕ зацикливаем автоматически - будем управлять вручную
             self.sound.loop = False
             
-            # ИСПРАВЛЕНО: Устанавливаем начальную громкость (10%)
+            # ИСПРАВЛЕНО: Устанавливаем начальную громкость
             self.current_volume = self.start_volume
             self.sound.volume = self.current_volume
             
-            logger.info(f"🎵 Starting alarm playback at {int(self.current_volume*100)}% volume")
-            logger.info(f"🔊 Will fade to {int(self.max_volume*100)}% over {self.fade_time} seconds")
+            logger.info(f"🎵 Starting MAXIMUM VOLUME alarm: {int(self.current_volume*100)}% → {int(self.max_volume*100)}%")
+            logger.info(f"🔊 Fade parameters: {self.fade_time}s to reach {int(self.max_volume*100)}% volume")
             
             # Запускаем воспроизведение
             self.sound.play()
@@ -318,6 +392,11 @@ class AlarmPopup(ModalView):
                 # Если fade-in отключен, сразу устанавливаем максимальную громкость
                 self.current_volume = self.max_volume
                 self.sound.volume = self.current_volume
+                
+                # НОВОЕ: Дополнительная проверка что громкость применилась
+                applied_vol = getattr(self.sound, 'volume', 0)
+                logger.info(f"🔊 Immediate max volume: target={int(self.current_volume*100)}%, applied={int(applied_vol*100)}%")
+                
                 self._update_volume_display()
                 
         except Exception as e:
@@ -343,6 +422,13 @@ class AlarmPopup(ModalView):
             if self.sound.state == 'stop':
                 logger.debug("🔄 Restarting alarm sound for loop")
                 self.sound.play()
+                
+                # НОВОЕ: Убеждаемся что громкость сохраняется при перезапуске
+                if hasattr(self.sound, 'volume'):
+                    current_vol = self.current_volume
+                    self.sound.volume = current_vol
+                    logger.debug(f"🔊 Volume maintained on restart: {int(current_vol*100)}%")
+                
                 return True  # Продолжаем событие
             else:
                 return True  # Продолжаем следить
@@ -352,7 +438,7 @@ class AlarmPopup(ModalView):
             return False  # Останавливаем событие при ошибке
     
     def start_fade_in(self):
-        """ИСПРАВЛЕНО: Правильный fade-in от 10% до максимума за 15 секунд"""
+        """ИСПРАВЛЕНО: МАКСИМАЛЬНЫЙ fade-in до усиленной громкости"""
         if self._sound_stopped:
             return
             
@@ -361,36 +447,44 @@ class AlarmPopup(ModalView):
             self._fade_event.cancel()
             self._fade_event = None
         
-        logger.info(f"🔊 Starting fade-in from {int(self.current_volume*100)}% to {int(self.max_volume*100)}% over {self.fade_time} seconds")
+        logger.info(f"🔊 Starting MAXIMUM fade-in: {int(self.current_volume*100)}% → {int(self.max_volume*100)}% over {self.fade_time}s")
         
-        # ИСПРАВЛЕНО: Правильный расчет fade-in параметров
-        total_steps = int(self.fade_time * 4)  # 4 шага в секунду для плавности
+        # ИСПРАВЛЕНО: Ускоренный fade-in для достижения максимальной громкости
+        total_steps = int(self.fade_time * 5)  # 5 шагов в секунду для более быстрого нарастания
         volume_increase = (self.max_volume - self.current_volume) / total_steps
         fade_interval = self.fade_time / total_steps
         
-        logger.info(f"🔊 Fade parameters: {total_steps} steps, increase per step: {volume_increase:.4f}, interval: {fade_interval:.3f}s")
+        logger.info(f"🔊 Enhanced fade parameters: {total_steps} steps, increase: +{volume_increase:.4f} per step, interval: {fade_interval:.3f}s")
         
         # Проверяем текущую громкость звука
         if self.sound:
             actual_volume = getattr(self.sound, 'volume', 0)
-            logger.info(f"🎵 Current sound volume check: set={self.current_volume:.2f}, actual={actual_volume:.2f}")
+            logger.info(f"🎵 Volume verification: set={self.current_volume:.2f}, actual={actual_volume:.2f}")
             
             # Если громкости не совпадают, принудительно устанавливаем
             if abs(actual_volume - self.current_volume) > 0.05:
                 self.sound.volume = self.current_volume
                 logger.warning(f"🔧 Fixed volume mismatch: {actual_volume:.2f} → {self.current_volume:.2f}")
         
-        # Schedule incremental volume increase
+        # НОВОЕ: Дополнительная попытка установить системную громкость на максимум
+        try:
+            subprocess.run(['amixer', 'set', 'Master', '100%'], 
+                         capture_output=True, text=True, timeout=2)
+            logger.debug("🔊 Re-confirmed system volume at 100%")
+        except:
+            pass
+        
+        # Schedule incremental volume increase with enhanced parameters
         self._fade_event = Clock.schedule_interval(
-            lambda dt: self._increase_volume(volume_increase), 
+            lambda dt: self._increase_volume_enhanced(volume_increase), 
             fade_interval
         )
         
         # Update display immediately
         self._update_volume_display()
     
-    def _increase_volume(self, volume_step):
-        """ИСПРАВЛЕНО: Правильное увеличение громкости с проверкой максимума"""
+    def _increase_volume_enhanced(self, volume_step):
+        """ИСПРАВЛЕНО: Усиленное увеличение громкости с проверками"""
         if not self.sound or self._sound_stopped:
             logger.debug("🔇 Fade-in stopped (sound stopped)")
             return False
@@ -401,46 +495,79 @@ class AlarmPopup(ModalView):
                 old_volume = self.current_volume
                 self.current_volume = min(self.current_volume + volume_step, self.max_volume)
                 
-                # Apply new volume to sound with verification
-                self.sound.volume = self.current_volume
+                # НОВОЕ: Пробуем установить громкость с усилением
+                target_volume = self.current_volume
                 
-                # ДОБАВЛЕНО: Проверяем, что громкость действительно применилась
+                # Первая попытка - обычная установка
+                self.sound.volume = target_volume
+                
+                # Проверяем что громкость применилась
                 applied_volume = getattr(self.sound, 'volume', 0)
                 
-                if abs(applied_volume - self.current_volume) > 0.05:
-                    # Повторная попытка установки громкости
-                    logger.warning(f"🔧 Volume not applied correctly, retrying: target={self.current_volume:.2f}, actual={applied_volume:.2f}")
-                    self.sound.volume = self.current_volume
-                    applied_volume = getattr(self.sound, 'volume', 0)
+                # НОВОЕ: Если pygame ограничивает до 1.0, пробуем системное усиление
+                if target_volume > 1.0 and applied_volume <= 1.0:
+                    logger.debug(f"🔊 Pygame capped at {applied_volume:.2f}, trying system boost...")
+                    
+                    # Пробуем увеличить системную громкость выше 100%
+                    try:
+                        boost_percent = int(target_volume * 100)  # Может быть > 100%
+                        subprocess.run(['amixer', 'set', 'Master', f'{boost_percent}%'], 
+                                     capture_output=True, text=True, timeout=2)
+                        logger.debug(f"🔊 System volume boosted to {boost_percent}%")
+                    except Exception as boost_error:
+                        logger.debug(f"System boost failed: {boost_error}")
                 
-                # Логируем каждый шаг для отладки
-                if int(old_volume * 100) != int(self.current_volume * 100):  # Логируем только при изменении процентов
-                    logger.info(f"🔊 Volume: {int(old_volume*100)}% → {int(self.current_volume*100)}% [applied: {int(applied_volume*100)}%]")
+                # Повторная проверка после системного усиления
+                applied_volume = getattr(self.sound, 'volume', 0)
+                
+                # Логируем значительные изменения громкости
+                old_percent = int(old_volume * 100)
+                new_percent = int(self.current_volume * 100) 
+                applied_percent = int(applied_volume * 100)
+                
+                if new_percent != old_percent:
+                    logger.info(f"🔊 MAXIMUM Volume: {old_percent}% → {new_percent}% [actual: {applied_percent}%]")
                 
                 # Update UI display
                 self._update_volume_display()
                 
                 return True  # Continue the interval
             else:
-                logger.info(f"🔊 Fade-in complete at {int(self.current_volume*100)}%")
+                logger.info(f"🔊 MAXIMUM fade-in complete at {int(self.current_volume*100)}%")
                 
-                # ДОБАВЛЕНО: Финальная проверка громкости
+                # НОВОЕ: Финальная проверка максимальной громкости
                 final_volume = getattr(self.sound, 'volume', 0)
-                logger.info(f"🎵 Final volume check: target={int(self.current_volume*100)}%, actual={int(final_volume*100)}%")
+                final_system = self._get_current_system_volume()
+                
+                logger.info(f"🎵 FINAL MAXIMUM check: pygame={int(final_volume*100)}%, system={final_system}%")
                 
                 self._update_volume_display()
                 return False  # Stop the interval
                 
         except Exception as e:
-            logger.error(f"❌ Error in fade-in: {e}")
+            logger.error(f"❌ Error in enhanced fade-in: {e}")
             return False  # Stop on error
     
     def _update_volume_display(self):
-        """Update volume display in UI"""
+        """Update volume display in UI with enhanced info"""
         if self.volume_label and self.fadein:
             volume_percent = int(self.current_volume * 100)
-            volume_bars = "🔊" if volume_percent > 60 else "🔉" if volume_percent > 20 else "🔈"
-            self.volume_label.text = f"{volume_bars} Volume: {volume_percent}%"
+            
+            # НОВОЕ: Показываем усиленную громкость
+            if volume_percent > 100:
+                volume_bars = "🔊🔊"  # Двойной значок для усиления
+                status = f"BOOSTED {volume_percent}%"
+            elif volume_percent > 80:
+                volume_bars = "🔊"
+                status = f"{volume_percent}%"
+            elif volume_percent > 40:
+                volume_bars = "🔉"
+                status = f"{volume_percent}%"
+            else:
+                volume_bars = "🔈"
+                status = f"{volume_percent}%"
+            
+            self.volume_label.text = f"{volume_bars} Volume: {status}"
     
     def _on_snooze_button(self, button_instance):
         """Handle snooze button press - 5 minute delay"""
@@ -504,14 +631,14 @@ class AlarmPopup(ModalView):
             if self.sound:
                 if hasattr(self.sound, 'state') and self.sound.state != 'stop':
                     self.sound.stop()
-                    logger.info("🔇 Sound stopped")
+                    logger.info("🔇 MAXIMUM volume sound stopped")
                 self.sound = None
             
             # Update volume display
             if self.volume_label:
                 self.volume_label.text = "🔇 Alarm stopped"
             
-            logger.info("🔇 Alarm sound stopped completely")
+            logger.info("🔇 MAXIMUM volume alarm sound stopped completely")
             
         except Exception as e:
             logger.error(f"❌ Error stopping sound: {e}")
