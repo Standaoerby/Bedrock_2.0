@@ -94,7 +94,7 @@ cd _preq/
 ### Шаг 2: Конфигурация деплоя
 Отредактируй переменные в начале `deploy.sh`:
 ```bash
-PI_HOST="192.168.1.234"        # IP адрес твоего Pi
+PI_HOST="192.168.1.243"        # IP адрес твоего Pi
 PI_USER="standa"               # Имя пользователя на Pi
 PI_PASS="crossover"            # Пароль (если не используешь SSH ключи)
 LOCAL_PROJECT_PATH="/mnt/c/_PROJECTS/Bedrock_2.0"

@@ -148,17 +148,27 @@ class ConfigManager:
         }
         
         for name, path in config_files.items():
-            self._configs[name] = self._load_config_with_defaults(name, path)
+            try:
+                self._configs[name] = self._load_config_with_defaults(name, path)
+            except Exception as e:
+                logger.error(f"Error loading config {name}: {e}")
+                self._configs[name] = self._get_default_config(name)
     
     def _load_config_with_defaults(self, name, path):
         """Загрузить конфиг с fallback значениями"""
         defaults = self._get_default_config(name)
         config = safe_json_load(path, defaults)
         
-        # Merge with defaults to ensure all keys exist
-        for key, value in defaults.items():
-            if key not in config:
-                config[key] = value
+        # ИСПРАВЛЕНИЕ: Проверяем что defaults это словарь перед вызовом .items()
+        if isinstance(defaults, dict) and isinstance(config, dict):
+            # Merge with defaults to ensure all keys exist
+            for key, value in defaults.items():
+                if key not in config:
+                    config[key] = value
+        elif isinstance(defaults, list):
+            # Для списков (например notifications) просто используем загруженные данные или defaults
+            if not isinstance(config, list):
+                config = defaults
         
         return config
     
@@ -203,18 +213,22 @@ class ConfigManager:
                     "clean": {"label": "Cleaning", "max_hours": 12, "last_reset": get_current_time_str()}
                 }
             },
+            # ИСПРАВЛЕНИЕ: notifications должно быть списком по умолчанию
             'notifications': []
         }
         return defaults.get(name, {})
     
     def get_config(self, name):
         """Получить конфигурацию"""
-        return self._configs.get(name, {})
+        return self._configs.get(name, self._get_default_config(name))
     
     def update_config(self, name, data):
         """Обновить конфигурацию"""
         if name in self._configs:
-            self._configs[name].update(data)
+            if isinstance(self._configs[name], dict) and isinstance(data, dict):
+                self._configs[name].update(data)
+            else:
+                self._configs[name] = data
     
     def save_config(self, name):
         """Сохранить конфигурацию"""
@@ -235,9 +249,29 @@ class ConfigManager:
         """Сохранить все конфигурации"""
         success = True
         for name in self._configs.keys():
-            if not self.save_config(name):
+            try:
+                if not self.save_config(name):
+                    success = False
+                    logger.error(f"Failed to save config: {name}")
+            except Exception as e:
+                logger.error(f"Error saving config {name}: {e}")
                 success = False
         return success
 
-# Глобальный экземпляр
-config_manager = ConfigManager()
+# Глобальный экземпляр с защитой от ошибок
+try:
+    config_manager = ConfigManager()
+except Exception as e:
+    logger.error(f"Failed to initialize ConfigManager: {e}")
+    # Создаем заглушку чтобы приложение не упало
+    class DummyConfigManager:
+        def get_config(self, name):
+            return {}
+        def update_config(self, name, data):
+            pass
+        def save_config(self, name):
+            return False
+        def save_all_configs(self):
+            return False
+    
+    config_manager = DummyConfigManager()

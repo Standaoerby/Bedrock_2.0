@@ -44,7 +44,7 @@ cd /mnt/c/_PROJECTS/Bedrock_2.0
 ### 2. Настройка конфигурации деплоя
 Отредактируй IP и данные для подключения в `deploy.sh`:
 ```bash
-PI_HOST="192.168.1.234"        # IP твоего Pi
+PI_HOST="192.168.1.243"        # IP твоего Pi
 PI_USER="standa"               # Имя пользователя
 PI_PASS="crossover"            # Пароль
 ```

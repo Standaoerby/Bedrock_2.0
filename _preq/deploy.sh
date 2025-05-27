@@ -17,7 +17,7 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Configuration - ОБНОВИТЕ ПОД ВАШУ КОНФИГУРАЦИЮ
-PI_HOST="192.168.1.234"  # ВАША IP АДРЕС PI
+PI_HOST="192.168.1.243"  # ВАША IP АДРЕС PI
 PI_USER="standa"         # ВАШ ПОЛЬЗОВАТЕЛЬ
 PI_PASS="crossover"      # ВАШ ПАРОЛЬ
 LOCAL_PROJECT_PATH="/mnt/c/_PROJECTS/Bedrock_2.0"  # ПУТЬ К ПРОЕКТУ НА WINDOWS
@@ -198,40 +198,140 @@ show_deployment_plan() {
 }
 
 # Stop existing processes
+# Улучшенная функция остановки процессов для deploy.sh
+# Замени существующую функцию stop_existing_app этим кодом
+
+# Улучшенная функция остановки процессов для deploy.sh
+# Замени существующую функцию stop_existing_app этим кодом
+
 stop_existing_app() {
     log_step "🛑 Stopping existing processes..."
     
-    # More thorough process stopping
-    ssh_execute "
-        # Kill Python processes
-        timeout 10 pkill -f 'python.*main.py' 2>/dev/null || true
-        timeout 10 pkill -f 'bedrock.*py' 2>/dev/null || true
-        timeout 10 pkill -f 'python.*bedrock' 2>/dev/null || true
+    # Проверяем что процессы действительно есть
+    log_info "Checking for running Bedrock processes..."
+    
+    # Используем более короткий таймаут для проверки
+    if ! timeout 10 sshpass -p "$PI_PASS" ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$PI_USER@$PI_HOST" "pgrep -f 'python.*main.py' >/dev/null 2>&1"; then
+        log_info "No Bedrock processes found - this is normal for first installation"
+        return 0
+    fi
+    
+    log_info "Found running Bedrock processes, stopping them..."
+    
+    # Поэтапная остановка с таймаутами
+    log_info "Step 1: Graceful shutdown attempt..."
+    
+    # Первая попытка - graceful остановка с таймаутом
+    if timeout 15 sshpass -p "$PI_PASS" ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$PI_USER@$PI_HOST" "
+        echo 'Sending SIGTERM to processes...'
+        pkill -TERM -f 'python.*main.py' 2>/dev/null || echo 'No main.py processes found'
+        pkill -TERM -f 'bedrock.*py' 2>/dev/null || echo 'No bedrock processes found'
         
-        # Wait a moment
-        sleep 2
+        echo 'Waiting 5 seconds for graceful shutdown...'
+        sleep 5
         
-        # Force kill if still running
-        timeout 5 pkill -9 -f 'python.*main.py' 2>/dev/null || true
-        
-        # Check if any processes remain
+        echo 'Checking if processes stopped...'
         if pgrep -f 'python.*main.py' >/dev/null 2>&1; then
-            echo 'Warning: Some processes may still be running'
+            echo 'Some processes still running'
             exit 1
         else
-            echo 'All processes stopped successfully'
+            echo 'All processes stopped gracefully'
+            exit 0
         fi
-    " "Stopping application processes"
+    "; then
+        log_success "All processes stopped gracefully ✓"
+        return 0
+    fi
     
-    log_success "Processes stopped ✓"
+    log_warning "Graceful shutdown failed or timed out, trying force kill..."
+    
+    # Вторая попытка - принудительная остановка
+    log_info "Step 2: Force kill attempt..."
+    
+    if timeout 10 sshpass -p "$PI_PASS" ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$PI_USER@$PI_HOST" "
+        echo 'Force killing processes...'
+        pkill -KILL -f 'python.*main.py' 2>/dev/null || echo 'No processes to kill'
+        pkill -KILL -f 'bedrock.*py' 2>/dev/null || echo 'No processes to kill'
+        
+        sleep 2
+        
+        echo 'Final check...'
+        if pgrep -f 'python.*main.py' >/dev/null 2>&1; then
+            echo 'ERROR: Some processes still running after force kill'
+            ps aux | grep -E '(python.*main|bedrock)' | grep -v grep | head -5
+            exit 1
+        else
+            echo 'All processes force killed successfully'
+            exit 0
+        fi
+    "; then
+        log_success "All processes force killed ✓"
+        return 0
+    fi
+    
+    log_warning "Force kill also failed or timed out..."
+    
+    # Последняя попытка - диагностика
+    log_info "Step 3: Process diagnostics..."
+    
+    timeout 10 sshpass -p "$PI_PASS" ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$PI_USER@$PI_HOST" "
+        echo '=== PROCESS DIAGNOSTICS ==='
+        echo 'All Python processes:'
+        ps aux | grep python | grep -v grep | head -10 || echo 'No Python processes found'
+        
+        echo
+        echo 'Bedrock-related processes:'
+        ps aux | grep -E '(bedrock|main\.py)' | grep -v grep || echo 'No Bedrock processes found'
+        
+        echo
+        echo 'System load:'
+        uptime
+        
+        echo
+        echo 'Memory usage:'
+        free -h | head -2
+    " || log_warning "Diagnostics also timed out"
+    
+    # Решение - продолжить деплой с предупреждением
+    log_warning "⚠️  Process cleanup incomplete, but continuing deployment..."
+    log_info "The deployment will overwrite files and may resolve the issue"
+    log_info "If problems persist, try manual reboot: ssh $PI_USER@$PI_HOST 'sudo reboot'"
+    
+    return 0  # Не прерываем деплой
+}
+
+# Также добавь улучшенную функцию SSH с таймаутами
+ssh_execute_safe() {
+    local command="$1"
+    local description="${2:-Executing command}"
+    local timeout_seconds="${3:-30}"
+    
+    log_to_file "SSH Command (timeout ${timeout_seconds}s): $command"
+    
+    if timeout "$timeout_seconds" sshpass -p "$PI_PASS" ssh -o ConnectTimeout=15 -o StrictHostKeyChecking=no "$PI_USER@$PI_HOST" "$command"; then
+        log_to_file "SSH Success: $description"
+        return 0
+    else
+        local exit_code=$?
+        if [ $exit_code -eq 124 ]; then
+            log_error "SSH Timeout (${timeout_seconds}s): $description"
+        else
+            log_error "SSH Failed (code $exit_code): $description"
+        fi
+        log_to_file "SSH Error: $description - Command: $command - Exit code: $exit_code"
+        return $exit_code
+    fi
 }
 
 # Install system dependencies with verification
+# Исправленная функция установки системных зависимостей для deploy.sh
+# Замени существующую функцию install_system_dependencies этим кодом
+
 install_system_dependencies() {
     log_step "📦 Installing Pi 5 system dependencies..."
     
-    # Create comprehensive installation script
-    cat > /tmp/install_deps_verified.sh << 'EOF'
+    # Create comprehensive installation script with fixed package names for Pi OS Bookworm
+    cat > /tmp/install_deps_bookworm_fixed.sh << 'EOF'
 #!/bin/bash
 set -e
 export DEBIAN_FRONTEND=noninteractive
@@ -239,42 +339,152 @@ export DEBIAN_FRONTEND=noninteractive
 log_section() { echo "=== $1 ==="; }
 
 log_section "Updating package lists"
-sudo apt update
+sudo apt-get update -qq
 
 log_section "Installing core development packages"
-sudo apt install -y python3-pip python3-venv python3-dev build-essential pkg-config cmake git curl wget unzip
+sudo apt-get install -y -qq python3-pip python3-venv python3-dev build-essential pkg-config cmake git curl wget unzip
 
 log_section "Installing Pi 5 graphics packages"
-sudo apt install -y libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libdrm-dev libxss1 libasound2-dev libpulse-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxinerama-dev libxxf86vm-dev libxfixes-dev
+sudo apt-get install -y -qq libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libdrm-dev libxss1 libasound2-dev libpulse-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxinerama-dev libxxf86vm-dev libxfixes-dev
 
 log_section "Installing Pi 5 multimedia packages"
-sudo apt install -y gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-alsa gstreamer1.0-libcamera python3-gst-1.0
+sudo apt-get install -y -qq gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-alsa gstreamer1.0-libcamera python3-gst-1.0
 
 log_section "Installing Pi 5 GPIO and I2C packages - CRITICAL FOR PI 5"
-sudo apt install -y i2c-tools python3-lgpio python3-gpiozero python3-smbus python3-smbus2
+sudo apt-get install -y -qq i2c-tools python3-lgpio python3-gpiozero python3-smbus python3-smbus2
 
 log_section "Installing audio packages"
-sudo apt install -y alsa-utils pulseaudio pulseaudio-utils
+sudo apt-get install -y -qq alsa-utils pulseaudio pulseaudio-utils
 
 log_section "Installing system Python packages"
-sudo apt install -y python3-numpy python3-scipy python3-pygame python3-gi python3-gi-cairo gir1.2-gtk-3.0
+sudo apt-get install -y -qq python3-numpy python3-scipy python3-pygame python3-gi python3-gi-cairo gir1.2-gtk-3.0
 
-log_section "Installing touch and desktop packages"
-sudo apt install -y xinput xserver-xorg-input-evdev xdotool wmctrl xset unclutter
+log_section "Installing touch and desktop packages - FIXED FOR BOOKWORM"
+# Fixed package names for Pi OS Bookworm
+sudo apt-get install -y -qq xinput xserver-xorg-input-evdev xdotool wmctrl x11-xserver-utils unclutter
+
+log_section "Installing additional X11 utilities"
+# Additional packages that might be needed
+sudo apt-get install -y -qq x11-apps x11-utils x11-common
 
 log_section "Verifying critical packages"
-python3 -c "import lgpio; print('✓ lgpio available')" 2>/dev/null || echo "✗ lgpio not available"
-which i2cdetect >/dev/null && echo "✓ i2c-tools available" || echo "✗ i2c-tools not available"
-which pulseaudio >/dev/null && echo "✓ pulseaudio available" || echo "✗ pulseaudio not available"
+echo "Testing critical imports..."
 
-echo "Pi 5 dependencies installation completed"
+# Test lgpio
+if python3 -c "import lgpio; print('✓ lgpio available')" 2>/dev/null; then
+    echo "✓ lgpio: OK"
+else
+    echo "✗ lgpio: FAILED"
+fi
+
+# Test i2c tools
+if which i2cdetect >/dev/null 2>&1; then
+    echo "✓ i2c-tools: OK"
+else
+    echo "✗ i2c-tools: FAILED"
+fi
+
+# Test pulseaudio
+if which pulseaudio >/dev/null 2>&1; then
+    echo "✓ pulseaudio: OK"
+else
+    echo "✗ pulseaudio: FAILED"
+fi
+
+# Test xset replacement
+if which xset >/dev/null 2>&1; then
+    echo "✓ xset (x11-xserver-utils): OK"
+else
+    echo "⚠ xset: Not found but x11-xserver-utils should provide similar functionality"
+fi
+
+# Test pygame
+if python3 -c "import pygame; print('✓ pygame available')" 2>/dev/null; then
+    echo "✓ pygame: OK"
+else
+    echo "⚠ pygame: Not available systemwide (will be installed in venv)"
+fi
+
+echo ""
+echo "Pi 5 system dependencies installation completed!"
+echo "Any warnings (⚠) above are usually not critical."
 EOF
 
-    scp_copy "/tmp/install_deps_verified.sh" "/tmp/" "Copying dependency installation script"
-    ssh_execute "chmod +x /tmp/install_deps_verified.sh && /tmp/install_deps_verified.sh" "Installing system dependencies"
-    rm /tmp/install_deps_verified.sh
+    scp_copy "/tmp/install_deps_bookworm_fixed.sh" "/tmp/" "Copying dependency installation script"
     
-    log_success "System dependencies installed ✓"
+    # Run with better error handling
+    if ssh_execute "chmod +x /tmp/install_deps_bookworm_fixed.sh && /tmp/install_deps_bookworm_fixed.sh" "Installing system dependencies"; then
+        log_success "System dependencies installed ✓"
+    else
+        log_warning "Some system dependencies may have failed to install"
+        log_info "Attempting to install critical packages individually..."
+        
+        # Try to install critical packages one by one
+        ssh_execute "sudo apt-get update -qq" "Updating package lists"
+        
+        # Core packages
+        ssh_execute "sudo apt-get install -y -qq python3-pip python3-venv python3-dev build-essential || echo 'Some core packages failed'" "Installing core packages"
+        
+        # GPIO and I2C - most critical for Pi 5
+        ssh_execute "sudo apt-get install -y -qq i2c-tools python3-lgpio python3-gpiozero || echo 'Some GPIO packages failed'" "Installing GPIO packages"
+        
+        # Graphics - important for Kivy
+        ssh_execute "sudo apt-get install -y -qq libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev || echo 'Some graphics packages failed'" "Installing graphics packages"
+        
+        # X11 utilities - try alternative approach
+        ssh_execute "sudo apt-get install -y -qq x11-xserver-utils xinput xdotool wmctrl || echo 'Some X11 packages failed'" "Installing X11 packages"
+        
+        log_warning "Individual package installation completed with potential failures"
+        log_info "The deployment will continue - missing packages may not be critical"
+    fi
+    
+    rm /tmp/install_deps_bookworm_fixed.sh
+}
+
+# Также добавь функцию для проверки критических зависимостей
+verify_critical_dependencies() {
+    log_step "🔍 Verifying critical dependencies..."
+    
+    local critical_ok=true
+    
+    # Test Python 3
+    if ssh_execute "python3 --version" "Testing Python 3"; then
+        log_success "✓ Python 3 available"
+    else
+        log_error "✗ Python 3 not available"
+        critical_ok=false
+    fi
+    
+    # Test pip
+    if ssh_execute "python3 -m pip --version" "Testing pip"; then
+        log_success "✓ pip available"
+    else
+        log_error "✗ pip not available"
+        critical_ok=false
+    fi
+    
+    # Test venv
+    if ssh_execute "python3 -m venv --help >/dev/null" "Testing venv"; then
+        log_success "✓ venv available"
+    else
+        log_error "✗ venv not available"
+        critical_ok=false
+    fi
+    
+    # Test I2C tools
+    if ssh_execute "which i2cdetect >/dev/null" "Testing I2C tools"; then
+        log_success "✓ I2C tools available"
+    else
+        log_warning "⚠ I2C tools not available - sensors may not work"
+    fi
+    
+    if $critical_ok; then
+        log_success "All critical dependencies verified ✓"
+        return 0
+    else
+        log_error "Some critical dependencies are missing"
+        return 1
+    fi
 }
 
 # Enhanced hardware configuration
