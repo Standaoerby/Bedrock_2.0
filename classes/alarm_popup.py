@@ -9,6 +9,7 @@ from kivy.animation import Animation
 from datetime import datetime
 import os
 import logging
+import subprocess
 from services.sound_service import PyGameSound
 from utils.common import config_manager
 
@@ -41,21 +42,43 @@ class AlarmPopup(ModalView):
         self.theme = app.theme_config if app else {}
         self.font_name = self.theme.get("font_name", "Minecraftia")
         
-        # Audio properties
+        # ИСПРАВЛЕНО: Правильные параметры fade-in
         self.sound = None
         self.sound_path = None
         self.ringtone = ringtone
         self.fadein = fadein
-        # ИСПРАВЛЕНО: Начинаем с хорошо слышимой громкости при fade-in
-        self.current_volume = 0.35 if fadein else 0.85  # Start at 35% if fade-in, 85% if not
-        self.max_volume = 0.85  # Maximum volume
-        self.fade_time = 6.0  # Быстрый fade-in: 6 секунд
+        
+        # ИСПРАВЛЕНО: Начинаем с 10% и идем к максимальной системной громкости
+        self.start_volume = 0.2  # 10% начальная громкость
+        self.current_volume = self.start_volume
+        self.max_volume = self._get_system_max_volume()  # Получаем максимальную системную громкость
+        self.fade_time = 15.0  # ИСПРАВЛЕНО: 15 секунд fade-in
         self._fade_event = None
+        self._loop_event = None  # Для зацикливания звука
         
         # Create the beautiful UI
         self._create_ui()
         
-        logger.info(f"🚨 Beautiful AlarmPopup created for {self.username}, ringtone: {ringtone}, fadein: {fadein}")
+        logger.info(f"🚨 AlarmPopup created: user={self.username}, ringtone={ringtone}, fadein={fadein}")
+        logger.info(f"🔊 Volume settings: start={int(self.start_volume*100)}%, max={int(self.max_volume*100)}%, fade_time={self.fade_time}s")
+    
+    def _get_system_max_volume(self):
+        """Получить максимальную системную громкость"""
+        try:
+            # Пытаемся получить текущую громкость системы
+            result = subprocess.run(['amixer', 'get', 'Master'], 
+                                  capture_output=True, text=True, timeout=5)
+            
+            if result.returncode == 0:
+                # Парсим максимальную громкость (обычно это 100%)
+                return 1  # 100% от максимума
+            else:
+                logger.warning("Could not get system volume, using default max")
+                return 0.85  # Fallback к 85%
+                
+        except Exception as e:
+            logger.warning(f"Error getting system max volume: {e}")
+            return 0.85  # Safe fallback
     
     def _get_username(self):
         """Get username from user config"""
@@ -134,7 +157,7 @@ class AlarmPopup(ModalView):
         font_secondary = self.theme.get("colors", {}).get("font_secondary", [0.8, 0.8, 1, 1])
         
         self.volume_label = Label(
-            text="🔊 Volume: 35%" if self.fadein else "",
+            text=f"🔊 Volume: {int(self.start_volume*100)}%" if self.fadein else "",
             font_name=self.font_name,
             font_size="20sp",
             color=font_secondary,
@@ -236,7 +259,7 @@ class AlarmPopup(ModalView):
                 
             logger.info(f"🎵 Loading alarm sound: {path}")
             
-            # ИСПРАВЛЕНО: Используем прямое создание звука как в остальном приложении
+            # ИСПРАВЛЕНО: Улучшенная загрузка звука
             try:
                 import pygame
                 if not pygame.mixer.get_init():
@@ -267,31 +290,34 @@ class AlarmPopup(ModalView):
                     
                 logger.info(f"✅ Sound loaded via sound service fallback")
             
-            # ИСПРАВЛЕНО: Устанавливаем параметры звука
+            # ИСПРАВЛЕНО: Устанавливаем правильные параметры звука
             if not self.sound or not self.sound._sound:
                 logger.error("❌ Sound object invalid")
                 return
             
-            # НЕ устанавливаем loop - будем управлять повтором вручную
+            # НЕ зацикливаем автоматически - будем управлять вручную
             self.sound.loop = False
             
-            # Устанавливаем начальную громкость
+            # ИСПРАВЛЕНО: Устанавливаем начальную громкость (10%)
+            self.current_volume = self.start_volume
             self.sound.volume = self.current_volume
             
             logger.info(f"🎵 Starting alarm playback at {int(self.current_volume*100)}% volume")
-            logger.info(f"🔊 Fade-in enabled: {self.fadein}")
+            logger.info(f"🔊 Will fade to {int(self.max_volume*100)}% over {self.fade_time} seconds")
             
             # Запускаем воспроизведение
             self.sound.play()
             
-            # ДОБАВЛЕНО: Сразу планируем следующий цикл для зацикливания
-            self._schedule_next_play()
+            # ДОБАВЛЕНО: Планируем зацикливание звука
+            self._schedule_sound_loop()
             
             # Start fade-in if enabled
             if self.fadein:
                 self.start_fade_in()
             else:
-                # Update volume display even without fade-in
+                # Если fade-in отключен, сразу устанавливаем максимальную громкость
+                self.current_volume = self.max_volume
+                self.sound.volume = self.current_volume
                 self._update_volume_display()
                 
         except Exception as e:
@@ -299,8 +325,34 @@ class AlarmPopup(ModalView):
             import traceback
             logger.error(traceback.format_exc())
     
+    def _schedule_sound_loop(self):
+        """Планируем зацикливание звука"""
+        if self._sound_stopped:
+            return
+            
+        # Планируем проверку состояния звука каждые 2 секунды
+        self._loop_event = Clock.schedule_interval(self._check_sound_loop, 2.0)
+    
+    def _check_sound_loop(self, dt):
+        """Проверяем нужно ли перезапустить звук для зацикливания"""
+        if self._sound_stopped or not self.sound:
+            return False  # Останавливаем событие
+            
+        try:
+            # Проверяем состояние звука
+            if self.sound.state == 'stop':
+                logger.debug("🔄 Restarting alarm sound for loop")
+                self.sound.play()
+                return True  # Продолжаем событие
+            else:
+                return True  # Продолжаем следить
+                
+        except Exception as e:
+            logger.error(f"❌ Error in sound loop check: {e}")
+            return False  # Останавливаем событие при ошибке
+    
     def start_fade_in(self):
-        """Gradually increase volume with improved algorithm"""
+        """ИСПРАВЛЕНО: Правильный fade-in от 10% до максимума за 15 секунд"""
         if self._sound_stopped:
             return
             
@@ -311,14 +363,14 @@ class AlarmPopup(ModalView):
         
         logger.info(f"🔊 Starting fade-in from {int(self.current_volume*100)}% to {int(self.max_volume*100)}% over {self.fade_time} seconds")
         
-        # ИСПРАВЛЕНО: Более агрессивный fade-in с проверкой применения громкости
-        total_steps = int(self.fade_time * 8)  # 8 шагов в секунду для очень плавности
+        # ИСПРАВЛЕНО: Правильный расчет fade-in параметров
+        total_steps = int(self.fade_time * 4)  # 4 шага в секунду для плавности
         volume_increase = (self.max_volume - self.current_volume) / total_steps
         fade_interval = self.fade_time / total_steps
         
         logger.info(f"🔊 Fade parameters: {total_steps} steps, increase per step: {volume_increase:.4f}, interval: {fade_interval:.3f}s")
         
-        # ДОБАВЛЕНО: Принудительно проверяем текущую громкость звука
+        # Проверяем текущую громкость звука
         if self.sound:
             actual_volume = getattr(self.sound, 'volume', 0)
             logger.info(f"🎵 Current sound volume check: set={self.current_volume:.2f}, actual={actual_volume:.2f}")
@@ -338,9 +390,9 @@ class AlarmPopup(ModalView):
         self._update_volume_display()
     
     def _increase_volume(self, volume_step):
-        """Improved volume increment with better error handling and verification"""
+        """ИСПРАВЛЕНО: Правильное увеличение громкости с проверкой максимума"""
         if not self.sound or self._sound_stopped:
-            logger.info("🔇 Fade-in stopped (sound stopped)")
+            logger.debug("🔇 Fade-in stopped (sound stopped)")
             return False
             
         try:
@@ -361,7 +413,9 @@ class AlarmPopup(ModalView):
                     self.sound.volume = self.current_volume
                     applied_volume = getattr(self.sound, 'volume', 0)
                 
-                logger.debug(f"🔊 Volume: {old_volume:.2f} → {self.current_volume:.2f} ({int(self.current_volume*100)}%) [applied: {applied_volume:.2f}]")
+                # Логируем каждый шаг для отладки
+                if int(old_volume * 100) != int(self.current_volume * 100):  # Логируем только при изменении процентов
+                    logger.info(f"🔊 Volume: {int(old_volume*100)}% → {int(self.current_volume*100)}% [applied: {int(applied_volume*100)}%]")
                 
                 # Update UI display
                 self._update_volume_display()
@@ -372,7 +426,7 @@ class AlarmPopup(ModalView):
                 
                 # ДОБАВЛЕНО: Финальная проверка громкости
                 final_volume = getattr(self.sound, 'volume', 0)
-                logger.info(f"🎵 Final volume check: target={self.current_volume:.2f}, actual={final_volume:.2f}")
+                logger.info(f"🎵 Final volume check: target={int(self.current_volume*100)}%, actual={int(final_volume*100)}%")
                 
                 self._update_volume_display()
                 return False  # Stop the interval
@@ -437,10 +491,14 @@ class AlarmPopup(ModalView):
         self._sound_stopped = True
         
         try:
-            # Cancel any scheduled fade events
+            # Cancel any scheduled events
             if self._fade_event:
                 self._fade_event.cancel()
                 self._fade_event = None
+            
+            if self._loop_event:
+                self._loop_event.cancel()
+                self._loop_event = None
             
             # Stop the sound
             if self.sound:

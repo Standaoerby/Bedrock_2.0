@@ -1,6 +1,8 @@
 from utils.common import BasePage
 from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
+from kivy.clock import Clock
 import os
+import time
 import logging
 
 logger = logging.getLogger("AlarmScreen")
@@ -17,10 +19,17 @@ class AlarmScreen(BasePage):
     ringtone_list = ListProperty([])
     alarm_fadein = BooleanProperty(False)
     current_sound = ObjectProperty(None, allownone=True)
+    
+    # ДОБАВЛЕНО: Защита от множественных нажатий
+    _last_button_press = 0
+    _button_debounce_time = 0.5  # 500ms защита от повторных нажатий
+    _sound_playing = False
+    _button_processing = False
 
     def on_pre_enter(self):
         """Вход на экран"""
-        self.stop_ringtone()
+        logger.info("Entering AlarmScreen")
+        self.stop_ringtone()  # Останавливаем любые играющие звуки
         self.load_ringtones()
         self.load_alarm_config()
         self.update_ui()
@@ -122,11 +131,18 @@ class AlarmScreen(BasePage):
         if spinner:
             spinner.text = self.selected_ringtone
         
-        # Reset play button state
+        # ИСПРАВЛЕНО: Правильно сбрасываем состояние кнопки воспроизведения
+        self._reset_play_button()
+
+    def _reset_play_button(self):
+        """Сбросить состояние кнопки воспроизведения"""
         play_button = self.safe_get_widget('play_button')
         if play_button:
             play_button.state = 'normal'
             play_button.text = 'Play'
+            # ДОБАВЛЕНО: Сбрасываем флаги состояния
+            self._sound_playing = False
+            self._button_processing = False
 
     def increment_hour(self):
         """Увеличить час"""
@@ -176,28 +192,81 @@ class AlarmScreen(BasePage):
     def select_ringtone(self, name):
         """Выбрать мелодию"""
         self.selected_ringtone = name
-        self.stop_ringtone()
-        
-        play_button = self.safe_get_widget('play_button')
-        if play_button:
-            play_button.state = 'normal'
-            play_button.text = 'Play'
+        self.stop_ringtone()  # Останавливаем предыдущий звук
+        self._reset_play_button()  # Сбрасываем кнопку
 
     def toggle_play_ringtone(self, state):
-        """Переключить воспроизведение мелодии"""
-        app = self.get_app()
-        app.play_sound("click")
+        """ИСПРАВЛЕНО: Переключить воспроизведение мелодии с защитой от множественных нажатий"""
+        current_time = time.time()
         
-        if state == 'down':
-            self.play_ringtone()
-            self.safe_set_widget_text('play_button', 'Stop')
+        # ДОБАВЛЕНО: Защита от быстрых повторных нажатий
+        if current_time - self._last_button_press < self._button_debounce_time:
+            logger.debug(f"Button press ignored due to debounce ({current_time - self._last_button_press:.2f}s)")
+            return
+        
+        # ДОБАВЛЕНО: Защита от обработки во время уже идущей операции
+        if self._button_processing:
+            logger.debug("Button press ignored - already processing")
+            return
+            
+        self._last_button_press = current_time
+        self._button_processing = True
+        
+        try:
+            app = self.get_app()
+            app.play_sound("click")
+            
+            logger.info(f"Play button toggled: state={state}, currently_playing={self._sound_playing}")
+            
+            if state == 'down' and not self._sound_playing:
+                # Начинаем воспроизведение
+                logger.info("Starting ringtone playback")
+                self.safe_set_widget_text('play_button', 'Stop')
+                self.play_ringtone()
+                
+            elif state == 'normal' and self._sound_playing:
+                # Останавливаем воспроизведение
+                logger.info("Stopping ringtone playback")
+                self.safe_set_widget_text('play_button', 'Play')
+                self.stop_ringtone()
+                
+            else:
+                # Несоответствие состояний - синхронизируем
+                logger.warning(f"State mismatch: button_state={state}, sound_playing={self._sound_playing}")
+                self._sync_button_state()
+                
+        except Exception as e:
+            logger.error(f"Error in toggle_play_ringtone: {e}")
+            # При ошибке сбрасываем состояние
+            self._reset_play_button()
+        finally:
+            # ДОБАВЛЕНО: Разблокируем обработку с небольшой задержкой
+            Clock.schedule_once(lambda dt: setattr(self, '_button_processing', False), 0.1)
+
+    def _sync_button_state(self):
+        """Синхронизировать состояние кнопки с реальным состоянием звука"""
+        play_button = self.safe_get_widget('play_button')
+        if not play_button:
+            return
+            
+        # Проверяем реальное состояние звука
+        actual_playing = self.current_sound and hasattr(self.current_sound, 'state') and self.current_sound.state != 'stop'
+        
+        if actual_playing != self._sound_playing:
+            logger.info(f"Syncing sound state: flag={self._sound_playing}, actual={actual_playing}")
+            self._sound_playing = actual_playing
+            
+        # Синхронизируем кнопку
+        if self._sound_playing:
+            play_button.state = 'down'
+            play_button.text = 'Stop'
         else:
-            self.stop_ringtone()
-            self.safe_set_widget_text('play_button', 'Play')
+            play_button.state = 'normal'  
+            play_button.text = 'Play'
 
     def play_ringtone(self):
-        """Воспроизвести мелодию"""
-        self.stop_ringtone()
+        """ИСПРАВЛЕНО: Воспроизвести мелодию с улучшенной обработкой ошибок"""
+        self.stop_ringtone()  # Сначала останавливаем любой играющий звук
         
         try:
             folder = "media/ringtones"
@@ -206,34 +275,85 @@ class AlarmScreen(BasePage):
             if not os.path.exists(path):
                 logger.warning(f"Ringtone file not found: {path}")
                 app = self.get_app()
-                app.play_sound("click")
+                app.play_sound("error")
+                self._reset_play_button()
                 return
                 
             app = self.get_app()
             self.current_sound = app.sound_service.load_sound_file(path)
             
-            if self.current_sound:
-                self.current_sound.play()
+            if self.current_sound and hasattr(self.current_sound, '_sound') and self.current_sound._sound:
                 logger.info(f"Playing ringtone preview: {path}")
+                
+                # ДОБАВЛЕНО: Устанавливаем громкость для предварительного прослушивания
+                self.current_sound.volume = 0.7  # 70% громкости для теста
+                
+                self.current_sound.play()
+                self._sound_playing = True
+                
+                # ДОБАВЛЕНО: Планируем проверку завершения воспроизведения
+                self._schedule_sound_check()
+                
+            else:
+                logger.error("Failed to create valid sound object")
+                app.play_sound("error")
+                self._reset_play_button()
 
         except Exception as e:
             logger.error(f"Error playing ringtone: {e}")
-            play_button = self.safe_get_widget('play_button')
-            if play_button:
-                play_button.state = 'normal'
-                play_button.text = 'Play'
+            app = self.get_app()
+            app.play_sound("error")
+            self._reset_play_button()
+
+    def _schedule_sound_check(self):
+        """Планируем проверку состояния звука"""
+        Clock.schedule_interval(self._check_sound_status, 0.5)
+
+    def _check_sound_status(self, dt):
+        """Проверяем состояние воспроизведения звука"""
+        try:
+            if not self.current_sound:
+                self._on_sound_finished()
+                return False  # Останавливаем событие
+                
+            # Проверяем состояние звука
+            if hasattr(self.current_sound, 'state'):
+                if self.current_sound.state == 'stop':
+                    self._on_sound_finished()
+                    return False  # Останавливаем событие
+                    
+            return True  # Продолжаем проверку
+            
+        except Exception as e:
+            logger.error(f"Error checking sound status: {e}")
+            self._on_sound_finished()
+            return False
+
+    def _on_sound_finished(self):
+        """Обработчик завершения воспроизведения"""
+        logger.info("Sound playback finished")
+        self._sound_playing = False
+        self._reset_play_button()
 
     def stop_ringtone(self):
-        """Остановить воспроизведение мелодии"""
+        """ИСПРАВЛЕНО: Остановить воспроизведение мелодии"""
         try:
             if self.current_sound:
-                if hasattr(self.current_sound, 'stop'):
-                    self.current_sound.stop()
+                if hasattr(self.current_sound, 'stop') and hasattr(self.current_sound, 'state'):
+                    if self.current_sound.state != 'stop':
+                        self.current_sound.stop()
+                        logger.info("Stopped ringtone preview")
+                        
                 self.current_sound = None
-                logger.info("Stopped ringtone preview")
+                
+            self._sound_playing = False
+            logger.info("Ringtone stopped and cleaned up")
+            
         except Exception as e:
             logger.error(f"Error stopping ringtone: {e}")
+            # Принудительно очищаем состояние
             self.current_sound = None
+            self._sound_playing = False
 
     def on_fadein_toggled(self, active):
         """Переключить fade-in"""
@@ -247,12 +367,16 @@ class AlarmScreen(BasePage):
 
     def on_leave(self):
         """Очистка при выходе с экрана"""
+        logger.info("Leaving alarm screen")
+        
+        # Останавливаем любые играющие звуки
         self.stop_ringtone()
         
-        play_button = self.safe_get_widget('play_button')
-        if play_button:
-            play_button.state = 'normal'
-            play_button.text = 'Play'
+        # Сбрасываем состояние кнопки
+        self._reset_play_button()
+        
+        # Очищаем таймеры
+        self.cleanup_timers()
         
         super().on_leave()
-        logger.info("Leaving alarm screen, resources cleaned up")
+        logger.info("Alarm screen cleanup completed")
