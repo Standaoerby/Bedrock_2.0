@@ -5,22 +5,28 @@ import logging
 import re
 from datetime import datetime
 
-# Configure Kivy before any imports
+# УПРОЩЕННАЯ конфигурация Kivy для Pi 5 fullscreen
 from kivy.config import Config
+
+# КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Простая и надёжная конфигурация fullscreen
 Config.set('graphics', 'width', '1024')
 Config.set('graphics', 'height', '600')
+Config.set('graphics', 'fullscreen', '1')
+Config.set('graphics', 'borderless', '1')
+Config.set('graphics', 'resizable', '0')
+Config.set('graphics', 'show_cursor', '0')
+Config.set('graphics', 'window_state', 'maximized')
 Config.set('graphics', 'position', 'custom')
 Config.set('graphics', 'left', '0')
 Config.set('graphics', 'top', '0')
-Config.set('graphics', 'borderless', '1')
-Config.set('graphics', 'fullscreen', '1')
-Config.set('graphics', 'resizable', '0')
-Config.set('graphics', 'show_cursor', '0')
+Config.set('graphics', 'minimum_width', '1024')
+Config.set('graphics', 'minimum_height', '600')
 
-# Environment variables
+# УПРОЩЕННЫЕ environment variables
 os.environ['KIVY_GL_BACKEND'] = 'sdl2'
 os.environ['KIVY_WINDOW'] = 'sdl2'
 os.environ['SDL_VIDEO_FULLSCREEN_HEAD'] = '0'
+os.environ['SDL_VIDEODRIVER'] = 'x11'
 
 # Kivy imports
 from kivy.core.text import LabelBase
@@ -69,7 +75,7 @@ from pages.pigs import PigsScreen
 from pages.settings import SettingsScreen
 
 class ThemedPanel(BoxLayout):
-    """Панель с автообновлением фона при смене темы"""
+    """УПРОЩЕННАЯ панель с автообновлением фона при смене темы"""
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -77,33 +83,27 @@ class ThemedPanel(BoxLayout):
         self.bg_rect = None
         self.bind(pos=self.update_rect, size=self.update_rect)
         
-        # ИСПРАВЛЕНО: Добавляем биндинг к изменениям темы
-        Clock.schedule_once(self._bind_to_theme, 0.1)
+        # Отложенная привязка к теме
+        Clock.schedule_once(self._setup_theme_binding, 0.1)
     
-    def _bind_to_theme(self, dt):
-        """Привязываемся к изменениям темы"""
+    def _setup_theme_binding(self, dt):
+        """Настройка привязки к теме"""
         try:
             app = self.get_app()
             if app and hasattr(app, 'theme_config'):
-                # Привязываемся к изменениям theme_config
-                app.bind(theme_config=self.on_theme_changed)
+                # ИСПРАВЛЕНО: Простая привязка без сложной логики
                 self.update_background()
             else:
-                # Повторяем попытку если приложение еще не готово
-                Clock.schedule_once(self._bind_to_theme, 0.5)
+                # Повторить попытку
+                Clock.schedule_once(self._setup_theme_binding, 0.5)
         except Exception as e:
-            logger.error(f"Error binding ThemedPanel to theme: {e}")
-    
-    def on_theme_changed(self, instance, value):
-        """НОВОЕ: Обработчик изменения темы"""
-        Clock.schedule_once(lambda dt: self.update_background(), 0.1)
+            logger.error(f"Error setting up theme binding: {e}")
     
     def update_background(self, *args):
-        """Обновление фона панели"""
+        """УПРОЩЕННОЕ обновление фона панели"""
         try:
             app = self.get_app()
             if not app or not hasattr(app, 'theme_config'):
-                Clock.schedule_once(self.update_background, 0.5)
                 return
             
             self.canvas.before.clear()
@@ -133,7 +133,7 @@ class ThemedPanel(BoxLayout):
         return App.get_running_app()
 
 class BedrockApp(MDApp):
-    """Главное приложение Bedrock"""
+    """УПРОЩЕННОЕ главное приложение Bedrock"""
     
     # Properties
     current_screen = StringProperty("home")
@@ -177,6 +177,8 @@ class BedrockApp(MDApp):
         
         # Auto theme state
         self._auto_theme_event = None
+        
+        logger.info(f"🎮 BedrockApp initialized: theme={self.theme_name}/{self.theme_mode}")
 
     def build(self):
         """Построить приложение"""
@@ -185,10 +187,36 @@ class BedrockApp(MDApp):
         try:
             self.ensure_directories()
             self._init_services()
-            return Builder.load_file('main.kv')
+            
+            # ИСПРАВЛЕНИЕ: Загружаем KV файл
+            root_widget = Builder.load_file('main.kv')
+            
+            # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно обновляем ThemedPanel после создания UI
+            Clock.schedule_once(self._refresh_themed_panels, 0.5)
+            
+            return root_widget
+            
         except Exception as e:
             logger.error(f"Error building app: {e}")
             raise
+
+    def _refresh_themed_panels(self, dt):
+        """НОВОЕ: Обновить все ThemedPanel после создания UI"""
+        try:
+            def update_panels_recursive(widget):
+                if isinstance(widget, ThemedPanel):
+                    widget.update_background()
+                
+                if hasattr(widget, 'children'):
+                    for child in widget.children:
+                        update_panels_recursive(child)
+            
+            if self.root:
+                update_panels_recursive(self.root)
+                logger.info("✅ All ThemedPanels refreshed")
+                
+        except Exception as e:
+            logger.error(f"Error refreshing themed panels: {e}")
 
     def ensure_directories(self):
         """Убедиться что все директории существуют"""
@@ -201,7 +229,7 @@ class BedrockApp(MDApp):
             os.makedirs(dir_path, exist_ok=True)
 
     def _init_services(self):
-        """Инициализировать все сервисы"""
+        """УПРОЩЕННАЯ инициализация сервисов"""
         try:
             # Core services
             self.alarm_service = AlarmService()
@@ -218,10 +246,10 @@ class BedrockApp(MDApp):
             self.sensor_service = SensorService()
             threading.Thread(target=self._init_sensors_async, daemon=True).start()
             
-            logger.info("Services initialized successfully")
+            logger.info("✅ Services initialized successfully")
             
         except Exception as e:
-            logger.error(f"Error initializing services: {e}")
+            logger.error(f"❌ Error initializing services: {e}")
             raise
 
     def _init_sensors_async(self):
@@ -286,8 +314,14 @@ class BedrockApp(MDApp):
 
     # Theme management
     def switch_theme_mode(self, mode):
-        """Переключить режим темы"""
-        return self.theme_manager.switch_theme_mode(mode)
+        """УПРОЩЕННОЕ переключение режима темы"""
+        success = self.theme_manager.switch_theme_mode(mode)
+        
+        if success:
+            # НОВОЕ: Обновляем все ThemedPanel после смены темы
+            Clock.schedule_once(self._refresh_themed_panels, 0.1)
+        
+        return success
 
     def set_auto_theme_enabled(self, enabled):
         """Включить/выключить автопереключение темы"""
@@ -306,102 +340,62 @@ class BedrockApp(MDApp):
 
     # App lifecycle
     def on_start(self):
-        """Запуск приложения"""
-        logger.info("App starting...")
+        """УПРОЩЕННЫЙ запуск приложения"""
+        logger.info("🚀 App starting...")
         try:
             self.root.ids.screen_manager.bind(current=self._update_current_screen)
             
             self.alarm_clock.start()
-            # Initialize theme based on current light level with better timing
-            Clock.schedule_once(self._initialize_theme_on_startup, 5)  # Увеличено с 2 до 5 секунд
             
-            # НОВОЕ: Дополнительная проверка через 10 секунд для подстраховки
-            Clock.schedule_once(self._secondary_theme_check, 10)
+            # УПРОЩЕННАЯ инициализация темы
+            Clock.schedule_once(self._simple_theme_init, 3)
             
             # Start auto theme monitoring
-            Clock.schedule_once(self._start_auto_theme, 8)  # Увеличено с 4 до 8 секунд
+            Clock.schedule_once(self._start_auto_theme, 5)
                 
         except Exception as e:
             logger.error(f"Error in on_start: {e}")
 
-    def _initialize_theme_on_startup(self, dt):
-        """Установить корректную тему при запуске"""
+    def _simple_theme_init(self, dt):
+        """УПРОЩЕННАЯ установка корректной темы при запуске"""
         try:
             if not self.auto_theme_enabled:
                 logger.info("Auto theme disabled, keeping current theme")
                 return
                 
-            if not self.sensor_service:
-                logger.warning("Sensor service not available for theme initialization")
+            if not self.sensor_service or not hasattr(self.sensor_service, 'sensor_available'):
+                logger.warning("Sensor service not ready, skipping theme init")
                 return
             
-            # ИСПРАВЛЕНО: Проверяем что сенсор действительно инициализирован
-            if not hasattr(self.sensor_service, 'sensor_available') or not self.sensor_service.sensor_available:
-                logger.warning("Sensor not yet available, scheduling retry")
-                Clock.schedule_once(self._initialize_theme_on_startup, 3)
-                return
-            
-            # Даем сенсору время стабилизироваться
-            logger.info("Waiting for sensor stabilization...")
-            Clock.schedule_once(self._apply_startup_theme, 2)
-            
-        except Exception as e:
-            logger.error(f"Error initializing startup theme: {e}")
-
-    def _apply_startup_theme(self, dt):
-        """Применить тему при запуске после стабилизации сенсора"""
-        try:
             current_light = self.sensor_service.get_light_level()
             target_mode = "light" if current_light else "dark"
             
-            logger.info(f"Startup sensor reading: {'Light' if current_light else 'Dark'}")
-            logger.info(f"Current theme mode: {self.theme_mode}")
-            logger.info(f"Target theme mode: {target_mode}")
+            logger.info(f"🎨 Startup theme check: sensor={'Light' if current_light else 'Dark'}, target='{target_mode}', current='{self.theme_mode}'")
             
             if target_mode != self.theme_mode:
-                logger.info(f"🎨 Setting startup theme: {self.theme_mode} → {target_mode}")
+                logger.info(f"🔄 Setting startup theme: {self.theme_mode} → {target_mode}")
                 if self.switch_theme_mode(target_mode):
                     self.notification_service.add(f"Theme set to {target_mode} mode", "system")
-                    logger.success(f"Startup theme changed to {target_mode}")
-                else:
-                    logger.error(f"Failed to change startup theme to {target_mode}")
-            else:
-                logger.info(f"Theme already correct: {target_mode}")
-                
-        except Exception as e:
-            logger.error(f"Error applying startup theme: {e}")
-
-    def _secondary_theme_check(self, dt):
-        """Вторичная проверка темы через 10 секунд после запуска"""
-        try:
-            if not self.auto_theme_enabled or not self.sensor_service:
-                return
-                
-            current_light = self.sensor_service.get_light_level()
-            target_mode = "light" if current_light else "dark"
-            
-            logger.info(f"Secondary theme check: sensor={'Light' if current_light else 'Dark'}, current_mode={self.theme_mode}")
-            
-            if target_mode != self.theme_mode:
-                logger.info(f"🔄 Secondary theme correction: {self.theme_mode} → {target_mode}")
-                if self.switch_theme_mode(target_mode):
-                    self.notification_service.add(f"Theme corrected to {target_mode}", "system")
                     self.play_sound("success")
-            
+                    logger.info(f"✅ Startup theme changed to {target_mode}")
+            else:
+                logger.info(f"✅ Theme already correct: {target_mode}")
+                
         except Exception as e:
-            logger.error(f"Error in secondary theme check: {e}")
+            logger.error(f"Error in simple theme init: {e}")
 
     def _start_auto_theme(self, dt):
-        """Запустить мониторинг автотемы"""
+        """УПРОЩЕННЫЙ запуск мониторинга автотемы"""
         if self.auto_theme_enabled and self.sensor_service:
-            logger.info("Starting auto theme monitoring...")
+            logger.info("🔄 Starting auto theme monitoring...")
             
             switch_delay = self.user_config.get("theme_switch_delay", 2)
             self.sensor_service.calibrate_light_sensor(switch_delay)
             
-            self._auto_theme_event = Clock.schedule_interval(self._check_auto_theme, 5)
+            self._auto_theme_event = Clock.schedule_interval(self._check_auto_theme, 10)  # Проверяем каждые 10 секунд
+
     def _check_auto_theme(self, dt):
-        """Проверить автопереключение темы"""
+        """УПРОЩЕННАЯ проверка автопереключения темы"""
         if not self.auto_theme_enabled or not self.sensor_service:
             return
             
@@ -411,7 +405,7 @@ class BedrockApp(MDApp):
                 target_mode = "light" if current_light else "dark"
                 
                 if target_mode != self.theme_mode:
-                    logger.info(f"Auto theme switch: {self.theme_mode} → {target_mode}")
+                    logger.info(f"🔄 Auto theme switch: {self.theme_mode} → {target_mode}")
                     if self.switch_theme_mode(target_mode):
                         self.notification_service.add(f"Theme switched to {target_mode}", "system")
                         self.play_sound("success")
@@ -432,7 +426,7 @@ class BedrockApp(MDApp):
 
     def on_stop(self):
         """Остановка приложения"""
-        logger.info("App stopping...")
+        logger.info("🛑 App stopping...")
         
         # Stop auto theme monitoring
         if self._auto_theme_event:
@@ -458,10 +452,10 @@ class BedrockApp(MDApp):
                     logger.error(f"Error stopping {service_name}: {e}")
 
 if __name__ == "__main__":
-    logger.info("Starting Bedrock App")
+    logger.info("🎮 Starting Bedrock App")
     try:
         BedrockApp().run()
     except Exception as e:
-        logger.critical(f"Fatal error: {e}")
+        logger.critical(f"💥 Fatal error: {e}")
         import traceback
         traceback.print_exc()

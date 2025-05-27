@@ -1,5 +1,6 @@
 from utils.common import BasePage, config_manager
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty
+from kivy.clock import Clock
 from datetime import datetime
 import os
 import logging
@@ -7,7 +8,7 @@ import logging
 logger = logging.getLogger("SettingsScreen")
 
 class SettingsScreen(BasePage):
-    """Экран настроек"""
+    """УПРОЩЕННЫЙ экран настроек"""
     
     # Theme properties
     current_theme = StringProperty("minecraft")
@@ -53,10 +54,10 @@ class SettingsScreen(BasePage):
             if not self.dark_mode_available:
                 if app.theme_manager.create_default_dark_theme():
                     self.dark_mode_available = True
-                    logger.info("Dark theme created successfully")
+                    logger.info("✅ Dark theme created successfully")
                 else:
                     self.dark_mode_enabled = False
-                    logger.warning("Dark theme not available")
+                    logger.warning("❌ Dark theme not available")
             
             logger.info(f"Dark mode available: {self.dark_mode_available}")
             
@@ -87,7 +88,7 @@ class SettingsScreen(BasePage):
                 except ValueError as e:
                     logger.warning(f"Invalid birthdate format: {birthdate}, error: {e}")
                     self.birth_year = "2000"
-                    self.birth_month = "1"
+                    self.birth_month = "1"  
                     self.birth_day = "1"
             
             logger.info("Settings loaded successfully")
@@ -200,10 +201,10 @@ class SettingsScreen(BasePage):
                     logger.info(f"Manual theme change: {old_mode} → {new_mode}")
                     app.switch_theme_mode(new_mode)
                 
-            logger.info("All settings saved successfully")
+            logger.info("✅ All settings saved successfully")
                 
         except Exception as e:
-            logger.error(f"Error saving settings: {e}")
+            logger.error(f"❌ Error saving settings: {e}")
             app = self.get_app()
             if app:
                 app.play_sound("error")
@@ -289,7 +290,7 @@ class SettingsScreen(BasePage):
             logger.error(f"Error setting threshold delay: {e}")
     
     def manual_theme_test(self):
-        """Тест ручного переключения темы"""
+        """УПРОЩЕННЫЙ тест ручного переключения темы"""
         app = self.get_app()
         if not app:
             return
@@ -301,156 +302,52 @@ class SettingsScreen(BasePage):
                 app.play_sound("error")
                 return
             
-            # Логируем текущие цвета перед переключением
+            # УПРОЩЕННОЕ переключение темы
             current_mode = app.theme_mode
-            current_font_color = app.theme_config.get("font_color", [1, 1, 1, 1])
-            logger.info(f"🎨 Before test: mode={current_mode}, font_color={current_font_color}")
-            
-            # Toggle theme mode for testing
             new_mode = "dark" if current_mode == "light" else "light"
             
-            logger.info(f"🧪 Manual theme test: switching to {new_mode} for 5 seconds")
+            logger.info(f"🧪 Manual theme test: switching to {new_mode} for 3 seconds")
             
             # Switch theme
             if app.switch_theme_mode(new_mode):
                 app.play_sound("success")
                 
-                # Проверяем цвета после переключения
-                Clock.schedule_once(self._check_test_colors, 0.5)
+                # Show notification
+                if hasattr(app, 'notification_service'):
+                    app.notification_service.add(f"Theme test: {new_mode} mode", "system")
                 
-                # Schedule switch back after 5 seconds
-                self.schedule_once(
-                    lambda dt: self._switch_back_from_test(current_mode, new_mode), 
-                    5
+                # Schedule switch back after 3 seconds
+                Clock.schedule_once(
+                    lambda dt: self._switch_back_from_test(current_mode), 
+                    3
                 )
             else:
                 app.play_sound("error")
-                logger.error("Theme test failed")
+                logger.error("❌ Theme test failed")
                 
         except Exception as e:
-            logger.error(f"Error in manual theme test: {e}")
+            logger.error(f"❌ Error in manual theme test: {e}")
             if app:
                 app.play_sound("error")
     
-    def _check_test_colors(self, dt):
-        """НОВОЕ: Проверяем что цвета изменились после теста"""
+    def _switch_back_from_test(self, original_mode):
+        """Возвращаем тему обратно после теста"""
         try:
             app = self.get_app()
             if not app:
                 return
                 
-            new_font_color = app.theme_config.get("font_color", [1, 1, 1, 1])
-            new_mode = app.theme_mode
-            
-            logger.info(f"🎨 After test switch: mode={new_mode}, font_color={new_font_color}")
-            
-            # Показываем результат пользователю
-            if hasattr(app, 'notification_service'):
-                color_desc = "darker" if all(c < 0.9 for c in new_font_color[:3]) else "brighter"
-                app.notification_service.add(f"Theme test: {new_mode} mode with {color_desc} colors", "system")
-                
-        except Exception as e:
-            logger.error(f"Error checking test colors: {e}")
-    
-    def _switch_back_from_test(self, original_mode, test_mode):
-        """НОВОЕ: Возвращаем тему обратно после теста"""
-        try:
-            app = self.get_app()
-            if not app:
-                return
-                
-            logger.info(f"🔄 Switching back from test: {test_mode} → {original_mode}")
+            logger.info(f"🔄 Switching back to {original_mode}")
             
             if app.switch_theme_mode(original_mode):
-                # Проверяем что цвета вернулись
-                Clock.schedule_once(lambda dt: self._verify_test_return(original_mode), 0.5)
-            else:
-                logger.error(f"Failed to switch back to {original_mode}")
-                
-        except Exception as e:
-            logger.error(f"Error switching back from test: {e}")
-    
-    def _verify_test_return(self, expected_mode):
-        """НОВОЕ: Проверяем что тема вернулась корректно"""
-        try:
-            app = self.get_app()
-            if not app:
-                return
-                
-            final_font_color = app.theme_config.get("font_color", [1, 1, 1, 1])
-            final_mode = app.theme_mode
-            
-            logger.info(f"🎨 After test return: mode={final_mode}, font_color={final_font_color}")
-            
-            if final_mode == expected_mode:
-                logger.info(f"✅ Theme test completed successfully")
                 if hasattr(app, 'notification_service'):
-                    app.notification_service.add(f"Theme test completed - returned to {final_mode}", "system")
-            else:
-                logger.warning(f"⚠️ Theme test issue: expected {expected_mode}, got {final_mode}")
-                
-        except Exception as e:
-            logger.error(f"Error verifying test return: {e}")
-    
-    def _check_test_colors(self, dt):
-        """НОВОЕ: Проверяем что цвета изменились после теста"""
-        try:
-            app = self.get_app()
-            if not app:
-                return
-                
-            new_font_color = app.theme_config.get("font_color", [1, 1, 1, 1])
-            new_mode = app.theme_mode
-            
-            logger.info(f"🎨 After test switch: mode={new_mode}, font_color={new_font_color}")
-            
-            # Показываем результат пользователю
-            if hasattr(app, 'notification_service'):
-                color_desc = "darker" if all(c < 0.9 for c in new_font_color[:3]) else "brighter"
-                app.notification_service.add(f"Theme test: {new_mode} mode with {color_desc} colors", "system")
-                
-        except Exception as e:
-            logger.error(f"Error checking test colors: {e}")
-    
-    def _switch_back_from_test(self, original_mode, test_mode):
-        """НОВОЕ: Возвращаем тему обратно после теста"""
-        try:
-            app = self.get_app()
-            if not app:
-                return
-                
-            logger.info(f"🔄 Switching back from test: {test_mode} → {original_mode}")
-            
-            if app.switch_theme_mode(original_mode):
-                # Проверяем что цвета вернулись
-                Clock.schedule_once(lambda dt: self._verify_test_return(original_mode), 0.5)
-            else:
-                logger.error(f"Failed to switch back to {original_mode}")
-                
-        except Exception as e:
-            logger.error(f"Error switching back from test: {e}")
-    
-    def _verify_test_return(self, expected_mode):
-        """НОВОЕ: Проверяем что тема вернулась корректно"""
-        try:
-            app = self.get_app()
-            if not app:
-                return
-                
-            final_font_color = app.theme_config.get("font_color", [1, 1, 1, 1])
-            final_mode = app.theme_mode
-            
-            logger.info(f"🎨 After test return: mode={final_mode}, font_color={final_font_color}")
-            
-            if final_mode == expected_mode:
+                    app.notification_service.add(f"Theme test completed - returned to {original_mode}", "system")
                 logger.info(f"✅ Theme test completed successfully")
-                if hasattr(app, 'notification_service'):
-                    app.notification_service.add(f"Theme test completed - returned to {final_mode}", "system")
             else:
-                logger.warning(f"⚠️ Theme test issue: expected {expected_mode}, got {final_mode}")
+                logger.error(f"❌ Failed to switch back to {original_mode}")
                 
         except Exception as e:
-            logger.error(f"Error verifying test return: {e}")
+            logger.error(f"❌ Error switching back from test: {e}")
     
     def update_birthdate(self):
         """Обновить дату рождения из UI"""
@@ -498,4 +395,5 @@ class SettingsScreen(BasePage):
             return f"{year:04d}-{month:02d}-{day:02d}"
         except Exception as e:
             logger.error(f"Error formatting birthdate: {e}")
+            return "2000-01-01"
             return "2000-01-01"

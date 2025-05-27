@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Bedrock 2.0 - Unified Pi 5 Launcher
-Единый лаунчер для Raspberry Pi 5 с полной поддержкой 1024x600 fullscreen
-Версия: 2.0 (Консолидированная)
+Bedrock 2.0 - УПРОЩЕННЫЙ Pi 5 Launcher
+Исправленная версия с надёжным fullscreen для Raspberry Pi 5
 """
 
 import os
@@ -11,54 +10,54 @@ import sys
 from datetime import datetime
 
 def setup_environment():
-    """Настройка окружения для Pi 5"""
+    """УПРОЩЕННАЯ настройка окружения для Pi 5"""
     print(f"🔧 Setting up Pi 5 environment...")
     
-    # Critical environment variables for Pi 5
+    # КРИТИЧЕСКИЕ environment variables для Pi 5
     os.environ['KIVY_GL_BACKEND'] = 'sdl2'
     os.environ['KIVY_WINDOW'] = 'sdl2'
     os.environ['SDL_VIDEO_FULLSCREEN_HEAD'] = '0'
     os.environ['SDL_VIDEODRIVER'] = 'x11'
     
-    # Disable Kivy settings panel
-    os.environ['KIVY_NO_CONFIG'] = '1'
-    os.environ['KIVY_NO_FILELOG'] = '1'
+    # ИСПРАВЛЕНИЕ: Убираем конфликтующие переменные
+    # os.environ['KIVY_NO_CONFIG'] = '1'  # Убрано - может мешать fullscreen
+    # os.environ['KIVY_NO_FILELOG'] = '1'  # Убрано - нужны логи
     
     print("✅ Environment configured for Pi 5")
 
 def configure_kivy_fullscreen():
-    """Принудительная настройка Kivy для fullscreen режима"""
+    """ИСПРАВЛЕННАЯ настройка Kivy для fullscreen режима"""
     print("🎯 Configuring Kivy for fullscreen...")
     
     try:
         from kivy.config import Config
         
-        # CRITICAL: Configure BEFORE any other Kivy imports!
-        # Graphics settings for Pi 5 (1024x600 touchscreen)
-        Config.set("graphics", "fullscreen", "1")
-        Config.set("graphics", "borderless", "1") 
-        Config.set("graphics", "window_state", "maximized")
+        # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Простая и надёжная конфигурация fullscreen
+        # Graphics settings для Pi 5 (1024x600 touchscreen)
         Config.set("graphics", "width", "1024")
         Config.set("graphics", "height", "600")
-        Config.set("graphics", "position", "custom")
-        Config.set("graphics", "left", "0")
-        Config.set("graphics", "top", "0")
-        Config.set("graphics", "show_cursor", "0")
+        Config.set("graphics", "fullscreen", "1")  # ОСНОВНАЯ настройка fullscreen
+        Config.set("graphics", "borderless", "1")
         Config.set("graphics", "resizable", "0")
-        Config.set("graphics", "minimum_width", "1024")
-        Config.set("graphics", "minimum_height", "600")
+        Config.set("graphics", "show_cursor", "0")
         
-        # Performance settings for Pi 5
+        # УБРАНО: Проблемные настройки
+        # Config.set("graphics", "window_state", "maximized")  # Может конфликтовать с fullscreen
+        # Config.set("graphics", "position", "custom")         # Не нужно для fullscreen
+        # Config.set("graphics", "left", "0")                  # Не нужно для fullscreen
+        # Config.set("graphics", "top", "0")                   # Не нужно для fullscreen
+        
+        # Performance settings для Pi 5
         Config.set("graphics", "maxfps", "60")
         Config.set("graphics", "vsync", "1")
-        Config.set("graphics", "multisamples", "0")  # Disable anti-aliasing for performance
+        Config.set("graphics", "multisamples", "0")  # Отключаем для производительности
         
-        # Input settings for touchscreen
+        # Input settings для touchscreen
         Config.set("input", "mouse", "mouse,multitouch_on_demand")
         
         # Desktop settings
         Config.set("kivy", "desktop", "1")
-        Config.set("kivy", "exit_on_escape", "0")  # Prevent accidental exit
+        Config.set("kivy", "exit_on_escape", "0")  # Предотвращаем случайный выход
         
         print("✅ Kivy configured for Pi 5 fullscreen")
         return True
@@ -88,7 +87,7 @@ def log_startup_info():
         print(f"⚠️  Could not write to log file: {e}")
 
 def check_dependencies():
-    """Проверка критических зависимостей"""
+    """УПРОЩЕННАЯ проверка критических зависимостей"""
     print("🔍 Checking dependencies...")
     
     critical_imports = [
@@ -117,16 +116,24 @@ def check_dependencies():
     return True
 
 def launch_application():
-    """Запуск основного приложения"""
+    """УПРОЩЕННЫЙ запуск основного приложения"""
     print("🎯 Launching Bedrock application...")
     
     try:
-        # Import and create the main application
+        # Import и создание основного приложения
         from main import BedrockApp
         
         print("✅ Main application imported successfully")
         
-        # Create and run the app
+        # ИСПРАВЛЕНИЕ: Дополнительная проверка что Kivy настроен правильно
+        try:
+            from kivy.core.window import Window
+            print(f"🖥️  Window size will be: {Window.width}x{Window.height}")
+            print(f"🖥️  Fullscreen mode: {Window.fullscreen}")
+        except Exception as e:
+            print(f"⚠️  Could not check window settings: {e}")
+        
+        # Создание и запуск приложения
         app = BedrockApp()
         print("🚀 Starting application main loop...")
         
@@ -143,7 +150,7 @@ def launch_application():
     except Exception as e:
         print(f"❌ Application error: {e}")
         
-        # Log detailed error for debugging
+        # Log detailed error для отладки
         import traceback
         error_details = traceback.format_exc()
         
@@ -161,9 +168,9 @@ def launch_application():
         return False
 
 def main():
-    """Главная функция лаунчера"""
+    """УПРОЩЕННАЯ главная функция лаунчера"""
     print("=" * 60)
-    print("🎮 BEDROCK 2.0 - RASPBERRY PI 5 LAUNCHER")
+    print("🎮 BEDROCK 2.0 - RASPBERRY PI 5 LAUNCHER (FIXED)")
     print("=" * 60)
     
     try:
@@ -175,14 +182,17 @@ def main():
         
         # Step 3: Check dependencies
         if not check_dependencies():
+            print("❌ Dependency check failed")
             sys.exit(1)
         
-        # Step 4: Configure Kivy for fullscreen
+        # Step 4: Configure Kivy для fullscreen
         if not configure_kivy_fullscreen():
+            print("❌ Kivy configuration failed")
             sys.exit(1)
         
         # Step 5: Launch application
         if not launch_application():
+            print("❌ Application launch failed")
             sys.exit(1)
             
         print("🎉 Bedrock launcher finished successfully")

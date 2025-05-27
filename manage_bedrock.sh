@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # =============================================================================
-# BEDROCK 2.0 - UNIFIED MANAGEMENT SCRIPT
+# BEDROCK 2.0 - ИСПРАВЛЕННЫЙ СКРИПТ УПРАВЛЕНИЯ
 # Единый скрипт управления приложением на Raspberry Pi 5
 # =============================================================================
 
 # Configuration
 APP_DIR="/home/standa/bedrock-app"
-APP_NAME="python.*main.py"
+APP_NAME="python.*bedrock_launcher.py"
 LAUNCHER="bedrock_launcher.py"
 VENV_PATH="$APP_DIR/venv"
 
@@ -66,22 +66,57 @@ start_app() {
     # Activate virtual environment and start app
     source "$VENV_PATH/bin/activate"
     
-    # Set display for Pi
+    # ИСПРАВЛЕНО: Устанавливаем переменные окружения для fullscreen
     export DISPLAY=:0
+    export KIVY_GL_BACKEND=sdl2
+    export KIVY_WINDOW=sdl2
+    export SDL_VIDEO_FULLSCREEN_HEAD=0
+    export SDL_VIDEODRIVER=x11
     
     # Start in background with logging
     nohup python "$LAUNCHER" > logs/app.log 2>&1 &
     APP_PID=$!
     
     # Wait a bit and check if it started successfully
-    sleep 3
+    sleep 5
     
     if get_app_status; then
         log_success "Application started successfully (PID: $APP_PID)"
+        
+        # НОВОЕ: Проверяем fullscreen через 10 секунд
+        sleep 10
+        check_fullscreen
     else
         log_error "Application failed to start"
         log_info "Check logs: tail -20 $APP_DIR/logs/app.log"
         return 1
+    fi
+}
+
+# НОВОЕ: Проверка fullscreen режима
+check_fullscreen() {
+    log_info "Checking fullscreen mode..."
+    
+    # Проверяем размер окна приложения
+    if command -v xwininfo >/dev/null 2>&1; then
+        # Ищем окно Bedrock
+        WINDOW_ID=$(xwininfo -root -tree | grep -i bedrock | head -1 | awk '{print $1}')
+        
+        if [[ -n "$WINDOW_ID" ]]; then
+            WINDOW_INFO=$(xwininfo -id "$WINDOW_ID" 2>/dev/null)
+            WIDTH=$(echo "$WINDOW_INFO" | grep "Width:" | awk '{print $2}')
+            HEIGHT=$(echo "$WINDOW_INFO" | grep "Height:" | awk '{print $2}')
+            
+            if [[ "$WIDTH" == "1024" && "$HEIGHT" == "600" ]]; then
+                log_success "✅ Fullscreen mode active: ${WIDTH}x${HEIGHT}"
+            else
+                log_warning "⚠️ Window size: ${WIDTH}x${HEIGHT} (expected 1024x600)"
+            fi
+        else
+            log_warning "⚠️ Could not find Bedrock window"
+        fi
+    else
+        log_info "xwininfo not available for fullscreen check"
     fi
 }
 
@@ -125,7 +160,7 @@ restart_app() {
     log_info "Restarting Bedrock application..."
     
     stop_app
-    sleep 2
+    sleep 3
     start_app
 }
 
@@ -141,6 +176,19 @@ show_status() {
             echo "  PID: $pid"
             ps -p $pid -o pid,ppid,etime,cmd --no-headers 2>/dev/null || echo "  Process details unavailable"
         done
+        
+        # НОВОЕ: Показываем информацию о дисплее
+        if [[ -n "$DISPLAY" ]]; then
+            echo "  Display: $DISPLAY"
+            
+            # Проверяем размер экрана
+            if command -v xrandr >/dev/null 2>&1; then
+                SCREEN_INFO=$(xrandr 2>/dev/null | grep "connected primary" | head -1)
+                if [[ -n "$SCREEN_INFO" ]]; then
+                    echo "  Screen: $SCREEN_INFO"
+                fi
+            fi
+        fi
     else
         log_warning "Application is NOT RUNNING"
     fi
@@ -154,6 +202,15 @@ show_status() {
     echo "  Uptime: $(uptime)"
     echo "  Memory: $(free -h | grep '^Mem:' | awk '{print $3 "/" $2}')"
     echo "  Temperature: $(vcgencmd measure_temp 2>/dev/null || echo 'N/A')"
+    
+    # НОВОЕ: Проверяем автостарт
+    echo ""
+    echo "=== AUTOSTART STATUS ==="
+    if [[ -f "$HOME/.config/autostart/bedrock.desktop" ]]; then
+        log_success "Autostart: ENABLED"
+    else
+        log_warning "Autostart: DISABLED"
+    fi
 }
 
 # Show recent logs
@@ -205,19 +262,27 @@ force_fullscreen() {
     cd "$APP_DIR" || exit 1
     source "$VENV_PATH/bin/activate"
     
-    # Set environment for fullscreen
+    # ИСПРАВЛЕНО: Принудительные настройки fullscreen
     export DISPLAY=:0
     export KIVY_GL_BACKEND=sdl2
     export KIVY_WINDOW=sdl2
     export SDL_VIDEO_FULLSCREEN_HEAD=0
+    export SDL_VIDEODRIVER=x11
+    
+    # Убеждаемся что курсор скрыт
+    if command -v unclutter >/dev/null 2>&1; then
+        unclutter -idle 1 -root &
+    fi
     
     # Start with explicit fullscreen
     nohup python "$LAUNCHER" > logs/fullscreen.log 2>&1 &
     
-    sleep 3
+    sleep 5
     
     if get_app_status; then
         log_success "Application started in fullscreen mode"
+        sleep 10
+        check_fullscreen
     else
         log_error "Failed to start in fullscreen mode"
         log_info "Check logs: tail -20 $APP_DIR/logs/fullscreen.log"
@@ -267,6 +332,7 @@ try:
     light_config = tm.load_theme_config('minecraft', 'light')
     if light_config:
         print('✅ Light theme loaded successfully')
+        print(f'   Font color: {light_config.get(\"font_color\", \"Not found\")}')
     else:
         print('❌ Failed to load light theme')
     
@@ -276,6 +342,7 @@ try:
         dark_config = tm.load_theme_config('minecraft', 'dark')
         if dark_config:
             print('✅ Dark theme loaded successfully')
+            print(f'   Font color: {dark_config.get(\"font_color\", \"Not found\")}')
         else:
             print('❌ Failed to load dark theme')
     else:
@@ -294,9 +361,36 @@ except Exception as e:
 "
 }
 
+# НОВОЕ: Диагностика дисплея
+display_info() {
+    log_info "Display diagnostic information..."
+    
+    echo "=== DISPLAY CONFIGURATION ==="
+    echo "DISPLAY variable: ${DISPLAY:-Not set}"
+    
+    if command -v xrandr >/dev/null 2>&1; then
+        echo ""
+        echo "--- Screen Resolution ---"
+        xrandr | grep -E "(connected|Screen)"
+    fi
+    
+    if command -v xwininfo >/dev/null 2>&1; then
+        echo ""
+        echo "--- Active Windows ---"
+        xwininfo -root -tree | grep -E "(Bedrock|python)" | head -5
+    fi
+    
+    echo ""
+    echo "--- Environment Variables ---"
+    echo "KIVY_GL_BACKEND: ${KIVY_GL_BACKEND:-Not set}"
+    echo "KIVY_WINDOW: ${KIVY_WINDOW:-Not set}"
+    echo "SDL_VIDEO_FULLSCREEN_HEAD: ${SDL_VIDEO_FULLSCREEN_HEAD:-Not set}"
+    echo "SDL_VIDEODRIVER: ${SDL_VIDEODRIVER:-Not set}"
+}
+
 # Show help
 show_help() {
-    echo "Bedrock 2.0 Management Script"
+    echo "Bedrock 2.0 Management Script - FIXED VERSION"
     echo ""
     echo "USAGE: $0 COMMAND [OPTIONS]"
     echo ""
@@ -310,12 +404,15 @@ show_help() {
     echo "  health         Run health check"
     echo "  health --fix   Run health check with auto-fixes"
     echo "  test-theme     Test theme switching functionality"
+    echo "  display        Show display diagnostic information"
     echo "  help           Show this help message"
     echo ""
     echo "EXAMPLES:"
     echo "  $0 start                    # Start application"
     echo "  $0 logs 50                  # Show last 50 log lines"
     echo "  $0 health --fix             # Run health check with fixes"
+    echo "  $0 force-full               # Force fullscreen start"
+    echo "  $0 display                  # Show display info"
     echo ""
     echo "FILES:"
     echo "  App Directory: $APP_DIR"
@@ -353,6 +450,9 @@ main() {
             ;;
         test-theme|theme-test)
             test_theme
+            ;;
+        display|disp)
+            display_info
             ;;
         help|--help|-h)
             show_help

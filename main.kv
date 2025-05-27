@@ -8,14 +8,18 @@
 #:include pages/pigs.kv
 #:include pages/settings.kv
 
+# ИСПРАВЛЕНО: ThemedLabel с правильным биндингом на app.theme_config
 <ThemedLabel@Label>:
     font_name: app.theme_config.get("font_name", "Minecraftia")
-    color: app.theme_config.get("font_color", [1, 1, 1, 1])
     font_size: app.theme_config.get("font_sizes", {}).get("default", "18sp")
+    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Биндинг цвета к изменениям theme_config
+    color: app.theme_config.get("font_color", [1, 1, 1, 1]) if app.theme_config else [1, 1, 1, 1]
 
+# ИСПРАВЛЕНО: MenuButton с правильным биндингом цветов
 <MenuButton@Button>:
     background_normal: app.theme_config.get("menu_button_normal", "")
     background_down: app.theme_config.get("menu_button_active", app.theme_config.get("menu_button_normal", ""))
+    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Правильный биндинг цветов меню
     color: app.theme_config.get("menu_selected_color", [1, 1, 1, 1]) if self.screen_name == app.current_screen else app.theme_config.get("menu_unselected_color", [0.7, 0.7, 0.7, 1])
     font_name: app.theme_config.get("font_name", "Minecraftia")
     font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
@@ -40,7 +44,7 @@
     height: app.ui_metrics['widget_height']
     on_press: app.play_sound("click")
 
-# Main layout - FloatLayout for background, menu and content
+# Main layout - FloatLayout для background, menu и content
 FloatLayout:
     # Application background
     Image:
@@ -49,12 +53,12 @@ FloatLayout:
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y": 0.5}
     
-    # Vertical layout for menu and content
+    # Vertical layout для menu и content
     BoxLayout:
         orientation: 'vertical'
         size_hint: 1, 1
         
-        # Menu at the top with fixed height
+        # Menu at the top с фиксированной высотой
         BoxLayout:
             id: menu_container
             orientation: 'horizontal'
@@ -62,7 +66,7 @@ FloatLayout:
             height: app.ui_metrics['menu_height'] + app.ui_metrics['menu_padding'] * 2
             padding: app.ui_metrics['menu_padding']
             
-            # Center and limit menu width
+            # Center и limit menu width
             AnchorLayout:
                 anchor_x: 'center'
                 anchor_y: 'center'
