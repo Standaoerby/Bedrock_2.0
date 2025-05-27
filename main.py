@@ -291,7 +291,7 @@ class BedrockApp(MDApp):
         try:
             self.root.ids.screen_manager.bind(current=self._update_current_screen)
             
-            # ИСПРАВЛЕНО: Увеличиваем задержку для инициализации темы
+            self.alarm_clock.start()
             # Initialize theme based on current light level with better timing
             Clock.schedule_once(self._initialize_theme_on_startup, 5)  # Увеличено с 2 до 5 секунд
             
