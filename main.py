@@ -291,11 +291,15 @@ class BedrockApp(MDApp):
         try:
             self.root.ids.screen_manager.bind(current=self._update_current_screen)
             
-            # Initialize theme based on current light level
-            Clock.schedule_once(self._initialize_theme_on_startup, 2)
+            # ИСПРАВЛЕНО: Увеличиваем задержку для инициализации темы
+            # Initialize theme based on current light level with better timing
+            Clock.schedule_once(self._initialize_theme_on_startup, 5)  # Увеличено с 2 до 5 секунд
+            
+            # НОВОЕ: Дополнительная проверка через 10 секунд для подстраховки
+            Clock.schedule_once(self._secondary_theme_check, 10)
             
             # Start auto theme monitoring
-            Clock.schedule_once(self._start_auto_theme, 4)
+            Clock.schedule_once(self._start_auto_theme, 8)  # Увеличено с 4 до 8 секунд
                 
         except Exception as e:
             logger.error(f"Error in on_start: {e}")
@@ -303,20 +307,69 @@ class BedrockApp(MDApp):
     def _initialize_theme_on_startup(self, dt):
         """Установить корректную тему при запуске"""
         try:
+            if not self.auto_theme_enabled:
+                logger.info("Auto theme disabled, keeping current theme")
+                return
+                
+            if not self.sensor_service:
+                logger.warning("Sensor service not available for theme initialization")
+                return
+            
+            # ИСПРАВЛЕНО: Проверяем что сенсор действительно инициализирован
+            if not hasattr(self.sensor_service, 'sensor_available') or not self.sensor_service.sensor_available:
+                logger.warning("Sensor not yet available, scheduling retry")
+                Clock.schedule_once(self._initialize_theme_on_startup, 3)
+                return
+            
+            # Даем сенсору время стабилизироваться
+            logger.info("Waiting for sensor stabilization...")
+            Clock.schedule_once(self._apply_startup_theme, 2)
+            
+        except Exception as e:
+            logger.error(f"Error initializing startup theme: {e}")
+
+    def _apply_startup_theme(self, dt):
+        """Применить тему при запуске после стабилизации сенсора"""
+        try:
+            current_light = self.sensor_service.get_light_level()
+            target_mode = "light" if current_light else "dark"
+            
+            logger.info(f"Startup sensor reading: {'Light' if current_light else 'Dark'}")
+            logger.info(f"Current theme mode: {self.theme_mode}")
+            logger.info(f"Target theme mode: {target_mode}")
+            
+            if target_mode != self.theme_mode:
+                logger.info(f"🎨 Setting startup theme: {self.theme_mode} → {target_mode}")
+                if self.switch_theme_mode(target_mode):
+                    self.notification_service.add(f"Theme set to {target_mode} mode", "system")
+                    logger.success(f"Startup theme changed to {target_mode}")
+                else:
+                    logger.error(f"Failed to change startup theme to {target_mode}")
+            else:
+                logger.info(f"Theme already correct: {target_mode}")
+                
+        except Exception as e:
+            logger.error(f"Error applying startup theme: {e}")
+
+    def _secondary_theme_check(self, dt):
+        """Вторичная проверка темы через 10 секунд после запуска"""
+        try:
             if not self.auto_theme_enabled or not self.sensor_service:
                 return
                 
             current_light = self.sensor_service.get_light_level()
             target_mode = "light" if current_light else "dark"
             
-            logger.info(f"Startup light level: {'Light' if current_light else 'Dark'}")
+            logger.info(f"Secondary theme check: sensor={'Light' if current_light else 'Dark'}, current_mode={self.theme_mode}")
             
             if target_mode != self.theme_mode:
-                logger.info(f"Setting startup theme: {self.theme_mode} → {target_mode}")
-                self.switch_theme_mode(target_mode)
-                
+                logger.info(f"🔄 Secondary theme correction: {self.theme_mode} → {target_mode}")
+                if self.switch_theme_mode(target_mode):
+                    self.notification_service.add(f"Theme corrected to {target_mode}", "system")
+                    self.play_sound("success")
+            
         except Exception as e:
-            logger.error(f"Error initializing startup theme: {e}")
+            logger.error(f"Error in secondary theme check: {e}")
 
     def _start_auto_theme(self, dt):
         """Запустить мониторинг автотемы"""
@@ -327,7 +380,6 @@ class BedrockApp(MDApp):
             self.sensor_service.calibrate_light_sensor(switch_delay)
             
             self._auto_theme_event = Clock.schedule_interval(self._check_auto_theme, 5)
-
     def _check_auto_theme(self, dt):
         """Проверить автопереключение темы"""
         if not self.auto_theme_enabled or not self.sensor_service:
