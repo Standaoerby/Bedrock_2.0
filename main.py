@@ -76,7 +76,27 @@ class ThemedPanel(BoxLayout):
         self.bg_color = None
         self.bg_rect = None
         self.bind(pos=self.update_rect, size=self.update_rect)
-        Clock.schedule_once(self.update_background, 0.1)
+        
+        # ИСПРАВЛЕНО: Добавляем биндинг к изменениям темы
+        Clock.schedule_once(self._bind_to_theme, 0.1)
+    
+    def _bind_to_theme(self, dt):
+        """Привязываемся к изменениям темы"""
+        try:
+            app = self.get_app()
+            if app and hasattr(app, 'theme_config'):
+                # Привязываемся к изменениям theme_config
+                app.bind(theme_config=self.on_theme_changed)
+                self.update_background()
+            else:
+                # Повторяем попытку если приложение еще не готово
+                Clock.schedule_once(self._bind_to_theme, 0.5)
+        except Exception as e:
+            logger.error(f"Error binding ThemedPanel to theme: {e}")
+    
+    def on_theme_changed(self, instance, value):
+        """НОВОЕ: Обработчик изменения темы"""
+        Clock.schedule_once(lambda dt: self.update_background(), 0.1)
     
     def update_background(self, *args):
         """Обновление фона панели"""

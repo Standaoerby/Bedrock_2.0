@@ -193,14 +193,53 @@ class ThemeManager:
                 except:
                     pass
             
+            # ИСПРАВЛЕНО: Принудительно обновляем все .kv биндинги для theme_config
+            self.app.property('theme_config').dispatch(self.app)
+            
             # Обновить фон
             self._update_background()
             
             # Обновить overlay изображения
             Clock.schedule_once(self._update_overlays, 0.1)
             
+            # ДОБАВЛЕНО: Принудительное обновление всех виджетов
+            Clock.schedule_once(self._force_widgets_redraw, 0.2)
+            
         except Exception as e:
             logger.error(f"Error refreshing UI: {e}")
+    
+    def _force_widgets_redraw(self, dt):
+        """НОВОЕ: Принудительно перерисовать все виджеты для обновления цветов"""
+        try:
+            if not self.app.root:
+                return
+                
+            def update_widget_recursive(widget):
+                """Рекурсивно обновляем все виджеты"""
+                try:
+                    # Обновляем canvas виджета
+                    if hasattr(widget, 'canvas'):
+                        widget.canvas.ask_update()
+                    
+                    # Для Label виджетов принудительно обновляем текстуру
+                    if hasattr(widget, 'texture') and hasattr(widget, '_label'):
+                        widget._label.refresh()
+                    
+                    # Обновляем детей
+                    if hasattr(widget, 'children'):
+                        for child in widget.children:
+                            update_widget_recursive(child)
+                            
+                except Exception as e:
+                    logger.debug(f"Error updating widget {widget}: {e}")
+            
+            # Обновляем все виджеты начиная с root
+            update_widget_recursive(self.app.root)
+            
+            logger.info("✅ All widgets forced to redraw with new theme colors")
+            
+        except Exception as e:
+            logger.error(f"Error in force widgets redraw: {e}")
     
     def _update_background(self):
         """Обновить фоновое изображение"""
