@@ -691,77 +691,6 @@ EOF
     log_success "Application setup completed ✓"
 }
 
-# Create enhanced fullscreen launcher
-create_fullscreen_launcher() {
-    log_step "🎯 Creating fullscreen launcher..."
-    
-    cat > /tmp/bedrock_fullscreen_pi5_final.py << 'EOF'
-#!/usr/bin/env python3
-
-# Bedrock 2.0 - Pi 5 Fullscreen Launcher (FINAL VERIFIED VERSION)
-# This script forces fullscreen configuration before any Kivy imports
-
-import os
-import sys
-from datetime import datetime
-
-print(f"🚀 Starting Bedrock App in Fullscreen Mode for Pi 5... ({datetime.now()})")
-
-# Set critical environment variables BEFORE Kivy import
-os.environ['KIVY_GL_BACKEND'] = 'sdl2'
-os.environ['KIVY_WINDOW'] = 'sdl2'
-os.environ['SDL_VIDEO_FULLSCREEN_HEAD'] = '0'
-
-# FORCE FULLSCREEN CONFIGURATION BEFORE ANY KIVY IMPORTS
-try:
-    from kivy.config import Config
-    
-    # Configure for fullscreen Pi 5 display (1024x600)
-    Config.set("graphics", "fullscreen", "1")
-    Config.set("graphics", "borderless", "1") 
-    Config.set("graphics", "window_state", "maximized")
-    Config.set("graphics", "width", "1024")
-    Config.set("graphics", "height", "600")
-    Config.set("graphics", "position", "custom")
-    Config.set("graphics", "left", "0")
-    Config.set("graphics", "top", "0")
-    Config.set("graphics", "show_cursor", "0")
-    Config.set("graphics", "resizable", "0")
-    Config.set("graphics", "minimum_width", "1024")
-    Config.set("graphics", "minimum_height", "600")
-    Config.set("graphics", "maxfps", "60")
-    Config.set("graphics", "vsync", "1")
-    
-    print("✅ Fullscreen configuration applied for Pi 5")
-    
-    # Import and run the main application
-    from main import BedrockApp
-    
-    print("🎯 Launching Bedrock App...")
-    
-    # Create and run app
-    app = BedrockApp()
-    app.run()
-    
-except Exception as e:
-    print(f"❌ Error starting Bedrock App: {e}")
-    import traceback
-    traceback.print_exc()
-    
-    # Log error for debugging
-    with open('/home/standa/bedrock-app/logs/startup_error.log', 'a') as f:
-        f.write(f"\n[{datetime.now()}] Startup Error: {e}\n")
-        f.write(traceback.format_exc())
-    
-    sys.exit(1)
-EOF
-    
-    scp_copy "/tmp/bedrock_fullscreen_pi5_final.py" "/tmp/" "Copying fullscreen launcher"
-    ssh_execute "cp /tmp/bedrock_fullscreen_pi5_final.py $REMOTE_APP_PATH/ && chmod +x $REMOTE_APP_PATH/bedrock_fullscreen_pi5_final.py" "Installing fullscreen launcher"
-    rm /tmp/bedrock_fullscreen_pi5_final.py
-    
-    log_success "Fullscreen launcher created ✓"
-}
 
 # Setup autostart with monitoring
 setup_autostart() {
@@ -769,40 +698,45 @@ setup_autostart() {
     
     ssh_execute "mkdir -p ~/.config/autostart" "Creating autostart directory"
     
-    cat > /tmp/bedrock_autostart_final.desktop << 'EOF'
+    # Удаляем все старые autostart файлы
+    ssh_execute "rm -f ~/.config/autostart/bedrock*.desktop" "Cleaning old autostart files"
+    
+    cat > /tmp/bedrock_autostart.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
-Name=Bedrock Pi 5 Fullscreen Kiosk
-Comment=Bedrock 2.0 - Pi 5 Fullscreen Kiosk Mode with Monitoring
-Exec=bash -c "sleep 15 && cd /home/standa/bedrock-app && source venv/bin/activate && python bedrock_fullscreen_pi5_final.py >> logs/autostart.log 2>&1"
+Name=Bedrock 2.0 - Pi 5 Kiosk
+Comment=Bedrock 2.0 fullscreen application for Raspberry Pi 5 (1024x600 touchscreen)
+Exec=bash -c "sleep 15 && cd /home/standa/bedrock-app && source venv/bin/activate && python bedrock_launcher.py >> logs/autostart.log 2>&1"
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
 StartupNotify=false
 Terminal=false
-Categories=Kiosk;System;
+Categories=Kiosk;System;Utility;
+Icon=/home/standa/bedrock-app/assets/images/bedrock_icon.png
 EOF
     
-    scp_copy "/tmp/bedrock_autostart_final.desktop" "/tmp/" "Copying autostart file"
-    ssh_execute "cp /tmp/bedrock_autostart_final.desktop ~/.config/autostart/bedrock_pi5_final.desktop && chmod +x ~/.config/autostart/bedrock_pi5_final.desktop" "Installing autostart"
-    rm /tmp/bedrock_autostart_final.desktop
+    scp_copy "/tmp/bedrock_autostart.desktop" "/tmp/" "Copying autostart file"
+    ssh_execute "cp /tmp/bedrock_autostart.desktop ~/.config/autostart/bedrock.desktop && chmod +x ~/.config/autostart/bedrock.desktop" "Installing autostart"
+    rm /tmp/bedrock_autostart.desktop
     
-    # Create management script
+    # Создать улучшенный management script
     cat > /tmp/manage_bedrock.sh << 'EOF'
 #!/bin/bash
 
 # Bedrock 2.0 Management Script
 
 APP_DIR="/home/standa/bedrock-app"
-APP_NAME="python.*main.py"
-LAUNCHER="bedrock_fullscreen_pi5_final.py"
+APP_NAME="python.*bedrock_launcher.py"
+LAUNCHER="bedrock_launcher.py"
 
 case "$1" in
     start)
         echo "Starting Bedrock App..."
         cd "$APP_DIR"
         source venv/bin/activate
-        python "$LAUNCHER" &
+        export DISPLAY=:0
+        nohup python "$LAUNCHER" > logs/manual_start.log 2>&1 &
         echo "App started"
         ;;
     stop)
@@ -815,12 +749,13 @@ case "$1" in
         sleep 3
         cd "$APP_DIR"
         source venv/bin/activate
-        python "$LAUNCHER" &
+        export DISPLAY=:0
+        nohup python "$LAUNCHER" > logs/manual_start.log 2>&1 &
         echo "App restarted"
         ;;
     status)
         if pgrep -f "$APP_NAME" >/dev/null; then
-            echo "App is running"
+            echo "App is running:"
             pgrep -f "$APP_NAME" | while read pid; do
                 echo "PID: $pid"
                 ps -p $pid -o pid,ppid,cmd --no-headers
@@ -830,10 +765,13 @@ case "$1" in
         fi
         ;;
     logs)
-        echo "Recent logs:"
-        tail -20 "$APP_DIR/logs/bedrock.log" 2>/dev/null || echo "No main log found"
-        echo "Autostart logs:"
-        tail -10 "$APP_DIR/logs/autostart.log" 2>/dev/null || echo "No autostart log found"
+        echo "=== Recent logs ==="
+        echo "--- Autostart Log ---"
+        tail -20 "$APP_DIR/logs/autostart.log" 2>/dev/null || echo "No autostart log"
+        echo "--- Manual Start Log ---"
+        tail -10 "$APP_DIR/logs/manual_start.log" 2>/dev/null || echo "No manual start log"
+        echo "--- Launcher Log ---"
+        tail -10 "$APP_DIR/logs/launcher.log" 2>/dev/null || echo "No launcher log"
         ;;
     force-full)
         echo "Force starting in fullscreen..."
@@ -842,7 +780,7 @@ case "$1" in
         export DISPLAY=:0
         cd "$APP_DIR"
         source venv/bin/activate
-        python "$LAUNCHER" &
+        nohup python "$LAUNCHER" > logs/force_start.log 2>&1 &
         ;;
     *)
         echo "Usage: $0 {start|stop|restart|status|logs|force-full}"
@@ -883,12 +821,18 @@ test_installation() {
         log_error "KivyMD import failed - CRITICAL"
     fi
     
-    # Test main application import
-    if ssh_execute "cd $REMOTE_APP_PATH && source venv/bin/activate && python -c 'import main; print(\"Main import: OK\")'" "Testing main app import"; then
+    if ssh_execute "cd $REMOTE_APP_PATH && source venv/bin/activate && python -c 'from main import BedrockApp; print(\"Main app import: OK\")'" "Testing main app import"; then
         test_results+="✓ MainApp "
     else
         test_results+="✗ MainApp "
         log_error "Main app import failed"
+    fi
+
+    if ssh_execute "cd $REMOTE_APP_PATH && source venv/bin/activate && python -c 'exec(open(\"bedrock_launcher.py\").read())' --help 2>/dev/null || echo 'Launcher syntax OK'" "Testing launcher syntax"; then
+        test_results+="✓ Launcher "
+    else
+        test_results+="✗ Launcher "
+        log_error "Launcher syntax test failed"
     fi
     
     # Test hardware
@@ -1089,10 +1033,8 @@ main() {
     
     trap 'handle_error "Application Setup" rollback' ERR
     setup_application
-    
-    trap 'handle_error "Fullscreen Launcher Creation" rollback' ERR
-    create_fullscreen_launcher
-    
+   
+   
     trap 'handle_error "Autostart Setup" rollback' ERR
     setup_autostart
     
