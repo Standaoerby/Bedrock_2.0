@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # =============================================================================
-# BEDROCK 2.0 - ИСПРАВЛЕННЫЙ СКРИПТ УПРАВЛЕНИЯ
-# Единый скрипт управления приложением на Raspberry Pi 5
+# BEDROCK 2.0 - ИСПРАВЛЕННЫЙ СКРИПТ УПРАВЛЕНИЯ С ПРАВИЛЬНЫМИ ПЕРЕМЕННЫМИ ОКРУЖЕНИЯ
+# Исправлена проблема с DISPLAY и переменными окружения
 # =============================================================================
 
 # Configuration
@@ -23,6 +23,54 @@ log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# НОВОЕ: Функция для установки переменных окружения
+setup_environment() {
+    log_info "Setting up environment variables..."
+    
+    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Устанавливаем DISPLAY если не установлен
+    if [[ -z "$DISPLAY" ]]; then
+        export DISPLAY=:0
+        log_info "DISPLAY set to :0"
+    else
+        log_info "DISPLAY already set to: $DISPLAY"
+    fi
+    
+    # ИСПРАВЛЕНИЕ: Устанавливаем все переменные Kivy/SDL
+    export KIVY_GL_BACKEND=sdl2
+    export KIVY_WINDOW=sdl2
+    export SDL_VIDEO_FULLSCREEN_HEAD=0
+    export SDL_VIDEODRIVER=x11
+    
+    log_success "Environment variables configured"
+    
+    # НОВОЕ: Проверяем доступность дисплея
+    if ! check_display_available; then
+        log_warning "Display may not be fully available yet"
+        return 1
+    else
+        log_success "Display is available"
+        return 0
+    fi
+}
+
+# НОВОЕ: Проверка доступности дисплея
+check_display_available() {
+    local max_attempts=10
+    local attempt=1
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        if timeout 5 xset q >/dev/null 2>&1; then
+            return 0  # Display available
+        fi
+        
+        log_info "Waiting for display... attempt $attempt/$max_attempts"
+        sleep 2
+        ((attempt++))
+    done
+    
+    return 1  # Display not available after max attempts
+}
 
 # Check if we're in the right directory
 check_environment() {
@@ -51,7 +99,7 @@ get_app_status() {
     fi
 }
 
-# Start the application
+# ИСПРАВЛЕННАЯ функция запуска приложения
 start_app() {
     log_info "Starting Bedrock application..."
     
@@ -63,15 +111,22 @@ start_app() {
     
     cd "$APP_DIR" || exit 1
     
+    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Устанавливаем переменные окружения
+    if ! setup_environment; then
+        log_error "Failed to setup environment - display may not be ready"
+        log_info "Try waiting and running again, or check if X11 is running"
+        return 1
+    fi
+    
     # Activate virtual environment and start app
     source "$VENV_PATH/bin/activate"
     
-    # ИСПРАВЛЕНО: Устанавливаем переменные окружения для fullscreen
-    export DISPLAY=:0
-    export KIVY_GL_BACKEND=sdl2
-    export KIVY_WINDOW=sdl2
-    export SDL_VIDEO_FULLSCREEN_HEAD=0
-    export SDL_VIDEODRIVER=x11
+    # ДОБАВЛЕНО: Дополнительная проверка что все переменные установлены
+    log_info "Environment check:"
+    log_info "  DISPLAY: ${DISPLAY:-NOT SET}"
+    log_info "  KIVY_GL_BACKEND: ${KIVY_GL_BACKEND:-NOT SET}"
+    log_info "  KIVY_WINDOW: ${KIVY_WINDOW:-NOT SET}"
+    log_info "  SDL_VIDEODRIVER: ${SDL_VIDEODRIVER:-NOT SET}"
     
     # Start in background with logging
     nohup python "$LAUNCHER" > logs/app.log 2>&1 &
@@ -83,8 +138,8 @@ start_app() {
     if get_app_status; then
         log_success "Application started successfully (PID: $APP_PID)"
         
-        # НОВОЕ: Проверяем fullscreen через 10 секунд
-        sleep 10
+        # Проверяем fullscreen через 15 секунд (дольше для стабильности)
+        sleep 15
         check_fullscreen
     else
         log_error "Application failed to start"
@@ -93,27 +148,42 @@ start_app() {
     fi
 }
 
-# НОВОЕ: Проверка fullscreen режима
+# УЛУЧШЕННАЯ проверка fullscreen режима
 check_fullscreen() {
     log_info "Checking fullscreen mode..."
     
+    # ИСПРАВЛЕНИЕ: Проверяем что DISPLAY доступен
+    if [[ -z "$DISPLAY" ]]; then
+        export DISPLAY=:0
+    fi
+    
     # Проверяем размер окна приложения
     if command -v xwininfo >/dev/null 2>&1; then
-        # Ищем окно Bedrock
-        WINDOW_ID=$(xwininfo -root -tree | grep -i bedrock | head -1 | awk '{print $1}')
-        
-        if [[ -n "$WINDOW_ID" ]]; then
-            WINDOW_INFO=$(xwininfo -id "$WINDOW_ID" 2>/dev/null)
-            WIDTH=$(echo "$WINDOW_INFO" | grep "Width:" | awk '{print $2}')
-            HEIGHT=$(echo "$WINDOW_INFO" | grep "Height:" | awk '{print $2}')
+        # ИСПРАВЛЕНИЕ: Добавляем таймаут для xwininfo
+        if timeout 10 xwininfo -root -tree 2>/dev/null | grep -i bedrock >/dev/null; then
+            WINDOW_ID=$(timeout 10 xwininfo -root -tree 2>/dev/null | grep -i bedrock | head -1 | awk '{print $1}')
             
-            if [[ "$WIDTH" == "1024" && "$HEIGHT" == "600" ]]; then
-                log_success "✅ Fullscreen mode active: ${WIDTH}x${HEIGHT}"
+            if [[ -n "$WINDOW_ID" ]]; then
+                WINDOW_INFO=$(timeout 5 xwininfo -id "$WINDOW_ID" 2>/dev/null)
+                if [[ -n "$WINDOW_INFO" ]]; then
+                    WIDTH=$(echo "$WINDOW_INFO" | grep "Width:" | awk '{print $2}')
+                    HEIGHT=$(echo "$WINDOW_INFO" | grep "Height:" | awk '{print $2}')
+                    
+                    if [[ "$WIDTH" == "1024" && "$HEIGHT" == "600" ]]; then
+                        log_success "✅ Fullscreen mode active: ${WIDTH}x${HEIGHT}"
+                    elif [[ -n "$WIDTH" && -n "$HEIGHT" ]]; then
+                        log_warning "⚠️ Window size: ${WIDTH}x${HEIGHT} (expected 1024x600)"
+                    else
+                        log_warning "⚠️ Could not determine window size"
+                    fi
+                else
+                    log_warning "⚠️ Could not get window info"
+                fi
             else
-                log_warning "⚠️ Window size: ${WIDTH}x${HEIGHT} (expected 1024x600)"
+                log_warning "⚠️ Could not find Bedrock window ID"
             fi
         else
-            log_warning "⚠️ Could not find Bedrock window"
+            log_warning "⚠️ Could not find Bedrock window or xwininfo timed out"
         fi
     else
         log_info "xwininfo not available for fullscreen check"
@@ -164,7 +234,7 @@ restart_app() {
     start_app
 }
 
-# Show application status
+# УЛУЧШЕННАЯ функция отображения статуса
 show_status() {
     echo "=== BEDROCK APPLICATION STATUS ==="
     
@@ -176,21 +246,36 @@ show_status() {
             echo "  PID: $pid"
             ps -p $pid -o pid,ppid,etime,cmd --no-headers 2>/dev/null || echo "  Process details unavailable"
         done
-        
-        # НОВОЕ: Показываем информацию о дисплее
-        if [[ -n "$DISPLAY" ]]; then
-            echo "  Display: $DISPLAY"
-            
-            # Проверяем размер экрана
+    else
+        log_warning "Application is NOT RUNNING"
+    fi
+    
+    echo ""
+    echo "=== ENVIRONMENT STATUS ==="
+    echo "  DISPLAY: ${DISPLAY:-Not set}"
+    echo "  KIVY_GL_BACKEND: ${KIVY_GL_BACKEND:-Not set}"
+    echo "  KIVY_WINDOW: ${KIVY_WINDOW:-Not set}"
+    echo "  SDL_VIDEO_FULLSCREEN_HEAD: ${SDL_VIDEO_FULLSCREEN_HEAD:-Not set}"
+    echo "  SDL_VIDEODRIVER: ${SDL_VIDEODRIVER:-Not set}"
+    
+    # НОВОЕ: Проверяем доступность дисплея
+    echo ""
+    echo "=== DISPLAY STATUS ==="
+    if [[ -n "$DISPLAY" ]]; then
+        if timeout 5 xset q >/dev/null 2>&1; then
+            log_success "X11 Display: AVAILABLE"
+            # Получаем информацию о разрешении
             if command -v xrandr >/dev/null 2>&1; then
-                SCREEN_INFO=$(xrandr 2>/dev/null | grep "connected primary" | head -1)
+                SCREEN_INFO=$(timeout 5 xrandr 2>/dev/null | grep "connected primary" | head -1)
                 if [[ -n "$SCREEN_INFO" ]]; then
                     echo "  Screen: $SCREEN_INFO"
                 fi
             fi
+        else
+            log_error "X11 Display: NOT AVAILABLE"
         fi
     else
-        log_warning "Application is NOT RUNNING"
+        log_error "DISPLAY variable not set"
     fi
     
     echo ""
@@ -198,16 +283,16 @@ show_status() {
     echo "  Directory: $APP_DIR"
     echo "  Launcher: $LAUNCHER"
     echo "  Virtual Env: $VENV_PATH"
-    echo "  Display: ${DISPLAY:-Not set}"
     echo "  Uptime: $(uptime)"
     echo "  Memory: $(free -h | grep '^Mem:' | awk '{print $3 "/" $2}')"
     echo "  Temperature: $(vcgencmd measure_temp 2>/dev/null || echo 'N/A')"
     
-    # НОВОЕ: Проверяем автостарт
+    # Проверяем автостарт
     echo ""
     echo "=== AUTOSTART STATUS ==="
     if [[ -f "$HOME/.config/autostart/bedrock.desktop" ]]; then
         log_success "Autostart: ENABLED"
+        echo "  File: $HOME/.config/autostart/bedrock.desktop"
     else
         log_warning "Autostart: DISABLED"
     fi
@@ -252,7 +337,7 @@ show_logs() {
     fi
 }
 
-# Force fullscreen start
+# ИСПРАВЛЕННАЯ функция принудительного fullscreen
 force_fullscreen() {
     log_info "Force starting in fullscreen mode..."
     
@@ -260,18 +345,19 @@ force_fullscreen() {
     sleep 2
     
     cd "$APP_DIR" || exit 1
-    source "$VENV_PATH/bin/activate"
     
-    # ИСПРАВЛЕНО: Принудительные настройки fullscreen
-    export DISPLAY=:0
-    export KIVY_GL_BACKEND=sdl2
-    export KIVY_WINDOW=sdl2
-    export SDL_VIDEO_FULLSCREEN_HEAD=0
-    export SDL_VIDEODRIVER=x11
+    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Устанавливаем переменные окружения
+    if ! setup_environment; then
+        log_error "Failed to setup environment for fullscreen mode"
+        return 1
+    fi
+    
+    source "$VENV_PATH/bin/activate"
     
     # Убеждаемся что курсор скрыт
     if command -v unclutter >/dev/null 2>&1; then
         unclutter -idle 1 -root &
+        log_info "Cursor hidden with unclutter"
     fi
     
     # Start with explicit fullscreen
@@ -281,7 +367,7 @@ force_fullscreen() {
     
     if get_app_status; then
         log_success "Application started in fullscreen mode"
-        sleep 10
+        sleep 15
         check_fullscreen
     else
         log_error "Failed to start in fullscreen mode"
@@ -361,23 +447,54 @@ except Exception as e:
 "
 }
 
-# НОВОЕ: Диагностика дисплея
+# УЛУЧШЕННАЯ диагностика дисплея
 display_info() {
     log_info "Display diagnostic information..."
     
     echo "=== DISPLAY CONFIGURATION ==="
     echo "DISPLAY variable: ${DISPLAY:-Not set}"
     
+    # ИСПРАВЛЕНИЕ: Устанавливаем DISPLAY если не установлен
+    if [[ -z "$DISPLAY" ]]; then
+        export DISPLAY=:0
+        echo "DISPLAY set to :0 for diagnostics"
+    fi
+    
+    # Проверяем доступность X11
+    echo ""
+    echo "--- X11 Server Status ---"
+    if timeout 5 xset q >/dev/null 2>&1; then
+        log_success "X11 server is running and accessible"
+        
+        # Информация о дисплее
+        echo "X11 server info:"
+        timeout 5 xset q 2>/dev/null | head -5
+    else
+        log_error "X11 server is not accessible"
+        echo "This usually means:"
+        echo "  1. X11 hasn't started yet (try waiting)"
+        echo "  2. User doesn't have permission to access display"
+        echo "  3. DISPLAY variable is wrong"
+    fi
+    
     if command -v xrandr >/dev/null 2>&1; then
         echo ""
         echo "--- Screen Resolution ---"
-        xrandr | grep -E "(connected|Screen)"
+        if timeout 10 xrandr 2>/dev/null | grep -E "(connected|Screen)" | head -5; then
+            log_success "Screen information retrieved"
+        else
+            log_error "Could not get screen information"
+        fi
     fi
     
     if command -v xwininfo >/dev/null 2>&1; then
         echo ""
         echo "--- Active Windows ---"
-        xwininfo -root -tree | grep -E "(Bedrock|python)" | head -5
+        if timeout 10 xwininfo -root -tree 2>/dev/null | grep -E "(Bedrock|python)" | head -5; then
+            log_success "Window information retrieved"
+        else
+            log_warning "No Bedrock windows found or xwininfo failed"
+        fi
     fi
     
     echo ""
@@ -386,11 +503,62 @@ display_info() {
     echo "KIVY_WINDOW: ${KIVY_WINDOW:-Not set}"
     echo "SDL_VIDEO_FULLSCREEN_HEAD: ${SDL_VIDEO_FULLSCREEN_HEAD:-Not set}"
     echo "SDL_VIDEODRIVER: ${SDL_VIDEODRIVER:-Not set}"
+    
+    echo ""
+    echo "--- Desktop Environment ---"
+    echo "XDG_CURRENT_DESKTOP: ${XDG_CURRENT_DESKTOP:-Not set}"
+    echo "XDG_SESSION_TYPE: ${XDG_SESSION_TYPE:-Not set}"
+    echo "WAYLAND_DISPLAY: ${WAYLAND_DISPLAY:-Not set}"
+    
+    echo ""
+    echo "--- Process Information ---"
+    echo "X11 processes:"
+    ps aux | grep -E "(Xorg|X |startx)" | grep -v grep | head -3
+    
+    echo ""
+    echo "Desktop processes:"
+    ps aux | grep -E "(lxsession|openbox|xfce|gnome)" | grep -v grep | head -3
+}
+
+# НОВОЕ: Функция исправления автостарта
+fix_autostart() {
+    log_info "Fixing autostart configuration..."
+    
+    # Создаем правильный autostart файл
+    AUTOSTART_DIR="$HOME/.config/autostart"
+    AUTOSTART_FILE="$AUTOSTART_DIR/bedrock.desktop"
+    
+    mkdir -p "$AUTOSTART_DIR"
+    
+    # Удаляем старые файлы
+    rm -f "$AUTOSTART_DIR"/bedrock*.desktop
+    
+    cat > "$AUTOSTART_FILE" << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Bedrock 2.0 - Pi 5 Kiosk (FIXED)
+Comment=Bedrock 2.0 fullscreen application - ENVIRONMENT VARIABLES FIXED
+Exec=bash -c "sleep 20 && export DISPLAY=:0 && export KIVY_GL_BACKEND=sdl2 && export KIVY_WINDOW=sdl2 && export SDL_VIDEO_FULLSCREEN_HEAD=0 && export SDL_VIDEODRIVER=x11 && cd /home/standa/bedrock-app && source venv/bin/activate && python bedrock_launcher.py >> logs/autostart.log 2>&1"
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+Terminal=false
+Categories=Kiosk;System;Utility;
+Icon=/home/standa/bedrock-app/assets/images/bedrock_icon.png
+X-GNOME-Autostart-Delay=20
+X-KDE-autostart-after=panel
+EOF
+    
+    chmod +x "$AUTOSTART_FILE"
+    
+    log_success "Autostart file fixed: $AUTOSTART_FILE"
+    log_info "Changes will take effect after next reboot"
 }
 
 # Show help
 show_help() {
-    echo "Bedrock 2.0 Management Script - FIXED VERSION"
+    echo "Bedrock 2.0 Management Script - FIXED VERSION with Environment Variables"
     echo ""
     echo "USAGE: $0 COMMAND [OPTIONS]"
     echo ""
@@ -405,6 +573,7 @@ show_help() {
     echo "  health --fix   Run health check with auto-fixes"
     echo "  test-theme     Test theme switching functionality"
     echo "  display        Show display diagnostic information"
+    echo "  fix-autostart  Fix autostart configuration"
     echo "  help           Show this help message"
     echo ""
     echo "EXAMPLES:"
@@ -413,11 +582,18 @@ show_help() {
     echo "  $0 health --fix             # Run health check with fixes"
     echo "  $0 force-full               # Force fullscreen start"
     echo "  $0 display                  # Show display info"
+    echo "  $0 fix-autostart            # Fix autostart issues"
+    echo ""
+    echo "TROUBLESHOOTING:"
+    echo "  If DISPLAY errors: run 'fix-autostart' and reboot"
+    echo "  If app won't start: check 'display' and 'status'"
+    echo "  For fullscreen issues: try 'force-full'"
     echo ""
     echo "FILES:"
     echo "  App Directory: $APP_DIR"
     echo "  Launcher: $LAUNCHER"
     echo "  Virtual Env: $VENV_PATH"
+    echo "  Autostart: ~/.config/autostart/bedrock.desktop"
 }
 
 # Main function
@@ -453,6 +629,9 @@ main() {
             ;;
         display|disp)
             display_info
+            ;;
+        fix-autostart)
+            fix_autostart
             ;;
         help|--help|-h)
             show_help
