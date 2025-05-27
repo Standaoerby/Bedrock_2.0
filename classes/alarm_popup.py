@@ -234,33 +234,58 @@ class AlarmPopup(ModalView):
                 logger.warning(f"❌ Ringtone file not found: {path}")
                 return
                 
-            # Get app instance
-            from kivy.app import App
-            app = App.get_running_app()
+            logger.info(f"🎵 Loading alarm sound: {path}")
             
-            # Use sound service to load the ringtone
-            self.sound = app.sound_service.load_sound_file(path)
+            # ИСПРАВЛЕНО: Используем прямое создание звука как в остальном приложении
+            try:
+                import pygame
+                if not pygame.mixer.get_init():
+                    logger.error("❌ Pygame mixer not initialized")
+                    return
+                    
+                # Создаем звук напрямую через pygame
+                pygame_sound = pygame.mixer.Sound(path)
                 
-            if not self.sound:
-                logger.warning(f"❌ Failed to load ringtone: {path}")
+                # Оборачиваем в наш класс для совместимости
+                from services.sound_service import PyGameSound
+                self.sound = PyGameSound(path)
+                self.sound._sound = pygame_sound
+                
+                logger.info(f"✅ Sound loaded directly via pygame")
+                
+            except Exception as load_error:
+                logger.error(f"❌ Direct pygame load failed: {load_error}")
+                
+                # Fallback к sound service
+                from kivy.app import App
+                app = App.get_running_app()
+                self.sound = app.sound_service.load_sound_file(path)
+                
+                if not self.sound:
+                    logger.warning(f"❌ Failed to load ringtone via sound service: {path}")
+                    return
+                    
+                logger.info(f"✅ Sound loaded via sound service fallback")
+            
+            # ИСПРАВЛЕНО: Устанавливаем параметры звука
+            if not self.sound or not self.sound._sound:
+                logger.error("❌ Sound object invalid")
                 return
             
-            # ИСПРАВЛЕНО: Устанавливаем начальную громкость и проверяем применение
+            # НЕ устанавливаем loop - будем управлять повтором вручную
+            self.sound.loop = False
+            
+            # Устанавливаем начальную громкость
             self.sound.volume = self.current_volume
-            self.sound.loop = True  # Loop the sound until turned off
             
-            logger.info(f"🎵 Starting alarm sound: {path} with volume {self.current_volume:.2f} ({int(self.current_volume*100)}%)")
+            logger.info(f"🎵 Starting alarm playback at {int(self.current_volume*100)}% volume")
+            logger.info(f"🔊 Fade-in enabled: {self.fadein}")
             
-            # Start playing
-            if hasattr(self.sound, 'state') and self.sound.state != 'playing':
-                self.sound.play()
-                logger.info(f"🎵 Alarm sound started playing")
-                
-                # ДОБАВЛЕНО: Принудительно переустанавливаем громкость после начала воспроизведения
-                import time
-                time.sleep(0.1)  # Короткая пауза для инициализации
-                self.sound.volume = self.current_volume
-                logger.info(f"🔊 Volume re-applied after play start: {self.current_volume:.2f}")
+            # Запускаем воспроизведение
+            self.sound.play()
+            
+            # ДОБАВЛЕНО: Сразу планируем следующий цикл для зацикливания
+            self._schedule_next_play()
             
             # Start fade-in if enabled
             if self.fadein:
@@ -271,6 +296,8 @@ class AlarmPopup(ModalView):
                 
         except Exception as e:
             logger.error(f"❌ Error starting alarm: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
     
     def start_fade_in(self):
         """Gradually increase volume with improved algorithm"""
