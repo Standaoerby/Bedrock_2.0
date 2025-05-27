@@ -46,9 +46,10 @@ class AlarmPopup(ModalView):
         self.sound_path = None
         self.ringtone = ringtone
         self.fadein = fadein
-        self.current_volume = 0.0 if fadein else 0.8  # Start at 80% if no fade-in
-        self.max_volume = 0.8  # Maximum volume (not too loud)
-        self.fade_time = 10.0  # Faster fade-in: 10 seconds instead of 30
+        # ИСПРАВЛЕНО: Начинаем с хорошо слышимой громкости при fade-in
+        self.current_volume = 0.35 if fadein else 0.85  # Start at 35% if fade-in, 85% if not
+        self.max_volume = 0.85  # Maximum volume
+        self.fade_time = 6.0  # Быстрый fade-in: 6 секунд
         self._fade_event = None
         
         # Create the beautiful UI
@@ -72,17 +73,29 @@ class AlarmPopup(ModalView):
             return "Sleepyhead"
     
     def _create_ui(self):
-        """Create beautiful UI elements"""
+        """Create beautiful UI elements with theme colors"""
         # Main container with custom background
         main_layout = BoxLayout(orientation='vertical', padding=[30, 40], spacing=30)
         
-        # Custom background drawing
+        # ИСПРАВЛЕНО: Используем цвета темы вместо хардкода
+        # Получаем цвета из темы
+        primary_color = self.theme.get("colors", {}).get("primary", [0.2, 0.4, 0.8, 1])
+        accent_color = self.theme.get("colors", {}).get("accent", [1, 0.6, 0, 1])
+        warning_color = self.theme.get("colors", {}).get("warning", [0.9, 0.7, 0.1, 1])
+        panel_bg = self.theme.get("panel_bg", [0.1, 0.1, 0.15, 0.9])
+        
+        # Custom background drawing with theme colors
         with main_layout.canvas.before:
-            # Gradient-like background effect
-            Color(0.1, 0.1, 0.15, 0.95)  # Dark blue-gray
+            # Main background from theme
+            bg_color = list(panel_bg)
+            bg_color[3] = 0.95  # Увеличиваем непрозрачность для будильника
+            Color(*bg_color)
             self.bg_rect1 = RoundedRectangle(pos=main_layout.pos, size=main_layout.size, radius=[25])
             
-            Color(0.8, 0.2, 0.2, 0.8)  # Red overlay for urgency
+            # ИСПРАВЛЕНО: Используем warning/accent цвет вместо красного
+            overlay_color = list(warning_color)
+            overlay_color[3] = 0.6  # Полупрозрачное наложение для внимания
+            Color(*overlay_color)
             self.bg_rect2 = RoundedRectangle(pos=main_layout.pos, size=main_layout.size, radius=[25])
         
         # Bind background updates
@@ -90,22 +103,26 @@ class AlarmPopup(ModalView):
         
         # Current time display
         current_time = datetime.now().strftime("%H:%M")
+        font_color = self.theme.get("font_color", [1, 1, 1, 1])
+        
         time_label = Label(
             text=current_time,
             font_name=self.font_name,
             font_size="48sp",
-            color=[1, 1, 1, 1],
+            color=font_color,
             size_hint_y=0.2,
             bold=True
         )
         
         # Main wake up message with username
         wake_message = f"WAKE UP,\n{self.username.upper()}!"
+        font_highlight = self.theme.get("colors", {}).get("font_highlight", [1, 1, 0.8, 1])
+        
         wake_up_label = Label(
             text=wake_message,
             font_name=self.font_name,
             font_size="36sp",
-            color=[1, 1, 0.8, 1],  # Warm yellow-white
+            color=font_highlight,
             size_hint_y=0.4,
             halign="center",
             valign="middle",
@@ -114,11 +131,13 @@ class AlarmPopup(ModalView):
         wake_up_label.bind(size=wake_up_label.setter('text_size'))
         
         # Volume indicator (if fade-in is enabled)
+        font_secondary = self.theme.get("colors", {}).get("font_secondary", [0.8, 0.8, 1, 1])
+        
         self.volume_label = Label(
-            text="🔊 Volume: 0%" if self.fadein else "",
+            text="🔊 Volume: 35%" if self.fadein else "",
             font_name=self.font_name,
             font_size="20sp",
-            color=[0.8, 0.8, 1, 1],
+            color=font_secondary,
             size_hint_y=0.1,
             opacity=1 if self.fadein else 0
         )
@@ -131,25 +150,29 @@ class AlarmPopup(ModalView):
             padding=[50, 0]
         )
         
-        # Snooze button (5 minutes)
+        # ИСПРАВЛЕНО: Используем цвета темы для кнопок
+        inactive_color = self.theme.get("colors", {}).get("inactive", [0.6, 0.6, 0.6, 1])
+        error_color = self.theme.get("colors", {}).get("error", [0.9, 0.2, 0.2, 1])
+        
+        # Snooze button (5 minutes) - используем warning цвет
         snooze_button = Button(
             text="SNOOZE\n5 min",
             font_name=self.font_name,
             font_size="24sp",
             size_hint_x=0.4,
-            background_color=[0.8, 0.6, 0.2, 1],  # Orange
-            color=[1, 1, 1, 1]
+            background_color=warning_color,  # Цвет темы
+            color=font_color
         )
         snooze_button.bind(on_release=self._on_snooze_button)
         
-        # Turn off button
+        # Turn off button - используем error цвет
         turn_off_button = Button(
             text="TURN OFF",
             font_name=self.font_name,
             font_size="28sp",
             size_hint_x=0.6,
-            background_color=[0.8, 0.2, 0.2, 1],  # Red
-            color=[1, 1, 1, 1],
+            background_color=error_color,  # Цвет темы
+            color=font_color,
             bold=True
         )
         turn_off_button.bind(on_release=self._on_turn_off_button)
@@ -176,7 +199,7 @@ class AlarmPopup(ModalView):
             self.bg_rect1.pos = instance.pos
             self.bg_rect1.size = instance.size
         if hasattr(self, 'bg_rect2'):
-            # Make red overlay slightly smaller for layered effect
+            # Make overlay slightly smaller for layered effect
             padding = 5
             self.bg_rect2.pos = (instance.x + padding, instance.y + padding)
             self.bg_rect2.size = (instance.width - 2*padding, instance.height - 2*padding)
@@ -222,14 +245,22 @@ class AlarmPopup(ModalView):
                 logger.warning(f"❌ Failed to load ringtone: {path}")
                 return
             
-            # Set initial volume
+            # ИСПРАВЛЕНО: Устанавливаем начальную громкость и проверяем применение
             self.sound.volume = self.current_volume
             self.sound.loop = True  # Loop the sound until turned off
+            
+            logger.info(f"🎵 Starting alarm sound: {path} with volume {self.current_volume:.2f} ({int(self.current_volume*100)}%)")
             
             # Start playing
             if hasattr(self.sound, 'state') and self.sound.state != 'playing':
                 self.sound.play()
-                logger.info(f"🎵 Started alarm sound: {path}")
+                logger.info(f"🎵 Alarm sound started playing")
+                
+                # ДОБАВЛЕНО: Принудительно переустанавливаем громкость после начала воспроизведения
+                import time
+                time.sleep(0.1)  # Короткая пауза для инициализации
+                self.sound.volume = self.current_volume
+                logger.info(f"🔊 Volume re-applied after play start: {self.current_volume:.2f}")
             
             # Start fade-in if enabled
             if self.fadein:
@@ -251,26 +282,36 @@ class AlarmPopup(ModalView):
             self._fade_event.cancel()
             self._fade_event = None
         
-        logger.info(f"🔊 Starting fade-in over {self.fade_time} seconds (0% → {int(self.max_volume*100)}%)")
+        logger.info(f"🔊 Starting fade-in from {int(self.current_volume*100)}% to {int(self.max_volume*100)}% over {self.fade_time} seconds")
         
-        # Better fade-in calculation
-        total_steps = int(self.fade_time * 10)  # 10 steps per second for smooth fade
-        self.fade_step = self.max_volume / total_steps
+        # ИСПРАВЛЕНО: Более агрессивный fade-in с проверкой применения громкости
+        total_steps = int(self.fade_time * 8)  # 8 шагов в секунду для очень плавности
+        volume_increase = (self.max_volume - self.current_volume) / total_steps
         fade_interval = self.fade_time / total_steps
         
-        # Reset volume to 0 for fade-in
-        self.current_volume = 0.0
+        logger.info(f"🔊 Fade parameters: {total_steps} steps, increase per step: {volume_increase:.4f}, interval: {fade_interval:.3f}s")
+        
+        # ДОБАВЛЕНО: Принудительно проверяем текущую громкость звука
         if self.sound:
-            self.sound.volume = 0.0
+            actual_volume = getattr(self.sound, 'volume', 0)
+            logger.info(f"🎵 Current sound volume check: set={self.current_volume:.2f}, actual={actual_volume:.2f}")
+            
+            # Если громкости не совпадают, принудительно устанавливаем
+            if abs(actual_volume - self.current_volume) > 0.05:
+                self.sound.volume = self.current_volume
+                logger.warning(f"🔧 Fixed volume mismatch: {actual_volume:.2f} → {self.current_volume:.2f}")
         
         # Schedule incremental volume increase
-        self._fade_event = Clock.schedule_interval(self._increase_volume, fade_interval)
+        self._fade_event = Clock.schedule_interval(
+            lambda dt: self._increase_volume(volume_increase), 
+            fade_interval
+        )
         
         # Update display immediately
         self._update_volume_display()
     
-    def _increase_volume(self, dt):
-        """Improved volume increment with better error handling"""
+    def _increase_volume(self, volume_step):
+        """Improved volume increment with better error handling and verification"""
         if not self.sound or self._sound_stopped:
             logger.info("🔇 Fade-in stopped (sound stopped)")
             return False
@@ -278,10 +319,22 @@ class AlarmPopup(ModalView):
         try:
             if self.current_volume < self.max_volume:
                 # Increase volume by calculated step
-                self.current_volume = min(self.current_volume + self.fade_step, self.max_volume)
+                old_volume = self.current_volume
+                self.current_volume = min(self.current_volume + volume_step, self.max_volume)
                 
-                # Apply new volume to sound
+                # Apply new volume to sound with verification
                 self.sound.volume = self.current_volume
+                
+                # ДОБАВЛЕНО: Проверяем, что громкость действительно применилась
+                applied_volume = getattr(self.sound, 'volume', 0)
+                
+                if abs(applied_volume - self.current_volume) > 0.05:
+                    # Повторная попытка установки громкости
+                    logger.warning(f"🔧 Volume not applied correctly, retrying: target={self.current_volume:.2f}, actual={applied_volume:.2f}")
+                    self.sound.volume = self.current_volume
+                    applied_volume = getattr(self.sound, 'volume', 0)
+                
+                logger.debug(f"🔊 Volume: {old_volume:.2f} → {self.current_volume:.2f} ({int(self.current_volume*100)}%) [applied: {applied_volume:.2f}]")
                 
                 # Update UI display
                 self._update_volume_display()
@@ -289,6 +342,11 @@ class AlarmPopup(ModalView):
                 return True  # Continue the interval
             else:
                 logger.info(f"🔊 Fade-in complete at {int(self.current_volume*100)}%")
+                
+                # ДОБАВЛЕНО: Финальная проверка громкости
+                final_volume = getattr(self.sound, 'volume', 0)
+                logger.info(f"🎵 Final volume check: target={self.current_volume:.2f}, actual={final_volume:.2f}")
+                
                 self._update_volume_display()
                 return False  # Stop the interval
                 
@@ -361,13 +419,14 @@ class AlarmPopup(ModalView):
             if self.sound:
                 if hasattr(self.sound, 'state') and self.sound.state != 'stop':
                     self.sound.stop()
+                    logger.info("🔇 Sound stopped")
                 self.sound = None
             
             # Update volume display
             if self.volume_label:
                 self.volume_label.text = "🔇 Alarm stopped"
             
-            logger.info("🔇 Alarm sound stopped")
+            logger.info("🔇 Alarm sound stopped completely")
             
         except Exception as e:
             logger.error(f"❌ Error stopping sound: {e}")
