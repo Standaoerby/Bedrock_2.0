@@ -5,28 +5,45 @@ import logging
 import re
 from datetime import datetime
 
-# УПРОЩЕННАЯ конфигурация Kivy для Pi 5 fullscreen
-from kivy.config import Config
+# КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем запущен ли из launcher'а
+LAUNCHED_FROM_LAUNCHER = os.getenv('BEDROCK_LAUNCHER_MODE') == 'fullscreen'
 
-# КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Простая и надёжная конфигурация fullscreen
-Config.set('graphics', 'width', '1024')
-Config.set('graphics', 'height', '600')
-Config.set('graphics', 'fullscreen', '1')
-Config.set('graphics', 'borderless', '1')
-Config.set('graphics', 'resizable', '0')
-Config.set('graphics', 'show_cursor', '0')
-Config.set('graphics', 'window_state', 'maximized')
-Config.set('graphics', 'position', 'custom')
-Config.set('graphics', 'left', '0')
-Config.set('graphics', 'top', '0')
-Config.set('graphics', 'minimum_width', '1024')
-Config.set('graphics', 'minimum_height', '600')
+if not LAUNCHED_FROM_LAUNCHER:
+    # Прямой запуск - настраиваем окружение
+    print("🔧 Direct launch detected - setting up environment...")
+    
+    os.environ['DISPLAY'] = ':0.0'
+    os.environ['XDG_SESSION_TYPE'] = 'x11'
+    os.environ['SDL_VIDEODRIVER'] = 'x11'
+    os.environ['KIVY_WINDOW'] = 'sdl2'
+    os.environ['KIVY_GL_BACKEND'] = 'gl'
+    
+    # Убираем конфликтующие переменные
+    for var in ['SDL_WINDOWID', 'KIVY_WINDOW_IMPL']:
+        if var in os.environ:
+            del os.environ[var]
 
-# УПРОЩЕННЫЕ environment variables
-os.environ['KIVY_GL_BACKEND'] = 'sdl2'
-os.environ['KIVY_WINDOW'] = 'sdl2'
-os.environ['SDL_VIDEO_FULLSCREEN_HEAD'] = '0'
-os.environ['SDL_VIDEODRIVER'] = 'x11'
+# КРИТИЧЕСКАЯ НАСТРОЙКА: Конфигурируем Kivy ТОЛЬКО если не запущен из launcher'а
+if not LAUNCHED_FROM_LAUNCHER:
+    print("🎯 Configuring Kivy for direct launch...")
+    from kivy.config import Config
+    
+    # Fullscreen конфигурация
+    Config.set('graphics', 'fullscreen', 'auto')
+    Config.set('graphics', 'width', '1024')
+    Config.set('graphics', 'height', '600')
+    Config.set('graphics', 'borderless', '1')
+    Config.set('graphics', 'resizable', '0')
+    Config.set('graphics', 'show_cursor', '1')
+    Config.set('graphics', 'window_state', 'maximized')
+    Config.set('graphics', 'position', 'custom')
+    Config.set('graphics', 'left', '0')
+    Config.set('graphics', 'top', '0')
+    
+    # НЕ записываем конфигурацию чтобы избежать конфликтов
+    # Config.write()
+else:
+    print("✅ Launched from launcher - using launcher's Kivy configuration")
 
 # Kivy imports
 from kivy.core.text import LabelBase
@@ -35,6 +52,7 @@ from kivy.clock import Clock, mainthread
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.graphics import Color, RoundedRectangle
+from kivy.core.window import Window
 
 # KivyMD imports  
 from kivymd.app import MDApp
@@ -91,7 +109,6 @@ class ThemedPanel(BoxLayout):
         try:
             app = self.get_app()
             if app and hasattr(app, 'theme_config'):
-                # ИСПРАВЛЕНО: Простая привязка без сложной логики
                 self.update_background()
             else:
                 # Повторить попытку
@@ -133,7 +150,7 @@ class ThemedPanel(BoxLayout):
         return App.get_running_app()
 
 class BedrockApp(MDApp):
-    """УПРОЩЕННОЕ главное приложение Bedrock"""
+    """ИСПРАВЛЕННОЕ главное приложение Bedrock для Pi 5"""
     
     # Properties
     current_screen = StringProperty("home")
@@ -179,6 +196,45 @@ class BedrockApp(MDApp):
         self._auto_theme_event = None
         
         logger.info(f"🎮 BedrockApp initialized: theme={self.theme_name}/{self.theme_mode}")
+        
+        # КРИТИЧЕСКАЯ ПРОВЕРКА FULLSCREEN после инициализации
+        if LAUNCHED_FROM_LAUNCHER:
+            logger.info("✅ App launched from launcher - fullscreen should be configured")
+        else:
+            logger.info("⚠️ App launched directly - configuring fullscreen...")
+            Clock.schedule_once(self._ensure_fullscreen_direct, 1.0)
+
+    def _ensure_fullscreen_direct(self, dt):
+        """Убеждаемся что fullscreen работает при прямом запуске"""
+        try:
+            logger.info(f"🔍 Current window: size={Window.size}, fullscreen={Window.fullscreen}")
+            
+            if Window.size != (1024, 600):
+                logger.info("🔧 Correcting window size...")
+                Window.size = (1024, 600)
+            
+            if not Window.fullscreen:
+                logger.info("🔧 Enabling fullscreen...")
+                Window.fullscreen = 'auto'
+                
+            # Дополнительная проверка через 2 секунды
+            Clock.schedule_once(self._verify_fullscreen, 2.0)
+            
+        except Exception as e:
+            logger.error(f"Error ensuring fullscreen: {e}")
+    
+    def _verify_fullscreen(self, dt):
+        """Проверка что fullscreen действительно работает"""
+        try:
+            logger.info(f"🔍 Fullscreen verification: size={Window.size}, fullscreen={Window.fullscreen}")
+            
+            if Window.size == (1024, 600) and Window.fullscreen:
+                logger.info("✅ Fullscreen verified successfully")
+            else:
+                logger.warning(f"⚠️ Fullscreen verification failed: size={Window.size}, fullscreen={Window.fullscreen}")
+                
+        except Exception as e:
+            logger.error(f"Error verifying fullscreen: {e}")
 
     def build(self):
         """Построить приложение"""
@@ -194,11 +250,28 @@ class BedrockApp(MDApp):
             # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно обновляем ThemedPanel после создания UI
             Clock.schedule_once(self._refresh_themed_panels, 0.5)
             
+            # НОВОЕ: Дополнительная проверка fullscreen после построения UI
+            Clock.schedule_once(self._post_build_fullscreen_check, 1.0)
+            
             return root_widget
             
         except Exception as e:
             logger.error(f"Error building app: {e}")
             raise
+
+    def _post_build_fullscreen_check(self, dt):
+        """Проверка fullscreen после построения UI"""
+        try:
+            logger.info(f"🔍 Post-build fullscreen check: {Window.size}, fullscreen={Window.fullscreen}")
+            
+            # Если что-то не так с размером окна, исправляем
+            if Window.size != (1024, 600):
+                logger.warning("🔧 Correcting window size after UI build...")
+                Window.size = (1024, 600)
+                Window.fullscreen = 'auto'
+                
+        except Exception as e:
+            logger.error(f"Error in post-build fullscreen check: {e}")
 
     def _refresh_themed_panels(self, dt):
         """НОВОЕ: Обновить все ThemedPanel после создания UI"""
@@ -352,9 +425,30 @@ class BedrockApp(MDApp):
             
             # Start auto theme monitoring
             Clock.schedule_once(self._start_auto_theme, 5)
+            
+            # НОВОЕ: Финальная проверка fullscreen
+            Clock.schedule_once(self._final_fullscreen_check, 2)
                 
         except Exception as e:
             logger.error(f"Error in on_start: {e}")
+
+    def _final_fullscreen_check(self, dt):
+        """Финальная проверка что fullscreen действительно работает"""
+        try:
+            logger.info(f"🔍 Final fullscreen check: size={Window.size}, fullscreen={Window.fullscreen}")
+            
+            if Window.size == (1024, 600) and Window.fullscreen:
+                logger.info("🎉 FULLSCREEN CONFIRMED WORKING!")
+                
+                # Скрываем курсор в рабочем режиме
+                Window.show_cursor = False
+                
+            else:
+                logger.error(f"❌ FULLSCREEN FAILED: size={Window.size}, fullscreen={Window.fullscreen}")
+                logger.error("💡 Check Pi 5 configuration and X11 settings")
+                
+        except Exception as e:
+            logger.error(f"Error in final fullscreen check: {e}")
 
     def _simple_theme_init(self, dt):
         """УПРОЩЕННАЯ установка корректной темы при запуске"""

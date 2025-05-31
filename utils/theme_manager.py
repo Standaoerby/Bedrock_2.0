@@ -1,5 +1,5 @@
 """
-Упрощенный менеджер тем для Bedrock
+Исправленный менеджер тем для Bedrock с принудительным обновлением UI
 """
 import os
 import json
@@ -11,7 +11,7 @@ from utils.common import safe_json_load, safe_json_save, Constants
 logger = logging.getLogger("ThemeManager")
 
 class ThemeManager:
-    """Упрощенное управление темами приложения"""
+    """Исправленное управление темами приложения"""
     
     def __init__(self, app):
         self.app = app
@@ -72,12 +72,12 @@ class ThemeManager:
             self.create_default_dark_theme()
     
     def create_default_dark_theme(self):
-        """Создать тёмную тему по умолчанию"""
+        """Создать тёмную тему по умолчанию с ПРАВИЛЬНЫМИ цветами тени"""
         try:
             dark_theme_dir = f"{Constants.THEMES_DIR}/minecraft/dark"
             os.makedirs(dark_theme_dir, exist_ok=True)
             
-            # ИСПРАВЛЕНО: Корректные цвета для тёмной темы
+            # ИСПРАВЛЕНО: Корректные цвета для тёмной темы, особенно тень
             dark_config = {
                 "theme_name": "minecraft",
                 "theme_mode": "dark",
@@ -109,8 +109,8 @@ class ThemeManager:
                     "primary": [0.2, 0.4, 0.8, 1],
                     "secondary": [0.6, 0.3, 0.8, 1],
                     "accent": [1, 0.6, 0, 1],
-                    "active": [0.3, 0.8, 0.3, 1],  # Зелёный для активных элементов
-                    "inactive": [0.5, 0.5, 0.5, 1],  # Серый для неактивных
+                    "active": [0.3, 0.8, 0.3, 1],
+                    "inactive": [0.5, 0.5, 0.5, 1],
                     "semi_active": [0.6, 0.8, 0.6, 1],
                     "warning": [0.9, 0.7, 0.1, 1],
                     "error": [0.9, 0.2, 0.2, 1],
@@ -118,16 +118,17 @@ class ThemeManager:
                     
                     # ИСПРАВЛЕНО: Светлые цвета шрифта для тёмной темы
                     "font_default": [0.9, 0.9, 0.95, 1],
-                    "font_highlight": [0.95, 0.95, 1, 1],  # Ещё светлее для выделения
+                    "font_highlight": [0.95, 0.95, 1, 1],
                     "font_secondary": [0.8, 0.85, 0.9, 1],
                     "font_action": [0.5, 0.9, 0.5, 1],
                     
-                    "shadow": [0.9, 0.9, 0.9, 0.3],
+                    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Правильный цвет тени для тёмной темы
+                    "shadow": [0.9, 0.9, 0.9, 0.3],  # Светлая тень для тёмного фона
                     "trend_up": [1, 0.5, 0.5, 1],
                     "trend_down": [0.4, 0.7, 1, 1]
                 },
-                "menu_selected_color": [0.95, 0.95, 1, 1],  # Яркий для выбранного меню
-                "menu_unselected_color": [0.6, 0.6, 0.7, 1],  # Тусклый для невыбранного
+                "menu_selected_color": [0.95, 0.95, 1, 1],
+                "menu_unselected_color": [0.6, 0.6, 0.7, 1],
                 "grid_unit": "32dp",
                 "padding": "15dp"
             }
@@ -136,7 +137,7 @@ class ThemeManager:
             result = safe_json_save(theme_file, dark_config)
             
             if result:
-                logger.info("✅ Dark theme created successfully")
+                logger.info("✅ Dark theme created successfully with correct shadow colors")
             else:
                 logger.error("❌ Failed to create dark theme")
             
@@ -153,7 +154,7 @@ class ThemeManager:
     
     @mainthread
     def switch_theme_mode(self, mode):
-        """УПРОЩЕННОЕ переключение режима темы"""
+        """ИСПРАВЛЕННОЕ переключение режима темы с принудительным обновлением UI"""
         if self._switching or mode not in ["light", "dark"] or mode == self.current_mode:
             logger.debug(f"Skipping theme switch: switching={self._switching}, mode={mode}, current={self.current_mode}")
             return True
@@ -177,13 +178,17 @@ class ThemeManager:
                 self._switching = False
                 return False
             
-            # КРИТИЧЕСКАЯ ОТЛАДКА: Проверяем цвета шрифта
+            # КРИТИЧЕСКАЯ ОТЛАДКА: Проверяем цвета
             old_font_color = self.theme_config.get("font_color", [1, 1, 1, 1])
             new_font_color = new_config.get("font_color", [1, 1, 1, 1])
+            old_shadow_color = self.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
+            new_shadow_color = new_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
             
             logger.info(f"🎨 Font color change: {old_font_color} → {new_font_color}")
+            logger.info(f"🎨 Shadow color change: {old_shadow_color} → {new_shadow_color}")
             
             # Атомарное обновление
+            old_mode = self.current_mode
             self.current_mode = mode
             self.theme_config = new_config
             
@@ -191,8 +196,8 @@ class ThemeManager:
             self.app.theme_mode = mode
             self.app.theme_config = new_config
             
-            # УПРОЩЕННОЕ обновление UI
-            self._simple_refresh_ui()
+            # ИСПРАВЛЕННОЕ обновление UI с принудительной перерисовкой
+            self._enhanced_refresh_ui(old_mode, mode)
             
             # Разблокировка через секунду
             Clock.schedule_once(lambda dt: setattr(self, '_switching', False), 1.0)
@@ -205,9 +210,11 @@ class ThemeManager:
             self._switching = False
             return False
     
-    def _simple_refresh_ui(self):
-        """УПРОЩЕННОЕ обновление UI после смены темы"""
+    def _enhanced_refresh_ui(self, old_mode, new_mode):
+        """НОВОЕ: Улучшенное обновление UI с принудительной перерисовкой часов"""
         try:
+            logger.info(f"🔄 Enhanced UI refresh: {old_mode} → {new_mode}")
+            
             # 1. Очистить кэш изображений
             for category in ['kv.image', 'kv.texture', 'kv.atlas']:
                 try:
@@ -215,22 +222,125 @@ class ThemeManager:
                 except:
                     pass
             
-            # 2. КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно диспетчеризуем theme_config
-            logger.info("🔄 Dispatching theme_config property change...")
+            # 2. КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Многоэтапное обновление theme_config
+            logger.info("🔄 Multi-stage theme_config dispatch...")
             
-            # Это заставит все биндинги в .kv файлах обновиться
+            # Первый dispatch
             self.app.property('theme_config').dispatch(self.app)
             
-            # 3. Обновить фон через короткую задержку
-            Clock.schedule_once(self._update_background, 0.1)
+            # Короткая задержка и второй dispatch для надёжности
+            Clock.schedule_once(lambda dt: self.app.property('theme_config').dispatch(self.app), 0.1)
             
-            # 4. Обновить overlay изображения
-            Clock.schedule_once(self._update_overlays, 0.2)
+            # 3. НОВОЕ: Принудительное обновление часов и тени
+            Clock.schedule_once(lambda dt: self._force_update_clock_elements(), 0.2)
             
-            logger.info("✅ Simple UI refresh completed")
+            # 4. Обновить фон
+            Clock.schedule_once(self._update_background, 0.3)
+            
+            # 5. Обновить overlay изображения
+            Clock.schedule_once(self._update_overlays, 0.4)
+            
+            # 6. НОВОЕ: Обновить ThemedPanel элементы
+            Clock.schedule_once(self._force_update_themed_panels, 0.5)
+            
+            logger.info("✅ Enhanced UI refresh scheduled")
             
         except Exception as e:
-            logger.error(f"❌ Error in simple UI refresh: {e}")
+            logger.error(f"❌ Error in enhanced UI refresh: {e}")
+    
+    def _force_update_clock_elements(self):
+        """НОВОЕ: Принудительное обновление часов и тени"""
+        try:
+            logger.info("🕒 Force updating clock elements...")
+            
+            screen_manager = getattr(self.app.root.ids, 'screen_manager', None)
+            if not screen_manager:
+                logger.warning("Screen manager not found")
+                return
+            
+            # Находим home screen
+            home_screen = None
+            for screen in screen_manager.screens:
+                if getattr(screen, 'name', '') == 'home':
+                    home_screen = screen
+                    break
+            
+            if not home_screen:
+                logger.warning("Home screen not found")
+                return
+            
+            # Получаем цвета из новой темы
+            shadow_color = self.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
+            font_color = self.theme_config.get("font_color", [1, 1, 1, 1])
+            
+            logger.info(f"🎨 Applying clock colors: font={font_color}, shadow={shadow_color}")
+            
+            # Обновляем тень часов
+            if hasattr(home_screen.ids, 'clock_shadow_label'):
+                shadow_label = home_screen.ids.clock_shadow_label
+                if shadow_label:
+                    old_color = shadow_label.color
+                    shadow_label.color = shadow_color
+                    logger.info(f"🕒 Shadow color updated: {old_color} → {shadow_color}")
+            
+            # Обновляем основные часы
+            if hasattr(home_screen.ids, 'clock_label'):
+                clock_label = home_screen.ids.clock_label
+                if clock_label:
+                    old_color = clock_label.color
+                    clock_label.color = font_color
+                    logger.info(f"🕒 Clock color updated: {old_color} → {font_color}")
+            
+            # НОВОЕ: Принудительно перерисовываем canvas
+            try:
+                if hasattr(home_screen, 'canvas'):
+                    home_screen.canvas.ask_update()
+                    
+                # Перерисовываем canvas всех дочерних элементов
+                def redraw_widget_recursive(widget):
+                    if hasattr(widget, 'canvas'):
+                        widget.canvas.ask_update()
+                    if hasattr(widget, 'children'):
+                        for child in widget.children:
+                            redraw_widget_recursive(child)
+                
+                redraw_widget_recursive(home_screen)
+                logger.info("🎨 Canvas redraw completed")
+                
+            except Exception as canvas_error:
+                logger.warning(f"Canvas redraw error: {canvas_error}")
+            
+            logger.info("✅ Clock elements force update completed")
+            
+        except Exception as e:
+            logger.error(f"❌ Error force updating clock elements: {e}")
+    
+    def _force_update_themed_panels(self):
+        """НОВОЕ: Принудительное обновление всех ThemedPanel"""
+        try:
+            logger.info("🔄 Force updating ThemedPanel elements...")
+            
+            def update_panels_recursive(widget):
+                # Проверяем это ThemedPanel
+                if widget.__class__.__name__ == 'ThemedPanel':
+                    try:
+                        if hasattr(widget, 'update_background'):
+                            widget.update_background()
+                            logger.debug(f"Updated ThemedPanel: {id(widget)}")
+                    except Exception as panel_error:
+                        logger.warning(f"Error updating panel {id(widget)}: {panel_error}")
+                
+                # Рекурсивно обновляем дочерние элементы
+                if hasattr(widget, 'children'):
+                    for child in widget.children:
+                        update_panels_recursive(child)
+            
+            if self.app.root:
+                update_panels_recursive(self.app.root)
+                logger.info("✅ ThemedPanel force update completed")
+                
+        except Exception as e:
+            logger.error(f"❌ Error force updating ThemedPanels: {e}")
     
     def _update_background(self, dt):
         """Обновить фоновое изображение"""
@@ -282,6 +392,8 @@ class ThemeManager:
         
         # ОТЛАДКА: Проверяем цвета при инициализации
         font_color = self.theme_config.get("font_color", [1, 1, 1, 1])
-        logger.info(f"🎨 Theme initialized: {theme_name}/{theme_mode}, font_color={font_color}")
+        shadow_color = self.theme_config.get("colors", {}).get("shadow", [0.2, 0.2, 0.2, 0.4])
+        logger.info(f"🎨 Theme initialized: {theme_name}/{theme_mode}")
+        logger.info(f"🎨 Colors: font={font_color}, shadow={shadow_color}")
         
         return self.theme_config
