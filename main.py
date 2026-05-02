@@ -1,7 +1,6 @@
 from kivy.core.text import LabelBase
 from kivy.lang import Builder
 from kivymd.app import MDApp
-from kivymd.uix.pickers.timepicker import MDTimePickerInput
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
 from services.alarm_service import AlarmService
 from services.weather_service import WeatherService
@@ -40,7 +39,18 @@ def load_theme_config(theme="minecraft", mode="light"):
     with open(path, "r", encoding="utf-8") as f:
         config = json.load(f)
     return config
-    
+
+
+def load_user_config(path="config/user.json"):
+    """Best-effort read of persisted user prefs for startup."""
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
 from kivy.config import Config
 Config.set('graphics', 'width', '1024')
 Config.set('graphics', 'height', '600')
@@ -50,18 +60,23 @@ Config.set('graphics', 'show_cursor', '0')
 class BedrockApp(MDApp):
     current_screen = StringProperty("home")
     menu_navigation = BooleanProperty(False)
-    
+
+    # Theme — DictProperty so KV bindings re-evaluate on switch
+    theme_name = StringProperty("minecraft")
+    theme_mode = StringProperty("light")
+    theme_config = DictProperty({})
+
     # Параметры масштабирования для различных платформ
     is_raspberry_pi = BooleanProperty(platform.system() != 'Windows')
     ui_scale = NumericProperty(1.0)
     font_scale = NumericProperty(1.0)
     padding_scale = NumericProperty(1.0)
-    
+
     # Основные параметры размещения
     menu_height = NumericProperty(70)
     menu_padding = NumericProperty(10)
     content_padding = NumericProperty(15)
-    
+
     # Общие значения для всех экранов
     ui_metrics = DictProperty({
         'menu_height': 70,
@@ -79,24 +94,26 @@ class BedrockApp(MDApp):
                 if key in os.environ:
                     del os.environ[key]
             print("Running on Windows - adjusted environment settings")
-            
+
             self.ui_scale = 1.0
             self.font_scale = 1.0
             self.padding_scale = 1.0
         else:
             print(f"Running on {platform.system()} - using Raspberry Pi settings")
-            
+
             self.ui_scale = 0.9
             self.font_scale = 0.85
             self.padding_scale = 0.8
-            
+
             Config.set('graphics', 'fullscreen', '1')
 
         self._update_ui_metrics()
 
-        self.theme_name = "minecraft"
-        self.theme_mode = "light"
-        self.theme_config = load_theme_config(self.theme_name, self.theme_mode)
+        # Read persisted theme prefs so saved dark mode survives restart
+        user_prefs = load_user_config()
+        self.theme_name = user_prefs.get("theme", "minecraft")
+        self.theme_mode = user_prefs.get("theme_mode", "light")
+        self.theme_config = self.load_theme_config(self.theme_name, self.theme_mode)
         
         if self.is_raspberry_pi:
             # Обработка размеров шрифтов
@@ -248,6 +265,42 @@ class BedrockApp(MDApp):
                     lambda dt: setattr(sound_copy, 'on_stop', lambda: None), 
                     sound.length + 0.1
                 )
+
+    def load_theme_config(self, theme=None, mode=None):
+        """Load a theme config; mirrors module-level loader so settings can call app.load_theme_config()."""
+        return load_theme_config(theme or self.theme_name, mode or self.theme_mode)
+
+    def apply_theme(self, theme=None, mode=None, persist=True):
+        """Switch the live theme and trigger KV re-binding by reassigning the DictProperty."""
+        new_theme = theme or self.theme_name
+        new_mode = mode or self.theme_mode
+        try:
+            new_config = self.load_theme_config(new_theme, new_mode)
+        except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
+            print(f"apply_theme: failed to load {new_theme}/{new_mode}: {e}")
+            return False
+
+        self.theme_name = new_theme
+        self.theme_mode = new_mode
+        # DictProperty fires on identity change — reassign to a fresh dict
+        self.theme_config = dict(new_config)
+
+        if persist:
+            self._persist_theme_choice()
+        return True
+
+    def _persist_theme_choice(self):
+        """Write current theme_name/theme_mode back into config/user.json without clobbering other keys."""
+        path = "config/user.json"
+        prefs = load_user_config(path)
+        prefs["theme"] = self.theme_name
+        prefs["theme_mode"] = self.theme_mode
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(prefs, f, ensure_ascii=False, indent=2)
+        except OSError as e:
+            print(f"_persist_theme_choice: write failed: {e}")
 
     def get_overlay_image(self, page):
         return self.theme_config["overlay_images"].get(page, "")

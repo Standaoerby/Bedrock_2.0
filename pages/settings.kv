@@ -55,13 +55,21 @@
                     size_hint_y: None
                     height: "50dp"
                     spacing: "10dp"
-                    
+
                     ThemedLabel:
-                        text: "Dark Mode (9PM-7AM)" if root.dark_mode_available else "Dark Mode not available"
+                        text: "Dark Mode" if root.dark_mode_available else "Dark Mode not available"
                         font_size: "20sp"
                         halign: "right"
                         valign: "middle"
-                        color: [1, 1, 1, 1] if root.dark_mode_available else [0.6, 0.6, 0.6, 1]
+                        size_hint_x: 0.6
+                        color: app.theme_config.get("font_color", [1, 1, 1, 1]) if root.dark_mode_available else [0.6, 0.6, 0.6, 1]
+
+                    CheckBox:
+                        id: dark_mode_checkbox
+                        active: root.dark_mode_enabled
+                        disabled: not root.dark_mode_available
+                        size_hint_x: 0.4
+                        on_active: root.toggle_dark_mode(self.active)
 
             
             # User settings
@@ -93,7 +101,6 @@
                         font_size: "20sp"
                         size_hint_x: 0.7
                         multiline: False
-                        on_text_validate: root.save_username(self.text)
                 
                 # Birth date
                 BoxLayout:

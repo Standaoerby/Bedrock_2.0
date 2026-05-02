@@ -19,12 +19,14 @@ class HomeScreen(MDScreen):
         self.update_weather()
         self.update_notification()
         self.update_date()
-        
-        # Schedule regular updates
-        Clock.schedule_interval(lambda dt: self.update_alarm(), 300)
-        Clock.schedule_interval(lambda dt: self.update_weather(), 900)
-        Clock.schedule_interval(lambda dt: self.update_notification(), 30)
-        Clock.schedule_interval(lambda dt: self.update_date(), 300)
+
+        # Schedule regular updates — track them so on_leave can cancel
+        self._intervals = [
+            Clock.schedule_interval(lambda dt: self.update_alarm(), 300),
+            Clock.schedule_interval(lambda dt: self.update_weather(), 900),
+            Clock.schedule_interval(lambda dt: self.update_notification(), 30),
+            Clock.schedule_interval(lambda dt: self.update_date(), 300),
+        ]
     
     def update_date(self):
         """Update the current date and day of week"""
@@ -103,9 +105,15 @@ class HomeScreen(MDScreen):
         self._clock_ev = Clock.schedule_interval(lambda dt: self.update_clock(), 1)
 
     def on_leave(self):
-        # Stop the timer when leaving the page
+        # Cancel the clock and any periodic updaters scheduled in on_pre_enter
         if hasattr(self, '_clock_ev'):
             self._clock_ev.cancel()
+        for ev in getattr(self, '_intervals', []):
+            try:
+                ev.cancel()
+            except Exception:
+                pass
+        self._intervals = []
 
     def update_clock(self):
         now = datetime.now().strftime("%H:%M")

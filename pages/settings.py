@@ -89,70 +89,69 @@ class SettingsScreen(MDScreen):
             print(f"Ошибка при загрузке настроек: {e}")
     
     def save_all_settings(self):
-        """Сохранить все настройки в файл"""
+        """Save user prefs and apply current theme selection."""
         try:
-            # Получаем значения из полей ввода (они могли измениться)
             if hasattr(self.ids, 'username_input'):
                 self.username = self.ids.username_input.text
-                
-            # Обновляем дату рождения из полей
+
             self.update_birthdate()
-            
-            # Формируем объект настроек
-            settings = {
+
+            mode = "dark" if self.dark_mode_enabled else "light"
+
+            # Persist non-theme prefs first; app.apply_theme handles theme/theme_mode persistence
+            os.makedirs("config", exist_ok=True)
+            existing = {}
+            if os.path.exists("config/user.json"):
+                try:
+                    with open("config/user.json", "r", encoding="utf-8") as f:
+                        existing = json.load(f)
+                except (json.JSONDecodeError, OSError):
+                    existing = {}
+
+            existing.update({
                 "theme": self.current_theme,
-                "theme_mode": "dark" if self.dark_mode_enabled else "light",
-                "auto_dark_mode": True,  # Автоматический переход на темную тему
+                "theme_mode": mode,
                 "username": self.username,
-                "birthdate": self.get_birthdate_string()
-            }
-            
-            print(f"Сохраняем настройки: {settings}")
-            
-            # Создаем директорию config, если она не существует
-            if not os.path.exists("config"):
-                os.makedirs("config")
-                print("Создана директория config")
-                
-            # Сохраняем настройки
+                "birthdate": self.get_birthdate_string(),
+            })
+
             with open("config/user.json", "w", encoding="utf-8") as f:
-                json.dump(settings, f, ensure_ascii=False, indent=2)
-                
-            # Обновляем настройки приложения
+                json.dump(existing, f, ensure_ascii=False, indent=2)
+
+            # Apply theme through app — DictProperty reassignment re-fires KV bindings
             app = self.get_app()
-            if app:
-                app.theme_name = self.current_theme
-                app.theme_mode = "dark" if self.dark_mode_enabled else "light"
-                app.theme_config = app.load_theme_config(app.theme_name, app.theme_mode)
-                print(f"Настройки приложения обновлены: {app.theme_name}, {app.theme_mode}")
-                
-                # Перезагрузка экранов для применения новой темы
-                app.root.ids.screen_manager.current = "settings"
-            else:
-                print("Не удалось получить экземпляр приложения")
-                
-            print("Настройки успешно сохранены!")
+            if app and hasattr(app, "apply_theme"):
+                app.apply_theme(self.current_theme, mode, persist=False)
         except Exception as e:
             import traceback
             print(f"Ошибка при сохранении настроек: {e}")
             print(traceback.format_exc())
-    
+
     def change_theme(self, theme):
-        """Изменить текущую тему"""
-        if theme != self.current_theme:
-            self.current_theme = theme
-            self.check_dark_mode_availability()
-            
-            # Если выбрана тема без темного режима, отключаем опцию
-            if not self.dark_mode_available:
-                self.dark_mode_enabled = False
-    
-    def toggle_dark_mode(self, enabled):
-        """Включить/выключить темный режим"""
-        if self.dark_mode_available:
-            self.dark_mode_enabled = enabled
-        else:
+        """Изменить текущую тему — применяется немедленно для предпросмотра."""
+        if theme == self.current_theme:
+            return
+        self.current_theme = theme
+        self.check_dark_mode_availability()
+
+        if not self.dark_mode_available:
             self.dark_mode_enabled = False
+
+        app = self.get_app()
+        if app and hasattr(app, "apply_theme"):
+            mode = "dark" if self.dark_mode_enabled else "light"
+            app.apply_theme(theme, mode)
+
+    def toggle_dark_mode(self, enabled):
+        """Toggle dark mode and apply immediately."""
+        if not self.dark_mode_available:
+            self.dark_mode_enabled = False
+            return
+        self.dark_mode_enabled = bool(enabled)
+        app = self.get_app()
+        if app and hasattr(app, "apply_theme"):
+            mode = "dark" if self.dark_mode_enabled else "light"
+            app.apply_theme(self.current_theme, mode)
     
     def update_birthdate(self):
         """Обновить объединенную дату рождения из отдельных полей"""
