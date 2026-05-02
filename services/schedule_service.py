@@ -1,5 +1,9 @@
-import requests, json, os, time
-from datetime import datetime, timedelta
+import json, os
+import logging
+
+logger = logging.getLogger("ScheduleService")
+
+
 class ScheduleService:
     def __init__(self, path="config/schedule.json"):
         self.path = path
@@ -7,12 +11,20 @@ class ScheduleService:
         self.load()
 
     def load(self):
-        if os.path.exists(self.path):
+        defaults = {str(d): [] for d in range(1, 8)}
+        if not os.path.exists(self.path):
+            self.schedule = defaults
+            self.save()
+            return
+        try:
             with open(self.path, "r", encoding="utf-8") as f:
                 self.schedule = json.load(f)
-        else:
-            self.schedule = {str(d): [] for d in range(1,8)}
-            self.save()
+        except (json.JSONDecodeError, OSError) as e:
+            logger.error(f"schedule.json unreadable ({e}); using defaults")
+            self.schedule = defaults
+        # Ensure every day key exists so add_lesson never KeyErrors
+        for k, v in defaults.items():
+            self.schedule.setdefault(k, v)
 
     def save(self):
         with open(self.path, "w", encoding="utf-8") as f:

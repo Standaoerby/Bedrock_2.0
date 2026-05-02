@@ -51,7 +51,7 @@
   "colors": {
     "primary": [0.25, 0.65, 0.15, 1],
     "font_default": [1, 1, 1, 1],
-    "font_highdark": [1, 1, 0.7, 1],
+    "font_highlight": [1, 1, 0.7, 1],
     "font_secondary": [0.8, 1, 1, 1],
     "font_action": [0.5, 1, 0.5, 1],
     "active": [0, 1, 0, 1],

@@ -1,6 +1,9 @@
-kivy>=2.2.1
-kivymd>=2.0.0
+kivy>=2.2.1,<2.4.0
+kivymd>=1.1.1,<2.0.0
 requests>=2.30.0
 pillow
-adafruit-circuitpython-bme280
-adafruit-circuitpython-ccs811
+
+# Pi5 sensor stack — actually used in services/sensor_service.py
+adafruit-circuitpython-ens160
+adafruit-circuitpython-ahtx0
+adafruit-blinka

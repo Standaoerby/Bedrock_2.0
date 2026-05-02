@@ -84,8 +84,7 @@
                             ThemedLabel:
                                 id: hour_label
                                 text: root.alarm_time.split(':')[0]
-                                font_size: app.theme_config.get("font_sizes", {}).get("huge", "180sp")  # MUCH LARGER font
-                                font_size: "48sp"  # Direct size specification as fallback
+                                font_size: app.theme_config.get("font_sizes", {}).get("huge", "180sp")
                                 halign: "center"
                                 valign: "center"
                                 size_hint_x: 0.8
@@ -93,8 +92,7 @@
                         # Separator
                         ThemedLabel:
                             text: ":"
-                            font_size: app.theme_config.get("font_sizes", {}).get("huge", "180sp")  # MUCH LARGER font
-                            font_size: "48sp"  # Direct size specification as fallback
+                            font_size: app.theme_config.get("font_sizes", {}).get("huge", "180sp")
                             halign: "center"
                             valign: "center"
                             size_hint_x: 0.06
@@ -108,8 +106,7 @@
                             ThemedLabel:
                                 id: minute_label
                                 text: root.alarm_time.split(':')[1]
-                                font_size: app.theme_config.get("font_sizes", {}).get("huge", "180sp")  # MUCH LARGER font
-                                font_size: "48sp"  # Direct size specification as fallback
+                                font_size: app.theme_config.get("font_sizes", {}).get("huge", "180sp")
                                 halign: "center"
                                 valign: "center"
                                 size_hint_x: 0.7

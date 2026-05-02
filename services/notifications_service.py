@@ -1,6 +1,10 @@
 import json
 import os
+import logging
 from datetime import datetime
+
+logger = logging.getLogger("NotificationService")
+
 
 class NotificationService:
     def __init__(self, path="config/notifications.json"):
@@ -9,12 +13,18 @@ class NotificationService:
         self.load()
 
     def load(self):
-        if os.path.exists(self.path):
-            with open(self.path, "r", encoding="utf-8") as f:
-                self.notifications = json.load(f)
-        else:
+        if not os.path.exists(self.path):
             self.notifications = []
             self.save()
+            return
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            # Tolerate the file existing but containing the wrong shape
+            self.notifications = data if isinstance(data, list) else []
+        except (json.JSONDecodeError, OSError) as e:
+            logger.error(f"notifications.json unreadable ({e}); starting empty")
+            self.notifications = []
 
     def save(self):
         with open(self.path, "w", encoding="utf-8") as f:
