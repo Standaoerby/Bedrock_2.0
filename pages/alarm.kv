@@ -263,9 +263,9 @@
             BoxLayout:
                 orientation: "vertical"
                 size_hint: 1, None
-                height: app.theme_config.get("grid_unit_2x", "64dp")  # Increased height back to original
-                margin: [0, app.theme_config.get("grid_unit_half", "16dp"), 0, 0]  # Added top margin for spacing
-                
+                height: app.theme_config.get("grid_unit_2x", "64dp")
+                # NB: BoxLayout has no `margin`; spacing is controlled by parent's `spacing:`
+
                 # Background for fade-in volume
                 canvas.before:
                     Color:

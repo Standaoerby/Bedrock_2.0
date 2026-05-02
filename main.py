@@ -3,6 +3,7 @@ from kivy.lang import Builder
 from kivymd.app import MDApp
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
 from services.alarm_service import AlarmService
+from services.alarm_clock import AlarmClock
 from services.weather_service import WeatherService
 from services.schedule_service import ScheduleService
 from services.pigs_service import PigsService
@@ -156,9 +157,13 @@ class BedrockApp(MDApp):
         self.schedule_service = ScheduleService()
         self.pigs_service = PigsService()
         self.notification_service = NotificationService()
-        self.sensor_service = SensorService() 
+        self.sensor_service = SensorService()
         self.sensor_service.start()
-        
+
+        # Alarm clock — checks alarm.json every 30s and shows popup at fire time
+        self.alarm_clock = AlarmClock(self)
+        self.alarm_clock.start()
+
         return Builder.load_file('main.kv')
 
     def _update_ui_metrics(self):
@@ -314,6 +319,8 @@ class BedrockApp(MDApp):
         
     def on_stop(self):
         """Clean up when the application exits"""
+        if hasattr(self, 'alarm_clock'):
+            self.alarm_clock.stop()
         if hasattr(self, 'sensor_service'):
             self.sensor_service.stop()
 

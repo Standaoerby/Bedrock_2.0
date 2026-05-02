@@ -8,7 +8,7 @@ class AlarmClock:
     def __init__(self, app, check_interval=30):
         """
         Initialize alarm clock service
-        
+
         Args:
             app: Main application instance
             check_interval: How often to check alarm time in seconds
@@ -18,6 +18,9 @@ class AlarmClock:
         self.alarm_event = None
         self.active_popup = None
         self.last_check_date = None  # To detect date changes
+        # Track the minute we already triggered for, so a 30s polling cadence
+        # doesn't fire the same alarm twice within the same HH:MM window.
+        self._last_trigger_key = None
         
     def start(self):
         """Start the alarm clock service"""
@@ -59,11 +62,13 @@ class AlarmClock:
         alarm_ringtone = alarm.get("ringtone", "morning.mp3")
         alarm_fadein = alarm.get("fadein", False)
         
-        # Check if alarm should trigger
-        if (alarm_enabled and 
-            current_time_str == alarm_time and 
-            current_day in alarm_repeat):
-            
+        # Check if alarm should trigger; suppress dupes within the same minute
+        minute_key = f"{current_date} {current_time_str}"
+        if (alarm_enabled
+                and current_time_str == alarm_time
+                and current_day in alarm_repeat
+                and minute_key != self._last_trigger_key):
+            self._last_trigger_key = minute_key
             print(f"Alarm triggered! Time: {current_time_str}, Day: {current_day}")
             self.trigger_alarm(alarm_ringtone, alarm_fadein)
             
