@@ -13,12 +13,13 @@ WorkingDirectory=@REPO_PATH@
 Environment=PYTHONUNBUFFERED=1
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=%h/.Xauthority
-# Audio: SDL2 (audio_sdl2) hangs in pulse init on Trixie + pipewire,
-# and Kivy's gstplayer extension is missing from the aarch64+py3.13 wheel.
-# ffpyplayer wraps FFmpeg directly — works for .wav and .ogg without
-# touching SDL_mixer or GStreamer.
+# Audio: KIVY_AUDIO=ffpyplayer (FFmpeg) since the Kivy aarch64+py3.13 wheel
+# has no _gstplayer extension, and audio_sdl2's SDL_mixer init hangs on
+# Trixie+pipewire. ffpyplayer needs a real SDL audio device for output —
+# `pulse` routes through pipewire-pulse, which is fine because it's
+# SDL_OpenAudio (not SDL_mixer that caused the original hang).
 Environment=KIVY_AUDIO=ffpyplayer
-Environment=SDL_AUDIODRIVER=dummy
+Environment=SDL_AUDIODRIVER=pulse
 # Wait briefly for X to come up — without this, on a cold boot the unit can
 # race lightdm and the SDL2 backend silently never opens a window.
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do [ -S /tmp/.X11-unix/X0 ] && exit 0; sleep 1; done; exit 1'
