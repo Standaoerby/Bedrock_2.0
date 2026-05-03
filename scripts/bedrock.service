@@ -1,15 +1,21 @@
 [Unit]
 Description=Bedrock 2.0 — touchscreen panel for Pi 5
 After=graphical-session.target network-online.target
-Wants=network-online.target
+PartOf=graphical-session.target
+Wants=network-online.target graphical-session.target
 
 [Service]
 Type=simple
 WorkingDirectory=@REPO_PATH@
-# DISPLAY/XAUTHORITY are inherited from the user session when launched as
-# a user-scoped unit on a logged-in desktop. If autologin/Wayland gives
-# trouble, swap to XDG_SESSION_TYPE=x11 and explicit DISPLAY=:0.
+# X11 env: when bedrock starts before lightdm finishes autologin, the user
+# systemd manager has no DISPLAY/XAUTHORITY in its env, so we set them
+# explicitly. /home/pi/.Xauthority is created by lightdm during autologin.
 Environment=PYTHONUNBUFFERED=1
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%h/.Xauthority
+# Wait briefly for X to come up — without this, on a cold boot the unit can
+# race lightdm and the SDL2 backend silently never opens a window.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do [ -S /tmp/.X11-unix/X0 ] && exit 0; sleep 1; done; exit 1'
 ExecStart=@REPO_PATH@/venv/bin/python @REPO_PATH@/main.py
 Restart=on-failure
 RestartSec=5
@@ -17,4 +23,4 @@ StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

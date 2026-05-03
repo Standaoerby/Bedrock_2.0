@@ -1,4 +1,31 @@
+import os
+import platform
+import time
+import json
+import re
+
+# ──────────────────────────────────────────────────────────────────
+# Kivy graphics config MUST be set before kivy.core.window is imported.
+# On Pi we want true fullscreen at the panel's native 1024x600;
+# on Windows dev box leave it windowed so the IDE can be seen.
+# ──────────────────────────────────────────────────────────────────
+_IS_PI = platform.system() != 'Windows'
+
+if _IS_PI:
+    # Strip env that confuses SDL2 on Pi 5 with KMS/X11
+    for _k in ['KIVY_BCM_DISPMANX_ID']:
+        os.environ.pop(_k, None)
+
+from kivy.config import Config
+Config.set('graphics', 'width', '1024')
+Config.set('graphics', 'height', '600')
+Config.set('graphics', 'fullscreen', '1' if _IS_PI else '0')
+Config.set('graphics', 'borderless', '1' if _IS_PI else '0')
+Config.set('graphics', 'show_cursor', '0' if _IS_PI else '1')
+Config.set('graphics', 'resizable', '0')
+
 from kivy.core.text import LabelBase
+from kivy.core.window import Window
 from kivy.lang import Builder
 from kivymd.app import MDApp
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
@@ -11,21 +38,6 @@ from services.notifications_service import NotificationService
 from services.sensor_service import SensorService
 from classes.marquee import MarqueeLabel
 from kivy.core.audio import SoundLoader
-import os
-import platform
-import time
-import json
-import re
-
-# Configure environment variables for Raspberry Pi
-# These will be modified for Windows in the build method
-os.environ['KIVY_GL_BACKEND'] = 'sdl2'
-os.environ['KIVY_WINDOW'] = 'sdl2'
-os.environ['KIVY_GRAPHICS'] = 'gles'
-os.environ['KIVY_BCM_DISPMANX_ID'] = '0'
-os.environ['KIVY_WINDOW'] = 'egl_rpi'
-os.environ['KIVY_DPI'] = '96'
-os.environ['KIVY_METRICS_DENSITY'] = '1'
 
 LabelBase.register(name="Minecraftia", fn_regular="assets/fonts/Minecraftia-Regular.ttf")
 from pages.home import HomeScreen
@@ -51,12 +63,6 @@ def load_user_config(path="config/user.json"):
             return json.load(f)
     except (json.JSONDecodeError, OSError):
         return {}
-
-from kivy.config import Config
-Config.set('graphics', 'width', '1024')
-Config.set('graphics', 'height', '600')
-Config.set('graphics', 'fullscreen', '0')
-Config.set('graphics', 'show_cursor', '0')
 
 class BedrockApp(MDApp):
     current_screen = StringProperty("home")
@@ -89,24 +95,17 @@ class BedrockApp(MDApp):
     })
 
     def build(self):
-        # Применяем различные настройки для разных платформ
-        if platform.system() == 'Windows':
-            for key in ['KIVY_GL_BACKEND', 'KIVY_WINDOW', 'KIVY_GRAPHICS', 'KIVY_BCM_DISPMANX_ID']:
-                if key in os.environ:
-                    del os.environ[key]
-            print("Running on Windows - adjusted environment settings")
-
-            self.ui_scale = 1.0
-            self.font_scale = 1.0
-            self.padding_scale = 1.0
-        else:
-            print(f"Running on {platform.system()} - using Raspberry Pi settings")
-
+        self.title = "Bedrock 2.0"
+        if _IS_PI:
+            print("Running on Pi — using touchscreen scale (0.9)")
             self.ui_scale = 0.9
             self.font_scale = 0.85
             self.padding_scale = 0.8
-
-            Config.set('graphics', 'fullscreen', '1')
+        else:
+            print("Running on Windows — using 1.0 scale for development")
+            self.ui_scale = 1.0
+            self.font_scale = 1.0
+            self.padding_scale = 1.0
 
         self._update_ui_metrics()
 
