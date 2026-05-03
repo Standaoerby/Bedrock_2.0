@@ -110,7 +110,7 @@ class PigsService:
             
         except Exception as e:
             print(f"Error calculating bar percentage: {e}")
-            return 50  # Default value on error
+            return 0  # On error, show empty rather than misleading half-full
     
     def get_all_values(self):
         """

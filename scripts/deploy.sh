@@ -108,6 +108,20 @@ if "${SSH[@]}" "cd '$REPO_PATH' && \
 fi
 
 # ────────────────────────────────────────────────────────────────────────
+# 4b. Sync systemd unit if scripts/bedrock.service changed.
+# ────────────────────────────────────────────────────────────────────────
+if "${SSH[@]}" "cd '$REPO_PATH' && \
+   git diff --name-only '$PREV_HEAD' '$NEW_HEAD' 2>/dev/null | grep -q '^scripts/bedrock\.service$'"; then
+  echo ""
+  echo "═══ systemd unit changed — re-installing ═══"
+  "${SSH[@]}" "
+    sed 's|@REPO_PATH@|$REPO_PATH|g' '$REPO_PATH/scripts/bedrock.service' \
+      > ~/.config/systemd/user/bedrock.service
+    systemctl --user daemon-reload
+  "
+fi
+
+# ────────────────────────────────────────────────────────────────────────
 # 5. Smoke test — import the entry module. Failure → rollback.
 # ────────────────────────────────────────────────────────────────────────
 echo ""

@@ -27,6 +27,9 @@ class NotificationService:
             self.notifications = []
 
     def save(self):
+        dirname = os.path.dirname(self.path)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         with open(self.path, "w", encoding="utf-8") as f:
             json.dump(self.notifications, f, ensure_ascii=False, indent=2)
 

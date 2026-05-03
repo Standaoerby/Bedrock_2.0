@@ -14,13 +14,20 @@ class HomeScreen(MDScreen):
     current_day = StringProperty("")
 
     def on_pre_enter(self):
+        # Defensive: if on_pre_enter fires twice in a row without on_leave,
+        # cancel any leftover intervals before scheduling new ones.
+        for ev in getattr(self, '_intervals', []):
+            try:
+                ev.cancel()
+            except Exception:
+                pass
+
         Clock.schedule_once(lambda dt: self.post_init(), 0)
         self.update_alarm()
         self.update_weather()
         self.update_notification()
         self.update_date()
 
-        # Schedule regular updates — track them so on_leave can cancel
         self._intervals = [
             Clock.schedule_interval(lambda dt: self.update_alarm(), 300),
             Clock.schedule_interval(lambda dt: self.update_weather(), 900),

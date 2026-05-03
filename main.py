@@ -148,13 +148,16 @@ class BedrockApp(MDApp):
         # Initialize sound system
         self.sounds = {}
         self.last_sound_time = 0
-        self.last_sound_name = ""
         self.ensure_directories()
         self.load_sounds()
         
-        # Initialize services
+        # Initialize services. Location for weather comes from user prefs
+        # (defaults to Camden, London) so the user can change it without
+        # editing the source.
         self.alarm_service = AlarmService()
-        self.weather_service = WeatherService(lat=51.5390, lon=-0.1426)  # Координаты Лондона, Камден
+        wx_lat = float(user_prefs.get("lat", 51.5390))
+        wx_lon = float(user_prefs.get("lon", -0.1426))
+        self.weather_service = WeatherService(lat=wx_lat, lon=wx_lon)
         self.schedule_service = ScheduleService()
         self.pigs_service = PigsService()
         self.notification_service = NotificationService()
@@ -219,58 +222,48 @@ class BedrockApp(MDApp):
             return size
 
     def ensure_directories(self):
-        """Ensure all required directories exist"""
-        dirs = [
-            "assets/fonts",
-            "assets/sounds",
-            "assets/images",
-            "themes/minecraft/light",
-            "media/ringtones",
-            "cache",
-            "config",
-            "pages"
-        ]
-        for dir_path in dirs:
-            os.makedirs(dir_path, exist_ok=True)
-            print(f"Ensured directory exists: {dir_path}")
-    
+        """Ensure all required directories exist (silent)."""
+        for d in ("assets/fonts", "assets/sounds", "assets/images",
+                  "themes/minecraft/light", "media/ringtones",
+                  "cache", "config", "pages"):
+            os.makedirs(d, exist_ok=True)
+
     def load_sounds(self):
-        """Load sound effects"""
+        """Load sound effects. Prefer .wav (universal Kivy support); fall back
+        to .ogg if no .wav present."""
         sound_files = {
-            "click": ["assets/sounds/click.ogg"],
-            "success": ["assets/sounds/success.ogg"],
-            "error": ["assets/sounds/error.ogg"]
+            "click":   ["assets/sounds/click.wav",   "assets/sounds/click.ogg"],
+            "success": ["assets/sounds/success.wav", "assets/sounds/success.ogg"],
+            "error":   ["assets/sounds/error.wav",   "assets/sounds/error.ogg"],
         }
-        
         for name, paths in sound_files.items():
             for path in paths:
                 if os.path.exists(path):
-                    self.sounds[name] = SoundLoader.load(path)
-                    print(f"Loaded sound: {name} from {path}")
-                    break
+                    snd = SoundLoader.load(path)
+                    if snd is not None:
+                        self.sounds[name] = snd
+                        break
             if name not in self.sounds:
-                print(f"Warning: Sound '{name}' not found. Tried: {paths}")
+                print(f"[bedrock] sound '{name}' not loaded; tried {paths}")
     
     def play_sound(self, sound_name="click"):
-        """Play a sound by name with simple debounce"""
-        current_time = time.time()
-        
-        if (current_time - self.last_sound_time) < 0.05:
+        """Play a cached sound with 50ms debounce. Reuses the same Sound
+        instance — stops any in-flight playback first so rapid clicks
+        retrigger correctly."""
+        now = time.time()
+        if (now - self.last_sound_time) < 0.05:
             return
-            
-        self.last_sound_time = current_time
-        self.last_sound_name = sound_name
-        
+        self.last_sound_time = now
+
         sound = self.sounds.get(sound_name)
-        if sound:
-            sound_copy = SoundLoader.load(sound.source)
-            if sound_copy:
-                sound_copy.play()
-                from kivy.clock import Clock
-                Clock.schedule_once(
-                    lambda dt: setattr(sound_copy, 'on_stop', lambda: None), 
-                    sound.length + 0.1
-                )
+        if sound is None:
+            return
+        try:
+            if sound.state == "play":
+                sound.stop()
+            sound.play()
+        except Exception as e:
+            print(f"[bedrock] play_sound({sound_name}) failed: {e}")
 
     def load_theme_config(self, theme=None, mode=None):
         """Load a theme config; mirrors module-level loader so settings can call app.load_theme_config()."""

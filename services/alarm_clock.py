@@ -89,6 +89,9 @@ class AlarmClock:
     def _on_popup_dismiss(self, instance):
         """Called when popup is dismissed"""
         self.active_popup = None
+        # Clear minute-key dedupe so "test alarm" within the same minute
+        # can re-fire after dismissal.
+        self._last_trigger_key = None
         
     def stop_alarm(self):
         """Stop the currently active alarm if any"""

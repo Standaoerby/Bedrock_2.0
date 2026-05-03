@@ -58,7 +58,6 @@ class WeatherService:
             
             with open(self.path, "w", encoding="utf-8") as f:
                 json.dump(self.weather, f, ensure_ascii=False, indent=2)
-            print(f"Saved weather data: {self.weather}")
         except Exception as e:
             print(f"Error saving weather data: {e}")
             traceback.print_exc()
@@ -211,7 +210,22 @@ class WeatherService:
             return False
 
     def get_weather(self):
-        if self.needs_update():
-            print("Weather data needs update, fetching...")
-            self.fetch_weather()
+        # Trigger refresh asynchronously so the UI never blocks on a 10s
+        # HTTP timeout when Wi-Fi flaps. Cached weather is returned
+        # immediately; the next call will see the new data.
+        if self.needs_update() and not getattr(self, "_fetch_in_flight", False):
+            self._fetch_in_flight = True
+            import threading
+
+            def _bg():
+                try:
+                    self.fetch_weather()
+                finally:
+                    self._fetch_in_flight = False
+
+            threading.Thread(target=_bg, daemon=True).start()
         return self.weather
+
+    def force_update(self):
+        """Synchronous fetch for explicit user action (Refresh button)."""
+        return self.fetch_weather()
