@@ -14,8 +14,11 @@ Environment=PYTHONUNBUFFERED=1
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=%h/.Xauthority
 # SDL2 audio init via pulse/pipewire-pulse hangs in wait4 on Trixie when
-# the user session is auto-logged-in. ALSA driver bypasses the issue.
-Environment=SDL_AUDIODRIVER=alsa
+# the user session is auto-logged-in. ALSA driver bypasses the hang but
+# pipewire holds the device, returning ENOPKG (524). Use Kivy's GStreamer
+# audio provider instead — it goes through pipewire's gst plugin natively.
+Environment=KIVY_AUDIO=gstplayer
+Environment=SDL_AUDIODRIVER=dummy
 # Wait briefly for X to come up — without this, on a cold boot the unit can
 # race lightdm and the SDL2 backend silently never opens a window.
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do [ -S /tmp/.X11-unix/X0 ] && exit 0; sleep 1; done; exit 1'

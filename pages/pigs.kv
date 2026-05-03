@@ -5,8 +5,7 @@
         # Только оверлей для этого экрана (без фонового изображения)
         Image:
             source: app.get_overlay_image("pigs")
-            allow_stretch: True
-            keep_ratio: False
+            fit_mode: 'fill'
             size_hint: 1, 1
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
             opacity: app.theme_config.get("overlay_opacity", 0.5)
@@ -168,8 +167,7 @@
                     id: pigs_image
                     source: "assets/images/pigs_1.png"
                     size_hint: 1, 1
-                    allow_stretch: True
-                    keep_ratio: True
+                    fit_mode: 'contain'
                 
                 # Hidden status elements (for compatibility)
                 ThemedLabel:
