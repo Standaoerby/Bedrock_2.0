@@ -13,6 +13,7 @@ set -euo pipefail
 IP="${1:?Usage: setup-pi.sh <IP_ADDRESS>}"
 PI_USER="${PI_USER:-pi}"
 PI_PASS="${PI_PASS:-pipi}"
+SUDO_PASS="${SUDO_PASS:-$PI_PASS}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_kidpager}"
 REPO_PATH="${REPO_PATH:-/home/$PI_USER/bedrock_3_0}"
 BRANCH="${BRANCH:-recovery-from-0.8.2}"
@@ -45,6 +46,24 @@ else
 
   # Cache host key in OpenSSH known_hosts so plain ssh works from now on
   ssh-keyscan -t ed25519 "$IP" 2>/dev/null >> ~/.ssh/known_hosts
+fi
+
+# ─── 1.5  PASSWORDLESS SUDO  ──────────────────────────────────────────
+# Trixie default-user `pi` requires a sudo password. For a kiosk Pi this is
+# inconvenient — we install NOPASSWD once via the only sudo call that needs
+# the password, then every subsequent sudo runs without prompting.
+echo "═══ 1.5  PASSWORDLESS SUDO  ═══"
+if "${SSH[@]}" "sudo -n true 2>/dev/null"; then
+  echo "(sudo already passwordless)"
+else
+  printf '%s\n' "$SUDO_PASS" | "${SSH[@]}" "
+    sudo -S -p '' bash -c '
+      echo \"$PI_USER ALL=(ALL) NOPASSWD: ALL\" > /etc/sudoers.d/010_${PI_USER}_nopasswd
+      chmod 440 /etc/sudoers.d/010_${PI_USER}_nopasswd
+      visudo -c -f /etc/sudoers.d/010_${PI_USER}_nopasswd
+    '
+  "
+  echo "(NOPASSWD installed)"
 fi
 
 echo "═══ 2/6  APT DEPS  ═══"
@@ -85,10 +104,13 @@ echo "═══ 4/6  CLONE REPO  ═══"
 "
 
 echo "═══ 5/6  BUILD VENV + INSTALL  ═══"
+# --system-site-packages so apt-installed python3-lgpio is visible inside the
+# venv (lgpio has no PyPI source-build that works without dev headers; the
+# adafruit-blinka stack imports `lgpio` for Pi 5 BCM2712 GPIO).
 "${SSH[@]}" "
   cd '$REPO_PATH'
   if [ ! -d venv ]; then
-    python3 -m venv venv
+    python3 -m venv venv --system-site-packages
   fi
   venv/bin/pip install --upgrade pip wheel
   venv/bin/pip install -r requirements.txt

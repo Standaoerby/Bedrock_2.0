@@ -135,4 +135,6 @@ fi
 echo ""
 echo "✅ Deploy complete."
 echo "   $PREV_HEAD → $NEW_HEAD"
-echo "   logs:  ssh -i $SSH_KEY $PI_USER@$PI_IP 'journalctl --user -u bedrock -f'"
+# On Trixie, user-scope `journalctl --user` is empty by default; user logs land
+# in the system journal under _SYSTEMD_USER_UNIT — needs sudo to read.
+echo "   logs:  ssh -i $SSH_KEY $PI_USER@$PI_IP \"sudo journalctl _SYSTEMD_USER_UNIT=bedrock.service -f\""
