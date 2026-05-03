@@ -19,27 +19,40 @@ BRANCH="${BRANCH:-recovery-from-0.8.2}"
 GIT_REMOTE="${GIT_REMOTE:-https://github.com/Standaoerby/Bedrock_2.0.git}"
 
 [[ -f "$SSH_KEY.pub" ]] || { echo "❌ No public key at $SSH_KEY.pub"; exit 1; }
-command -v plink >/dev/null || { echo "❌ plink (PuTTY) not in PATH"; exit 1; }
 
 PUB=$(cat "$SSH_KEY.pub")
-
-echo "═══ 1/6  PROVISION SSH KEY  ═══"
-# `-batch` skips fingerprint prompts; if first connect fails, run once interactively
-# without -batch to accept the host key, then re-run setup-pi.sh.
-plink -ssh -pw "$PI_PASS" -batch "$PI_USER@$IP" "
-  mkdir -p ~/.ssh && chmod 700 ~/.ssh
-  touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
-  grep -qxF '$PUB' ~/.ssh/authorized_keys || echo '$PUB' >> ~/.ssh/authorized_keys
-  echo 'key installed'
-"
-
-# From here on, key auth — no more password
 SSH=(ssh -i "$SSH_KEY" -o ConnectTimeout=10 -o BatchMode=yes "$PI_USER@$IP")
 
+echo "═══ 1/6  PROVISION SSH KEY  ═══"
+# Skip the plink step if the key already lets us in
+if "${SSH[@]}" "true" 2>/dev/null; then
+  echo "(SSH key already present, skipping plink step)"
+else
+  command -v plink >/dev/null || { echo "❌ plink (PuTTY) not in PATH and no SSH key auth yet"; exit 1; }
+
+  # First connect needs the host key. If HOSTKEY is set we pass it explicitly,
+  # otherwise plink -batch will refuse — in that case run once interactively to cache:
+  #   plink -ssh pi@<IP>   (type 'y' at fingerprint prompt, then exit)
+  HOSTKEY_ARG=""
+  [[ -n "${HOSTKEY:-}" ]] && HOSTKEY_ARG="-hostkey $HOSTKEY"
+
+  plink -ssh -pw "$PI_PASS" -batch $HOSTKEY_ARG "$PI_USER@$IP" "
+    mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+    grep -qxF '$PUB' ~/.ssh/authorized_keys || echo '$PUB' >> ~/.ssh/authorized_keys
+    echo 'key installed'
+  "
+
+  # Cache host key in OpenSSH known_hosts so plain ssh works from now on
+  ssh-keyscan -t ed25519 "$IP" 2>/dev/null >> ~/.ssh/known_hosts
+fi
+
 echo "═══ 2/6  APT DEPS  ═══"
+# Note for Trixie (Debian 13): python3-blinka is NOT in apt, install via pip
+# inside the venv (it's already in requirements.txt).
 "${SSH[@]}" "sudo apt-get update -qq && sudo apt-get install -y -qq \
-    python3 python3-venv python3-pip git \
-    python3-lgpio python3-blinka i2c-tools python3-smbus \
+    python3 python3-venv python3-pip python3-dev git \
+    python3-lgpio i2c-tools python3-smbus \
     libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
     libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
     xdotool unclutter"
@@ -48,11 +61,14 @@ echo "═══ 3/6  ENABLE I2C + SWITCH TO X11  ═══"
 "${SSH[@]}" "
   # Enable I2C non-interactively (0 = enable in raspi-config nonint)
   sudo raspi-config nonint do_i2c 0 || true
-  # Switch desktop to X11 (B1 = console autologin, B4 = desktop autologin
-  # with X11 isn't a single nonint code; do_wayland W1=labwc, W2=Wayfire,
-  # so we drop to legacy via direct config edit).
-  if command -v raspi-config >/dev/null && raspi-config nonint help 2>&1 | grep -q do_wayland; then
-    sudo raspi-config nonint do_wayland W3 2>/dev/null || true   # W3 = X (Xorg) on recent raspi-config
+  # Trixie raspi-config: W1 = X11 (Openbox), W2 = Wayland (Labwc).
+  # Bookworm used W3 for X11 — different across versions, hence the case below.
+  if command -v raspi-config >/dev/null; then
+    if grep -q '\"W1 X11\"' /usr/bin/raspi-config; then
+      sudo raspi-config nonint do_wayland W1 2>/dev/null || true   # Trixie: W1
+    elif grep -q '\"W3\"' /usr/bin/raspi-config; then
+      sudo raspi-config nonint do_wayland W3 2>/dev/null || true   # Bookworm: W3
+    fi
   fi
   echo 'I2C and X11 settings applied (a reboot may be needed).'
 "
