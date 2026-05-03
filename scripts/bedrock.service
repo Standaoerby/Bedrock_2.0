@@ -1,0 +1,20 @@
+[Unit]
+Description=Bedrock 2.0 — touchscreen panel for Pi 5
+After=graphical-session.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@REPO_PATH@
+# DISPLAY/XAUTHORITY are inherited from the user session when launched as
+# a user-scoped unit on a logged-in desktop. If autologin/Wayland gives
+# trouble, swap to XDG_SESSION_TYPE=x11 and explicit DISPLAY=:0.
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@REPO_PATH@/venv/bin/python @REPO_PATH@/main.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

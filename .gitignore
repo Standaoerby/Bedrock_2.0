@@ -172,3 +172,13 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Bedrock — runtime artifacts and local deploy state
+cache/
+logs/
+_backups/
+scripts/.deploy_target
+
+# OS
+.DS_Store
+Thumbs.db
