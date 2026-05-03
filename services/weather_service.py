@@ -19,36 +19,25 @@ class WeatherService:
                     self.weather = json.load(f)
                 print(f"Loaded weather data: {self.weather}")
             else:
+                # No cache yet — leave self.weather empty so needs_update()
+                # returns True on the first get_weather() call. Otherwise
+                # the placeholder "20.0 Unknown" sticks for 6 hours because
+                # save() with a fresh "updated" timestamp would suppress the
+                # next fetch.
                 self.weather = {
-                    "current": {
-                        "time": datetime.now().isoformat(),
-                        "temperature": 20.0,
-                        "condition": "Unknown",
-                        "precipitation_probability": 0
-                    },
-                    "forecast_5h": {
-                        "temperature": 20.0,
-                        "condition": "Unknown",
-                        "precipitation_probability": 0
-                    },
-                    "weekly_forecast": [],  # Added weekly forecast
-                    "updated": datetime.now().isoformat()
+                    "current": {},
+                    "forecast_5h": {},
+                    "weekly_forecast": [],
+                    # No "updated" → needs_update() returns True
                 }
-                # Create cache directory if it doesn't exist
-                os.makedirs(os.path.dirname(self.path), exist_ok=True)
-                self.save()
         except Exception as e:
             print(f"Error loading weather data: {e}")
             traceback.print_exc()
+            # Same reason as above — no "updated" so a fetch is forced.
             self.weather = {
-                "current": {
-                    "temperature": 20.0,
-                    "condition": "Error loading data",
-                    "precipitation_probability": 0
-                },
+                "current": {},
                 "forecast_5h": {},
-                "weekly_forecast": [],  # Added weekly forecast
-                "updated": datetime.now().isoformat()
+                "weekly_forecast": [],
             }
 
     def save(self):
