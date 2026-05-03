@@ -65,6 +65,8 @@ def load_user_config(path="config/user.json"):
         return {}
 
 class BedrockApp(MDApp):
+    use_kivy_settings = False  # F1 must not open Kivy's built-in settings panel
+
     current_screen = StringProperty("home")
     menu_navigation = BooleanProperty(False)
 
@@ -315,6 +317,16 @@ class BedrockApp(MDApp):
 
     def on_start(self):
         self.root.ids.screen_manager.bind(current=self._update_current_screen)
+        # F1..F6 cycle screens — handy for headless screenshot/debug via xdotool
+        Window.bind(on_keyboard=self._dev_keyboard_shortcut)
+
+    def _dev_keyboard_shortcut(self, _window, key, _scancode, _codepoint, _modifiers):
+        keymap = {282: 'home', 283: 'alarm', 284: 'schedule',
+                  285: 'weather', 286: 'pigs', 287: 'settings'}
+        if key in keymap and self.root and 'screen_manager' in self.root.ids:
+            self.root.ids.screen_manager.current = keymap[key]
+            return True
+        return False
         
     def on_stop(self):
         """Clean up when the application exits"""
