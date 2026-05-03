@@ -74,24 +74,28 @@ class AlarmClock:
             
     def trigger_alarm(self, ringtone, fadein):
         """Show alarm popup and play sound"""
-        # If there's already an active popup, don't create another one
         if self.active_popup:
+            print("[alarm] trigger_alarm: popup already active, skipping")
             return
-            
-        # Create and show alarm popup
-        self.active_popup = AlarmPopup(ringtone=ringtone, fadein=fadein)
-        self.active_popup.bind(on_dismiss=self._on_popup_dismiss)
-        self.active_popup.open()
-        
-        # Start playing the alarm sound
-        self.active_popup.start_alarm()
+        try:
+            self.active_popup = AlarmPopup(ringtone=ringtone, fadein=fadein)
+            self.active_popup.bind(on_dismiss=self._on_popup_dismiss)
+            self.active_popup.open()
+            self.active_popup.start_alarm()
+            print(f"[alarm] popup OPEN ringtone={ringtone} fadein={fadein}")
+        except Exception:
+            import traceback
+            print("[alarm] trigger_alarm crashed:")
+            traceback.print_exc()
+            self.active_popup = None
         
     def _on_popup_dismiss(self, instance):
-        """Called when popup is dismissed"""
+        """Called when popup is dismissed.
+        We deliberately keep _last_trigger_key set — clearing it would let
+        the next 30s tick re-fire the same minute's alarm immediately
+        after the user dismissed it. The dedupe naturally rolls over when
+        the minute boundary passes."""
         self.active_popup = None
-        # Clear minute-key dedupe so "test alarm" within the same minute
-        # can re-fire after dismissal.
-        self._last_trigger_key = None
         
     def stop_alarm(self):
         """Stop the currently active alarm if any"""
