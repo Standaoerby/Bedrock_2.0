@@ -68,23 +68,26 @@
                 on_press: app.play_sound("click")
                 on_release: root.toggle_alarm()
 
-        # Main clock display with shadow effect
-        ThemedLabel:
+        # Clock shadow — plain Label so the <ThemedLabel@Label> rule's
+        # color binding to app.theme_config["font_color"] doesn't repaint
+        # the shadow back to white when the theme changes.
+        Label:
             id: clock_shadow_label
             text: clock_label.text
+            font_name: app.theme_config.get("font_name", "Minecraftia")
             font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "160").replace("sp", "")), Window.height * 0.25)) + "sp"
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.51, "center_y": 0.49}
-            color: [0, 0, 0, 0.5]
-            
+            color: 0, 0, 0, 0.5
+
         ThemedLabel:
             id: clock_label
             text: "00:00"
             font_size: str(min(float(app.theme_config.get("font_sizes", {}).get("huge", "160").replace("sp", "")), Window.height * 0.25)) + "sp"
             halign: "center"
             valign: "middle"
-            pos_hint: {"center_x": 0.5, "center_y": 0.5} 
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
 
         # Weather panel
         ThemedPanel:

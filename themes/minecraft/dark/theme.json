@@ -26,7 +26,7 @@
   "padding": "15dp",
   "padding_large": "32dp",
   "panel_radius": 16,
-  "overlay_opacity": 1,
+  "overlay_opacity": 0.3,
   "panel_bg": [0, 0, 0, 0.2],
   
   "grid_unit": "32dp",
