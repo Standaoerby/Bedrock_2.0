@@ -3,6 +3,11 @@ kivymd>=1.1.1,<2.0.0
 requests>=2.30.0
 pillow
 
+# Audio backend — Kivy's gstplayer extension is missing from the
+# aarch64+py3.13 wheel; ffpyplayer wraps FFmpeg directly and decodes
+# .wav and .ogg out of the box.
+ffpyplayer
+
 # Pi5 sensor stack — actually used in services/sensor_service.py
 adafruit-circuitpython-ens160
 adafruit-circuitpython-ahtx0

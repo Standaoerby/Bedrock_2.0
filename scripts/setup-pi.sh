@@ -69,12 +69,18 @@ fi
 echo "═══ 2/6  APT DEPS  ═══"
 # Note for Trixie (Debian 13): python3-blinka is NOT in apt, install via pip
 # inside the venv (it's already in requirements.txt).
+# ffpyplayer (the actually-used Kivy audio backend) needs the FFmpeg dev
+# libraries to build from source on aarch64+py3.13 if the wheel isn't
+# available; libsdl2-dev covers the SDL link too.
 "${SSH[@]}" "sudo apt-get update -qq && sudo apt-get install -y -qq \
     python3 python3-venv python3-pip python3-dev git \
     python3-lgpio i2c-tools python3-smbus \
     libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
     libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
-    xdotool unclutter"
+    gstreamer1.0-libav gstreamer1.0-alsa \
+    libavformat-dev libavcodec-dev libswscale-dev libswresample-dev \
+    libavutil-dev libavfilter-dev libavdevice-dev pkg-config \
+    xdotool unclutter scrot"
 
 echo "═══ 3/6  ENABLE I2C + SWITCH TO X11  ═══"
 "${SSH[@]}" "
