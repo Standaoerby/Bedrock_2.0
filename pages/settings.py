@@ -30,6 +30,9 @@ class SettingsScreen(BaseScreen):
         themes = []
         try:
             for entry in os.listdir("themes"):
+                # Skip hidden / template folders (e.g. _template).
+                if entry.startswith((".", "_")):
+                    continue
                 p = os.path.join("themes", entry)
                 if os.path.isdir(p) and (
                     os.path.exists(os.path.join(p, "light"))
@@ -38,7 +41,7 @@ class SettingsScreen(BaseScreen):
                     themes.append(entry)
         except (OSError, FileNotFoundError):
             pass
-        self.available_themes = themes if themes else ["minecraft"]
+        self.available_themes = sorted(themes) if themes else ["minecraft"]
 
     def check_dark_mode_availability(self):
         dark_path = os.path.join("themes", self.current_theme, "dark")

@@ -1,0 +1,89 @@
+{
+  "_about": "Clean theme — light mode. Soft cream background, slate text, pure colors. No overlay images.",
+  "name": "Clean Light",
+  "mode": "light",
+
+  "font_name": "Minecraftia",
+  "font_color": [0.18, 0.20, 0.25, 1],
+
+  "font_sizes": {
+    "tiny":    "12sp",
+    "small":   "14sp",
+    "default": "18sp",
+    "medium":  "22sp",
+    "large":   "28sp",
+    "xlarge":  "36sp",
+    "huge":    "120sp"
+  },
+
+  "colors": {
+    "primary":        [0.36, 0.55, 0.85, 1],
+    "font_default":   [0.18, 0.20, 0.25, 1],
+    "font_secondary": [0.40, 0.45, 0.55, 1],
+    "font_highlight": [0.85, 0.45, 0.10, 1],
+    "font_action":    [0.18, 0.55, 0.40, 1],
+    "font_disabled":  [0.65, 0.67, 0.72, 1],
+
+    "active":      [0.20, 0.65, 0.35, 1],
+    "inactive":    [0.65, 0.67, 0.72, 1],
+    "semi_active": [0.50, 0.75, 0.55, 1],
+    "warning":     [0.95, 0.65, 0.10, 1],
+    "error":       [0.85, 0.30, 0.30, 1],
+
+    "shadow_light": [0, 0, 0, 0.40],
+    "shadow_dark":  [1, 1, 1, 0.35],
+
+    "trend_up":   [0.85, 0.30, 0.30, 1],
+    "trend_down": [0.36, 0.55, 0.85, 1],
+
+    "weekend": [0.85, 0.40, 0.45, 1],
+    "weekday": [0.36, 0.55, 0.85, 1],
+
+    "bar_water": [0.30, 0.65, 0.90, 0.85],
+    "bar_food":  [0.95, 0.55, 0.20, 0.85],
+    "bar_clean": [0.30, 0.78, 0.40, 0.85]
+  },
+
+  "layout": {
+    "grid_unit": 8,
+    "padding_xs":  4,
+    "padding_sm":  8,
+    "padding_md":  16,
+    "padding_lg":  24,
+    "spacing_xs":  4,
+    "spacing_sm":  8,
+    "spacing_md":  16,
+    "spacing_lg":  24,
+    "widget_height_sm": 32,
+    "widget_height_md": 48,
+    "widget_height_lg": 64,
+    "menu_height":  72,
+    "menu_padding": 8,
+    "content_padding": 16,
+    "widget_spacing":  10,
+    "widget_height":   48,
+    "small_widget_height": 36
+  },
+
+  "panel_bg":     [1, 1, 1, 0.55],
+  "panel_radius": 14,
+  "overlay_opacity": 0,
+  "background_image": "themes/clean/light/background.png",
+  "menu_button_normal": "",
+  "menu_button_active": "",
+  "menu_button_size":       [180, 60],
+  "menu_button_font_size":  22,
+  "menu_button_padding":    [0, 0, 0, 0],
+  "menu_selected_color":    [0.36, 0.55, 0.85, 1],
+  "menu_unselected_color":  [0.40, 0.45, 0.55, 1],
+  "button_normal": "",
+  "button_active": "",
+  "overlay_images": {
+    "home":     "",
+    "alarm":    "",
+    "schedule": "",
+    "weather":  "",
+    "pigs":     "",
+    "settings": ""
+  }
+}
