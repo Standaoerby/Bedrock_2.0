@@ -28,7 +28,7 @@ class DayForecastItem(BoxLayout):
         super().__init__(**kw)
         self.orientation = "horizontal"
         self.size_hint_y = None
-        self.height = 36
+        self.height = 30
         self.spacing = 8
 
         day_name = day_data.get("day", "")
@@ -42,24 +42,25 @@ class DayForecastItem(BoxLayout):
         font_size = _theme_font("small")
         text_color = _theme_color("font_default", [1, 1, 1, 1])
 
-        self.add_widget(Label(
-            text=day_name, font_name=font_name, font_size=font_size,
-            halign="left", size_hint_x=0.15, color=day_color,
-        ))
-        self.add_widget(Label(
-            text=f"{day_data.get('temp_max', 0):.1f}°C",
-            font_name=font_name, font_size=font_size,
-            halign="left", size_hint_x=0.2, color=text_color,
-        ))
-        self.add_widget(Label(
-            text=day_data.get("condition", ""),
-            font_name=font_name, font_size=font_size,
-            halign="left", size_hint_x=0.4, color=text_color,
-        ))
-        self.add_widget(Label(
-            text=f"{day_data.get('precipitation_probability', 0)}%",
-            font_name=font_name, font_size=font_size,
-            halign="left", size_hint_x=0.25, color=text_color,
+        def _row_label(text, size_hint_x, color, halign="left"):
+            lbl = Label(
+                text=text, font_name=font_name, font_size=font_size,
+                size_hint_x=size_hint_x, color=color,
+                halign=halign, valign="middle",
+                shorten=True, shorten_from="right",
+            )
+            lbl.bind(size=lambda w, _: setattr(w, "text_size", w.size))
+            return lbl
+
+        # Combined min/max temp keeps the row compact
+        tmax = day_data.get("temp_max", 0)
+        tmin = day_data.get("temp_min", 0)
+        self.add_widget(_row_label(day_name, 0.15, day_color))
+        self.add_widget(_row_label(f"{tmax:.0f}° / {tmin:.0f}°", 0.20, text_color))
+        self.add_widget(_row_label(day_data.get("condition", ""), 0.45, text_color))
+        self.add_widget(_row_label(
+            f"{day_data.get('precipitation_probability', 0)}%",
+            0.20, text_color, halign="right",
         ))
 
 
