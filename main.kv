@@ -9,10 +9,10 @@
 #:include pages/pigs.kv
 #:include pages/settings.kv
 
-<ThemedLabel@Label>:
-    font_name: app.theme_config["font_name"]
-    color: app.theme_config["font_color"]
-    font_size: app.scale_font(app.theme_config.get("widget_font_size", 20))
+# ThemedLabel / ThemedButton / ThemedPanel are now real Python classes
+# (classes/themed.py) registered with Factory via main.py import. Their
+# colors/font sizes are managed in Python via color_role / size_role
+# StringProperties — KV per-instance overrides are no longer fought.
 
 <MenuButton@Button>:
     background_normal: app.theme_config["menu_button_normal"]
@@ -26,31 +26,13 @@
     height: app.scale_size(app.theme_config.get("menu_button_size", [192,64])[1])
     padding: [app.scale_size(p) for p in app.theme_config.get("menu_button_padding", [0,0,0,0])]
     screen_name: ""
-    on_press: 
+    on_press:
         app.play_sound("click")
         app.menu_navigation = True
     on_release:
         app.root.ids.screen_manager.current = self.screen_name
 
-<ThemedButton@Button>:
-    background_normal: app.theme_config.get("button_normal", "atlas://data/images/defaulttheme/button")
-    background_down: app.theme_config.get("button_active", "atlas://data/images/defaulttheme/button_pressed")
-    font_name: app.theme_config["font_name"]
-    font_size: app.scale_font(app.theme_config.get("widget_font_size", 20))
-    size_hint_y: None
-    height: app.ui_metrics['widget_height']
-    on_press: app.play_sound("click")
-
-<ThemedPanel@BoxLayout>:
-    canvas.before:
-        Color:
-            rgba: app.theme_config.get("panel_bg", [0, 0, 0, 0.08])
-        RoundedRectangle:
-            pos: self.pos
-            size: self.size
-            radius: [app.theme_config.get("panel_radius", 16)]
-
-# Основной макет - FloatLayout для наложения фона, меню и контента
+# Main layout — FloatLayout: background image + menu + screens.
 FloatLayout:
     # Общий фон для всего приложения
     Image:

@@ -62,8 +62,10 @@ class _ThemeBound:
 
 
 class ThemedLabel(Label, _ThemeBound):
-    color_role = StringProperty("font_default")
-    size_role = StringProperty("default")
+    """Themed label. If color_role is empty, the per-instance color set
+    via KV is respected (no override). Same for size_role / font_size."""
+    color_role = StringProperty("")  # empty = don't touch color
+    size_role = StringProperty("")   # empty = don't touch font_size
 
     def __init__(self, **kw):
         super().__init__(**kw)
@@ -77,13 +79,15 @@ class ThemedLabel(Label, _ThemeBound):
             return
         cfg = app.theme_config or {}
         self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
-        self.color = _color_for(cfg, self.color_role)
-        self.font_size = _font_size_for(cfg, self.size_role)
+        if self.color_role:
+            self.color = _color_for(cfg, self.color_role)
+        if self.size_role:
+            self.font_size = _font_size_for(cfg, self.size_role)
 
 
 class ThemedButton(Button, _ThemeBound):
-    color_role = StringProperty("font_default")
-    size_role = StringProperty("default")
+    color_role = StringProperty("")
+    size_role = StringProperty("")
 
     def __init__(self, **kw):
         super().__init__(**kw)
@@ -97,8 +101,10 @@ class ThemedButton(Button, _ThemeBound):
             return
         cfg = app.theme_config or {}
         self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
-        self.color = _color_for(cfg, self.color_role)
-        self.font_size = _font_size_for(cfg, self.size_role)
+        if self.color_role:
+            self.color = _color_for(cfg, self.color_role)
+        if self.size_role:
+            self.font_size = _font_size_for(cfg, self.size_role)
         self.background_normal = cfg.get("button_normal", "")
         self.background_down = cfg.get("button_active", cfg.get("button_normal", ""))
 

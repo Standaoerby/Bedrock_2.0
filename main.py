@@ -37,6 +37,7 @@ from services.pigs_service import PigsService
 from services.notifications_service import NotificationService
 from services.sensor_service import SensorService
 from classes.marquee import MarqueeLabel
+from classes.themed import ThemedLabel, ThemedButton, ThemedPanel  # noqa: F401 — registers Factory classes
 from kivy.core.audio import SoundLoader
 
 LabelBase.register(name="Minecraftia", fn_regular="assets/fonts/Minecraftia-Regular.ttf")
