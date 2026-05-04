@@ -217,15 +217,26 @@ class BedrockApp(App):
             return
         try:
             if _IS_PI:
-                # entry is a path string. Detach so the click doesn't block
-                # the UI thread, and discard stdout/stderr.
-                import subprocess
-                subprocess.Popen(
-                    ["pw-play", entry],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    stdin=subprocess.DEVNULL,
-                )
+                # entry is a path string. Run pw-play in a daemon thread so
+                # subprocess.run() blocks the thread (not the UI), waits for
+                # exit, and reaps the child — otherwise we'd leak zombies
+                # because the UI thread never wait()s on a fire-and-forget
+                # Popen.
+                import subprocess, threading
+
+                def _spawn(path=entry):
+                    try:
+                        subprocess.run(
+                            ["pw-play", path],
+                            stdin=subprocess.DEVNULL,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            check=False,
+                        )
+                    except Exception:
+                        pass
+
+                threading.Thread(target=_spawn, daemon=True).start()
             else:
                 if entry.state == "play":
                     entry.stop()
