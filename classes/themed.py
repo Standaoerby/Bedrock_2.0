@@ -98,6 +98,10 @@ class ThemedButton(Button, _ThemeBound):
         super().__init__(**kw)
         self.bind(color_role=lambda *_: self._refresh(),
                   size_role=lambda *_: self._refresh())
+        # Drop the Kivy 9-patch atlas so background_color isn't tinted
+        # by it — colors come straight from theme.colors.button_bg.
+        self.background_normal = ""
+        self.background_down = ""
         self._bind_theme()
 
     def _refresh(self):
@@ -105,13 +109,16 @@ class ThemedButton(Button, _ThemeBound):
         if app is None:
             return
         cfg = app.theme_config or {}
+        colors = cfg.get("colors", {}) or {}
         self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
         if self.color_role:
             self.color = _color_for(cfg, self.color_role)
         if self.size_role:
             self.font_size = _font_size_for(cfg, self.size_role)
-        self.background_normal = cfg.get("button_normal", "")
-        self.background_down = cfg.get("button_active", cfg.get("button_normal", ""))
+        # Themed flat bg + pressed state — both required for dark mode
+        # readability where Kivy's white default would make font_default
+        # (cream) text invisible.
+        self.background_color = colors.get("button_bg", [1, 1, 1, 1])
 
 
 class ThemedToggleButton(ToggleButton, _ThemeBound):
@@ -177,9 +184,17 @@ class ThemedTextInput(TextInput, _ThemeBound):
         if app is None:
             return
         cfg = app.theme_config or {}
+        colors = cfg.get("colors", {}) or {}
         self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
         if self.size_role:
             self.font_size = _font_size_for(cfg, self.size_role)
+        # Themed input: bg + text color so dark mode doesn't render a
+        # white box with invisible text. Cursor + selection use accent.
+        self.background_color = colors.get("input_bg", [1, 1, 1, 1])
+        self.foreground_color = colors.get("font_default", [0, 0, 0, 1])
+        primary = colors.get("primary", [0.4, 0.6, 0.9, 1])
+        self.cursor_color = primary
+        self.selection_color = (primary[0], primary[1], primary[2], 0.3)
 
 
 class ShadowLabel(Label, _ThemeBound):
@@ -299,13 +314,14 @@ class ThemedSpinnerOption(SpinnerOption):
         if app is None:
             return
         cfg = app.theme_config or {}
+        colors = cfg.get("colors", {}) or {}
         layout = cfg.get("layout", {}) or {}
         self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
         self.font_size = _font_size_for(cfg, "medium", "22sp")
         self.color = _color_for(cfg, "font_default")
-        self.background_color = (1, 1, 1, 1)
-        self.background_normal = cfg.get("button_normal", "")
-        self.background_down = cfg.get("button_active", cfg.get("button_normal", ""))
+        self.background_normal = ""
+        self.background_down = ""
+        self.background_color = colors.get("button_bg", [1, 1, 1, 1])
         # 48 dp default height, configurable via layout.widget_height_md
         self.height = layout.get("widget_height_md", 48)
 
@@ -351,10 +367,12 @@ class ThemedSpinner(Spinner, _ThemeBound):
         if app is None:
             return
         cfg = app.theme_config or {}
+        colors = cfg.get("colors", {}) or {}
         self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
         if self.color_role:
             self.color = _color_for(cfg, self.color_role)
         if self.size_role:
             self.font_size = _font_size_for(cfg, self.size_role)
-        self.background_normal = cfg.get("button_normal", "")
-        self.background_down = cfg.get("button_active", cfg.get("button_normal", ""))
+        self.background_normal = ""
+        self.background_down = ""
+        self.background_color = colors.get("button_bg", [1, 1, 1, 1])
