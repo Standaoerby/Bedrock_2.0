@@ -50,6 +50,10 @@ from classes.themed import (  # noqa: F401 — registers Factory classes
 from kivy.core.audio import SoundLoader
 
 LabelBase.register(name="Minecraftia", fn_regular="assets/fonts/Minecraftia-Regular.ttf")
+# Symbols fallback — DejaVuSans has full coverage of geometric / arrow
+# unicode that Kivy's bundled Roboto lacks (▲▼↑↓→ etc). Used for trend
+# arrows on the home screen and any other widget that needs glyphs.
+LabelBase.register(name="Symbols", fn_regular="assets/fonts/DejaVuSans.ttf")
 from pages.home import HomeScreen
 from pages.alarm import AlarmScreen
 from pages.weather import WeatherScreen

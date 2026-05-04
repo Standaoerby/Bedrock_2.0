@@ -108,10 +108,14 @@
                     size_hint_x: 0.4
                     spacing: "6dp"
 
-                    ThemedLabel:
+                    Label:
+                        # Plain Label so we can pin font_name to "Symbols"
+                        # (DejaVuSans) for reliable ▲/▼ rendering — Kivy's
+                        # bundled Roboto-Regular has no geometric glyphs.
                         id: weather_trend_label
                         text: root.weather_trend_arrow
-                        size_role: "large"
+                        font_name: "Symbols"
+                        font_size: app.theme_config.get("font_sizes", {}).get("large", "28sp")
                         size_hint_x: 0.25
                         halign: "right"
                         valign: "middle"
