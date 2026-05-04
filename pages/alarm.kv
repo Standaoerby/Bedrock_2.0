@@ -4,7 +4,7 @@
         size_hint: 1, 1
 
         ScreenOverlay:
-            source: app.get_overlay_image("alarm")
+            source: app.theme_config.get("overlay_images", {}).get("alarm", "")
 
         BoxLayout:
             orientation: "vertical"
