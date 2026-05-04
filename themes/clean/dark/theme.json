@@ -7,13 +7,13 @@
   "font_color": [0.92, 0.94, 0.97, 1],
 
   "font_sizes": {
-    "tiny":    "12sp",
-    "small":   "14sp",
-    "default": "18sp",
-    "medium":  "22sp",
-    "large":   "28sp",
-    "xlarge":  "36sp",
-    "huge":    "120sp"
+    "tiny":    "14sp",
+    "small":   "17sp",
+    "default": "20sp",
+    "medium":  "24sp",
+    "large":   "30sp",
+    "xlarge":  "40sp",
+    "huge":    "140sp"
   },
 
   "colors": {
