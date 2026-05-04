@@ -4,7 +4,7 @@
         size_hint: 1, 1
 
         ScreenOverlay:
-            source: app.theme_config.get("overlay_images", {}).get("settings", "")
+            page_key: "settings"
 
         BoxLayout:
             orientation: "vertical"
@@ -84,11 +84,10 @@
                         valign: "middle"
                         size_hint_x: 0.3
 
-                    TextInput:
+                    ThemedTextInput:
                         id: username_input
                         text: root.username
-                        font_name: app.theme_config.get("font_name", "Minecraftia")
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
+                        size_role: "medium"
                         size_hint_x: 0.7
                         multiline: False
 
@@ -111,11 +110,10 @@
                         size_hint_x: 0.7
                         spacing: "5dp"
 
-                        TextInput:
+                        ThemedTextInput:
                             id: birth_day
                             text: root.birth_day
-                            font_name: app.theme_config.get("font_name", "Minecraftia")
-                            font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
+                            size_role: "medium"
                             size_hint_x: 0.22
                             multiline: False
                             input_filter: "int"
@@ -127,11 +125,10 @@
                             size_hint_x: 0.05
                             halign: "center"
 
-                        TextInput:
+                        ThemedTextInput:
                             id: birth_month
                             text: root.birth_month
-                            font_name: app.theme_config.get("font_name", "Minecraftia")
-                            font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
+                            size_role: "medium"
                             size_hint_x: 0.22
                             multiline: False
                             input_filter: "int"
@@ -143,11 +140,10 @@
                             size_hint_x: 0.05
                             halign: "center"
 
-                        TextInput:
+                        ThemedTextInput:
                             id: birth_year
                             text: root.birth_year
-                            font_name: app.theme_config.get("font_name", "Minecraftia")
-                            font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
+                            size_role: "medium"
                             size_hint_x: 0.3
                             multiline: False
                             input_filter: "int"

@@ -6,7 +6,7 @@
         size_hint: 1, 1
 
         ScreenOverlay:
-            source: app.theme_config.get("overlay_images", {}).get("home", "")
+            page_key: "home"
 
         # Date panel — top-left
         ThemedPanel:
@@ -64,23 +64,20 @@
                 on_press: app.play_sound("click")
                 on_release: root.toggle_alarm()
 
-        # Clock shadow — plain Label, not ThemedLabel, so the per-instance
-        # color isn't fought by anything. Shadow color flips with theme.
-        Label:
+        # Clock shadow — ShadowLabel is a Python widget that reliably
+        # rebinds font_name/size + shadow color on theme switch.
+        ShadowLabel:
             id: clock_shadow_label
             text: clock_label.text
-            font_name: app.theme_config.get("font_name", "Minecraftia")
-            font_size: app.theme_config.get("font_sizes", {}).get("huge", "160sp")
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.51, "center_y": 0.49}
-            color: app.theme_config.get("colors", {}).get("shadow_dark", [1, 1, 1, 0.35]) if app.theme_mode == "dark" else app.theme_config.get("colors", {}).get("shadow_light", [0, 0, 0, 0.5])
 
         ThemedLabel:
             id: clock_label
             text: "00:00"
+            size_role: "huge"
             color_role: "font_default"
-            font_size: app.theme_config.get("font_sizes", {}).get("huge", "160sp")
             halign: "center"
             valign: "middle"
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
@@ -140,6 +137,3 @@
                 id: notification_label
                 full_text: root.notification_text
                 text: root.notification_text
-                font_name: app.theme_config.get("font_name", "Minecraftia")
-                color: app.theme_config.get("colors", {}).get("font_default", [1, 1, 1, 1])
-                font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")

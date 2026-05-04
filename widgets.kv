@@ -1,30 +1,21 @@
 # Reusable widget rules shared across all screens.
 #
-# - <ScreenOverlay@Image>: the per-screen overlay image (animals, decoration).
-#   Each screen sets `source` and inherits the rest. Replaces 6 copies of
-#   the same Image:{} block previously in pages/*.kv.
+# - ScreenOverlay is now a Python class (classes.themed.ScreenOverlay).
+#   It binds to app.theme_config in Python and reassigns its source
+#   on every theme switch — the previous KV-only `<ScreenOverlay@Image>`
+#   rule was unreliable: the .get().get() chain through DictProperty
+#   didn't always re-fire on a fresh theme dict, leaving the previous
+#   theme's overlay PNG visible.
 #
-# - <BaseScreen>: bare scaffolding for a screen. The overlay Image lives here
-#   so subclasses don't redeclare it. Subclass KV rules add their own
-#   widgets directly; the overlay is rendered first (lowest z-order).
-
-<ScreenOverlay@Image>:
-    fit_mode: 'fill'
-    size_hint: 1, 1
-    pos_hint: {"center_x": 0.5, "center_y": 0.5}
-    # Hide entirely when no source — otherwise an empty Image keeps the
-    # previous theme's texture visible after a theme switch.
-    opacity: 0 if not self.source else app.theme_config.get("overlay_opacity", 0.3)
+# - <BaseScreen>: bare scaffolding for a screen. Subclass KV rules
+#   instantiate `ScreenOverlay` and pass `page_key:` (e.g. "home").
 
 <BaseScreen>:
-    # Subclasses are expected to declare their own FloatLayout root with
-    # widgets. The overlay image is conventionally added by each subclass
-    # using <ScreenOverlay> rule, e.g.:
+    # Subclasses declare their own FloatLayout root with widgets.
+    # Overlay usage:
     #
     #   <HomeScreen>:
     #       FloatLayout:
     #           ScreenOverlay:
-    #               source: app.get_overlay_image(root.page_key)
+    #               page_key: "home"
     #           # ...content widgets
-    #
-    # The page_key property is set in Python (HomeScreen.page_key = 'home').

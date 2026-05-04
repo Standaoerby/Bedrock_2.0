@@ -18,7 +18,9 @@ from kivy.clock import Clock
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.image import Image
 from kivy.uix.spinner import Spinner, SpinnerOption
+from kivy.uix.textinput import TextInput
 from kivy.graphics import Color, RoundedRectangle
 from kivy.properties import StringProperty
 
@@ -109,6 +111,102 @@ class ThemedButton(Button, _ThemeBound):
             self.font_size = _font_size_for(cfg, self.size_role)
         self.background_normal = cfg.get("button_normal", "")
         self.background_down = cfg.get("button_active", cfg.get("button_normal", ""))
+
+
+class ThemedTextInput(TextInput, _ThemeBound):
+    """TextInput that picks up font_name + font_size from the active theme.
+
+    KV expressions like `font_name: app.theme_config.get("font_name", ...)`
+    are *supposed* to re-evaluate when DictProperty reassigns, but in
+    practice the .get() chain doesn't always fire — especially after the
+    first dispatch on a fresh dict. Doing it from Python via
+    `_ThemeBound._bind_theme` is reliable.
+
+    `size_role` selects the font_sizes key (default "medium").
+    """
+    size_role = StringProperty("medium")
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.bind(size_role=lambda *_: self._refresh())
+        self._bind_theme()
+
+    def _refresh(self):
+        app = App.get_running_app()
+        if app is None:
+            return
+        cfg = app.theme_config or {}
+        self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
+        if self.size_role:
+            self.font_size = _font_size_for(cfg, self.size_role)
+
+
+class ShadowLabel(Label, _ThemeBound):
+    """Drop-shadow Label for the clock. Reads font_name + huge font_size
+    from the active theme; chooses shadow color based on theme_mode
+    (light → shadow_light, dark → shadow_dark).
+
+    Plain `<Label>` in KV with `font_name: app.theme_config.get(...)`
+    didn't reliably re-fire on theme switch, so this lives in Python.
+    """
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self._bind_theme()
+        # Mode flips dispatch the shadow color too.
+        app = App.get_running_app()
+        if app is not None:
+            app.bind(theme_mode=lambda *_: self._refresh())
+
+    def _refresh(self):
+        app = App.get_running_app()
+        if app is None:
+            return
+        cfg = app.theme_config or {}
+        self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
+        self.font_size = _font_size_for(cfg, "huge", "160sp")
+        colors = cfg.get("colors", {}) or {}
+        if app.theme_mode == "dark":
+            self.color = colors.get("shadow_dark", [1, 1, 1, 0.35])
+        else:
+            self.color = colors.get("shadow_light", [0, 0, 0, 0.5])
+
+
+class ScreenOverlay(Image, _ThemeBound):
+    """Per-screen decorative image. The actual texture path comes from
+    `theme_config["overlay_images"][page_key]`.
+
+    Why a Python class instead of `<ScreenOverlay@Image>` in KV: the KV
+    binding `app.theme_config.get("overlay_images", {}).get(...)` is a
+    chained .get() through a DictProperty and doesn't reliably re-fire
+    on theme switch. With Python-side binding we explicitly reassign
+    `source` (and `opacity`) on every theme reload, so switching from
+    minecraft → clean actually drops the old texture.
+    """
+    page_key = StringProperty("")
+
+    def __init__(self, **kw):
+        kw.setdefault("fit_mode", "fill")
+        kw.setdefault("size_hint", (1, 1))
+        kw.setdefault("pos_hint", {"center_x": 0.5, "center_y": 0.5})
+        super().__init__(**kw)
+        self.bind(page_key=lambda *_: self._refresh())
+        self._bind_theme()
+
+    def _refresh(self):
+        app = App.get_running_app()
+        if app is None:
+            return
+        cfg = app.theme_config or {}
+        overlays = cfg.get("overlay_images", {}) or {}
+        new_source = overlays.get(self.page_key, "") if self.page_key else ""
+        # Always reassign so Image notices an empty-string transition and
+        # drops the old texture; opacity 0 hides it either way.
+        self.source = new_source
+        if not new_source:
+            self.opacity = 0
+        else:
+            self.opacity = cfg.get("overlay_opacity", 0.3)
 
 
 class ThemedPanel(BoxLayout, _ThemeBound):

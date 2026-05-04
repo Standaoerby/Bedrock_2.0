@@ -1,3 +1,4 @@
+from kivy.app import App
 from kivy.uix.label import Label
 from kivy.clock import Clock
 from kivy.graphics import PushMatrix, PopMatrix, Translate
@@ -10,6 +11,10 @@ class MarqueeLabel(Label):
     The transform is set up once via PushMatrix/Translate/PopMatrix wrapping the
     label's own canvas — only Translate.x is mutated on every animation tick, so
     we don't allocate or rebuild graphics instructions per frame.
+
+    Picks up font_name + font_size + color from app.theme_config via a
+    Python-side binding (the KV `app.theme_config.get(...)` chain doesn't
+    reliably re-fire after a theme switch).
     """
 
     scroll_x = NumericProperty(0)
@@ -30,6 +35,22 @@ class MarqueeLabel(Label):
             texture_size=self.start_marquee,
         )
         self.full_text = self.text
+
+        app = App.get_running_app()
+        if app is not None:
+            app.bind(theme_config=lambda *_: self._apply_theme())
+            self._apply_theme()
+
+    def _apply_theme(self):
+        app = App.get_running_app()
+        if app is None:
+            return
+        cfg = app.theme_config or {}
+        self.font_name = cfg.get("font_name", "Minecraftia")
+        sizes = cfg.get("font_sizes", {}) or {}
+        self.font_size = sizes.get("medium", "20sp")
+        colors = cfg.get("colors", {}) or {}
+        self.color = colors.get("font_default", [1, 1, 1, 1])
 
     def start_marquee(self, *args):
         self.scroll_x = 0
