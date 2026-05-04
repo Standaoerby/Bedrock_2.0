@@ -23,7 +23,7 @@
                     orientation: "vertical"
                     size_hint_x: 0.5
                     padding: "12dp"
-                    spacing: "6dp"
+                    spacing: "4dp"
 
                     ThemedLabel:
                         text: "Weather Forecast"
@@ -31,12 +31,17 @@
                         color_role: "font_highlight"
                         size_hint_y: None
                         height: "32dp"
+                        halign: "left"
+                        valign: "middle"
+                        text_size: self.size
 
                     ThemedLabel:
                         id: current_temp
                         text: "0°C"
                         size_role: "xlarge"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: "44dp"
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
@@ -46,18 +51,27 @@
                         text: "Weather condition"
                         size_role: "medium"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: "28dp"
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
+                        shorten: True
+                        shorten_from: "right"
 
                     ThemedLabel:
                         id: current_precipitation
                         text: "Precipitation: 0%"
                         size_role: "small"
                         color_role: "font_secondary"
+                        size_hint_y: None
+                        height: "20dp"
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
+
+                    Widget:
+                        # spacer pushes Refresh to the bottom
 
                     ThemedButton:
                         text: "Refresh"
@@ -72,7 +86,7 @@
                     orientation: "vertical"
                     size_hint_x: 0.5
                     padding: "12dp"
-                    spacing: "4dp"
+                    spacing: "2dp"
 
                     ThemedLabel:
                         text: "Room Sensors"
@@ -80,12 +94,17 @@
                         color_role: "font_highlight"
                         size_hint_y: None
                         height: "32dp"
+                        halign: "left"
+                        valign: "middle"
+                        text_size: self.size
 
                     ThemedLabel:
                         id: sensor_temp
                         text: "Temperature: 0°C"
                         size_role: "small"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: "22dp"
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
@@ -95,6 +114,8 @@
                         text: "Humidity: 0%"
                         size_role: "small"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: "22dp"
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
@@ -104,6 +125,8 @@
                         text: "CO2: 0 ppm"
                         size_role: "small"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: "22dp"
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
@@ -113,6 +136,8 @@
                         text: "TVOC: 0 ppb"
                         size_role: "small"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: "22dp"
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
@@ -122,9 +147,14 @@
                         text: "Air Quality: Unknown"
                         size_role: "small"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: "22dp"
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
+
+                    Widget:
+                        # spacer
 
             # Bottom: Weekly forecast
             ThemedPanel:

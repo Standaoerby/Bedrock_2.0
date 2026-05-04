@@ -40,6 +40,7 @@ from classes.marquee import MarqueeLabel
 from classes.themed import (  # noqa: F401 — registers Factory classes
     ThemedLabel,
     ThemedButton,
+    ThemedToggleButton,
     ThemedPanel,
     ThemedSpinner,
     ThemedTextInput,

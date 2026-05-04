@@ -17,6 +17,7 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.label import Label
 from kivy.uix.button import Button
+from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.uix.spinner import Spinner, SpinnerOption
@@ -111,6 +112,30 @@ class ThemedButton(Button, _ThemeBound):
             self.font_size = _font_size_for(cfg, self.size_role)
         self.background_normal = cfg.get("button_normal", "")
         self.background_down = cfg.get("button_active", cfg.get("button_normal", ""))
+
+
+class ThemedToggleButton(ToggleButton, _ThemeBound):
+    """ToggleButton that picks up font_name + size + color from theme.
+    Same opt-in pattern as ThemedButton (color_role / size_role)."""
+    color_role = StringProperty("")
+    size_role = StringProperty("")
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.bind(color_role=lambda *_: self._refresh(),
+                  size_role=lambda *_: self._refresh())
+        self._bind_theme()
+
+    def _refresh(self):
+        app = App.get_running_app()
+        if app is None:
+            return
+        cfg = app.theme_config or {}
+        self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
+        if self.color_role:
+            self.color = _color_for(cfg, self.color_role)
+        if self.size_role:
+            self.font_size = _font_size_for(cfg, self.size_role)
 
 
 class ThemedTextInput(TextInput, _ThemeBound):

@@ -140,60 +140,60 @@
                     size_hint_y: None
                     height: "48dp"
 
-                    ToggleButton:
+                    ThemedToggleButton:
                         id: repeat_mon
+                        color_role: "font_default"
+                        size_role: "medium"
                         text: "Mon"
                         state: "down" if "Mon" in root.alarm_repeat else "normal"
-                        font_name: app.theme_config.get("font_name", "Minecraftia")
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Mon", self.state)
-                    ToggleButton:
+                    ThemedToggleButton:
                         id: repeat_tue
+                        color_role: "font_default"
+                        size_role: "medium"
                         text: "Tue"
                         state: "down" if "Tue" in root.alarm_repeat else "normal"
-                        font_name: app.theme_config.get("font_name", "Minecraftia")
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Tue", self.state)
-                    ToggleButton:
+                    ThemedToggleButton:
                         id: repeat_wed
+                        color_role: "font_default"
+                        size_role: "medium"
                         text: "Wed"
                         state: "down" if "Wed" in root.alarm_repeat else "normal"
-                        font_name: app.theme_config.get("font_name", "Minecraftia")
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Wed", self.state)
-                    ToggleButton:
+                    ThemedToggleButton:
                         id: repeat_thu
+                        color_role: "font_default"
+                        size_role: "medium"
                         text: "Thu"
                         state: "down" if "Thu" in root.alarm_repeat else "normal"
-                        font_name: app.theme_config.get("font_name", "Minecraftia")
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Thu", self.state)
-                    ToggleButton:
+                    ThemedToggleButton:
                         id: repeat_fri
+                        color_role: "font_default"
+                        size_role: "medium"
                         text: "Fri"
                         state: "down" if "Fri" in root.alarm_repeat else "normal"
-                        font_name: app.theme_config.get("font_name", "Minecraftia")
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Fri", self.state)
-                    ToggleButton:
+                    ThemedToggleButton:
                         id: repeat_sat
+                        color_role: "font_default"
+                        size_role: "medium"
                         text: "Sat"
                         state: "down" if "Sat" in root.alarm_repeat else "normal"
-                        font_name: app.theme_config.get("font_name", "Minecraftia")
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Sat", self.state)
-                    ToggleButton:
+                    ThemedToggleButton:
                         id: repeat_sun
+                        color_role: "font_default"
+                        size_role: "medium"
                         text: "Sun"
                         state: "down" if "Sun" in root.alarm_repeat else "normal"
-                        font_name: app.theme_config.get("font_name", "Minecraftia")
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Sun", self.state)
 
@@ -222,11 +222,11 @@
                     size_hint_x: 0.6
                     on_text: root.select_ringtone(self.text)
 
-                ToggleButton:
+                ThemedToggleButton:
                     id: play_button
+                    color_role: "font_default"
+                    size_role: "medium"
                     text: "Play"
-                    font_name: app.theme_config.get("font_name", "Minecraftia")
-                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                     size_hint_x: 0.22
                     on_state: root.toggle_play_ringtone(self.state)
 
