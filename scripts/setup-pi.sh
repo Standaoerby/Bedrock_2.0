@@ -123,17 +123,21 @@ echo "═══ 5/6  BUILD VENV + INSTALL  ═══"
   echo 'venv ready'
 "
 
-echo "═══ 6/6  INSTALL SYSTEMD UNIT (user)  ═══"
-"${SSH[@]}" "mkdir -p ~/.config/systemd/user"
+echo "═══ 6/6  INSTALL SYSTEMD UNIT + AUTOSTART  ═══"
+"${SSH[@]}" "mkdir -p ~/.config/systemd/user ~/.config/autostart"
 scp -i "$SSH_KEY" -o BatchMode=yes scripts/bedrock.service \
     "$PI_USER@$IP:~/.config/systemd/user/bedrock.service"
+scp -i "$SSH_KEY" -o BatchMode=yes scripts/bedrock.desktop \
+    "$PI_USER@$IP:~/.config/autostart/bedrock.desktop"
 "${SSH[@]}" "
   # Substitute REPO_PATH placeholder in unit file
   sed -i 's|@REPO_PATH@|$REPO_PATH|g' ~/.config/systemd/user/bedrock.service
   loginctl enable-linger $PI_USER >/dev/null 2>&1 || sudo loginctl enable-linger $PI_USER
   systemctl --user daemon-reload
   systemctl --user enable bedrock.service
-  echo 'Unit installed (not started — reboot first if I2C/X11 changed).'
+  echo 'Unit + autostart installed.'
+  echo 'On boot: lightdm autologin → X session → ~/.config/autostart/bedrock.desktop'
+  echo '         → systemctl --user start bedrock → bedrock.service (with DISPLAY=:0).'
 "
 
 # Persist deploy target so future deploy.sh runs don't need an arg

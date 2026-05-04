@@ -13,6 +13,9 @@ WorkingDirectory=@REPO_PATH@
 Environment=PYTHONUNBUFFERED=1
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=%h/.Xauthority
+# Without XDG_SESSION_TYPE, SDL2 on a headless-systemd-launched process
+# silently falls back to a non-X video backend (no visible window).
+Environment=XDG_SESSION_TYPE=x11
 # Audio: KIVY_AUDIO=ffpyplayer (FFmpeg) since the Kivy aarch64+py3.13 wheel
 # has no _gstplayer extension, and audio_sdl2's SDL_mixer init hangs on
 # Trixie+pipewire. ffpyplayer needs a real SDL audio device for output —
@@ -30,4 +33,8 @@ StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=graphical-session.target
+# lightdm doesn't auto-activate graphical-session.target in user scope,
+# so a unit Wanted by it would never start at boot. We rely on a desktop
+# autostart entry (~/.config/autostart/bedrock.desktop) to invoke
+# `systemctl --user start bedrock` after the X session comes up.
+WantedBy=default.target

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Bedrock 2.0
+Comment=Kiosk: kill the desktop shell and start the Bedrock service.
+# pcmanfm runs as the desktop wallpaper and lxpanel as the top bar — both
+# keep grabbing the framebuffer and prevent SDL2's window from showing.
+# Killing them before bedrock starts gives Kivy the whole screen.
+Exec=sh -c "pkill -f 'lxpanel|pcmanfm.*--desktop' 2>/dev/null; sleep 1; systemctl --user start bedrock.service"
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+Terminal=false
