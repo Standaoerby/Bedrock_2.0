@@ -33,12 +33,12 @@
                         valign: "middle"
                         size_hint_x: 0.3
 
-                    Spinner:
+                    ThemedSpinner:
                         id: theme_spinner
                         text: root.current_theme
                         values: root.available_themes
-                        font_name: app.theme_config.get("font_name", "Minecraftia")
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
+                        size_role: "medium"
+                        color_role: "font_default"
                         size_hint_x: 0.7
                         on_text: root.change_theme(self.text)
 

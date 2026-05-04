@@ -213,12 +213,12 @@
                     valign: "middle"
                     text_size: self.size
 
-                Spinner:
+                ThemedSpinner:
                     id: ringtone_spinner
                     text: root.selected_ringtone
                     values: root.ringtone_list
-                    font_name: app.theme_config.get("font_name", "Minecraftia")
-                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
+                    size_role: "medium"
+                    color_role: "font_default"
                     size_hint_x: 0.6
                     on_text: root.select_ringtone(self.text)
 

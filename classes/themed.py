@@ -17,6 +17,7 @@ from kivy.app import App
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.spinner import Spinner, SpinnerOption
 from kivy.graphics import Color, RoundedRectangle
 from kivy.properties import StringProperty
 
@@ -138,3 +139,63 @@ class ThemedPanel(BoxLayout, _ThemeBound):
         if self._bg_rect is not None:
             self._bg_rect.pos = self.pos
             self._bg_rect.size = self.size
+
+
+class ThemedSpinnerOption(SpinnerOption):
+    """Spinner dropdown row. Default Kivy SpinnerOption uses system font
+    at 15sp with a fixed 44px height — looks foreign next to our pixel
+    Minecraftia. This subclass pulls font_name / font_size / color /
+    height / button background from theme_config."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self._refresh()
+        app = App.get_running_app()
+        if app is not None:
+            app.bind(theme_config=lambda *_: self._refresh())
+
+    def _refresh(self, *_):
+        app = App.get_running_app()
+        if app is None:
+            return
+        cfg = app.theme_config or {}
+        layout = cfg.get("layout", {}) or {}
+        self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
+        self.font_size = _font_size_for(cfg, "medium", "22sp")
+        self.color = _color_for(cfg, "font_default")
+        self.background_color = (1, 1, 1, 1)
+        self.background_normal = cfg.get("button_normal", "")
+        self.background_down = cfg.get("button_active", cfg.get("button_normal", ""))
+        # 48 dp default height, configurable via layout.widget_height_md
+        self.height = layout.get("widget_height_md", 48)
+
+
+class ThemedSpinner(Spinner, _ThemeBound):
+    """Spinner with a themed dropdown — uses ThemedSpinnerOption rows.
+    The Spinner button itself reads color_role / size_role like
+    ThemedButton."""
+
+    color_role = StringProperty("")
+    size_role = StringProperty("")
+
+    def __init__(self, **kw):
+        # Inject our option class before super().__init__ so the first
+        # dropdown opening uses it.
+        kw.setdefault("option_cls", ThemedSpinnerOption)
+        super().__init__(**kw)
+        self.bind(color_role=lambda *_: self._refresh(),
+                  size_role=lambda *_: self._refresh())
+        self._bind_theme()
+
+    def _refresh(self):
+        app = App.get_running_app()
+        if app is None:
+            return
+        cfg = app.theme_config or {}
+        self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
+        if self.color_role:
+            self.color = _color_for(cfg, self.color_role)
+        if self.size_role:
+            self.font_size = _font_size_for(cfg, self.size_role)
+        self.background_normal = cfg.get("button_normal", "")
+        self.background_down = cfg.get("button_active", cfg.get("button_normal", ""))
