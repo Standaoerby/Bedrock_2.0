@@ -1,185 +1,143 @@
 <PigsScreen>:
+    page_key: "pigs"
     FloatLayout:
         size_hint: 1, 1
 
-        # Только оверлей для этого экрана (без фонового изображения)
-        Image:
+        ScreenOverlay:
             source: app.get_overlay_image("pigs")
-            fit_mode: 'fill'
-            size_hint: 1, 1
-            pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            opacity: app.theme_config.get("overlay_opacity", 0.5)
 
-        # Main content container - split into left and right panels
         BoxLayout:
             orientation: "horizontal"
-            size_hint: 0.9, 0.75
-            pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            spacing: app.theme_config.get("grid_unit", "32dp")
-            
-            # Left panel with controls
+            size_hint: 0.9, 0.78
+            pos_hint: {"center_x": 0.5, "center_y": 0.48}
+            spacing: "20dp"
+
+            # Left panel — 3 sections (Water/Food/Cleaning)
             ThemedPanel:
                 orientation: "vertical"
-                size_hint_x: 0.4
-                padding: app.theme_config.get("grid_unit_half", "16dp")
-                spacing: app.theme_config.get("grid_unit", "32dp")  # Space between sections
-                
+                size_hint_x: 0.5
+                padding: "16dp"
+                spacing: "20dp"
+
                 # Water section
                 BoxLayout:
                     orientation: "vertical"
                     size_hint_y: 0.33
-                    spacing: app.theme_config.get("grid_unit_half", "16dp")  # Space between elements
-                    
-                    # Water label
+                    spacing: "8dp"
+
                     ThemedLabel:
                         text: "Water"
-                        font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
+                        size_role: "large"
+                        color_role: "font_default"
                         size_hint_y: None
-                        height: app.theme_config.get("grid_unit", "32dp")
+                        height: "32dp"
                         halign: "left"
                         text_size: self.size
                         valign: "middle"
-                    
-                    # Water bar and button in row
+
                     BoxLayout:
                         orientation: "horizontal"
-                        spacing: app.theme_config.get("grid_unit_half", "16dp")
-                        
-                        # Custom water progress bar - MUCH TALLER
+                        spacing: "12dp"
+
                         CustomProgressBar:
                             id: water_bar
                             size_hint_x: 0.65
                             size_hint_y: None
-                            height: "30dp"  # MUCH TALLER
-                            bar_color: [0, 0.6, 0.8, 0.8]  # Blue for water
-                            canvas.before:
-                                Color:
-                                    rgba: 0.15, 0.15, 0.15, 0.5  # Dark background
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [4]
-                        
-                        # Water button
+                            height: "30dp"
+                            bar_color: app.theme_config.get("colors", {}).get("bar_water", [0, 0.6, 0.8, 0.8])
+
                         ThemedButton:
                             text: "Done"
+                            size_role: "medium"
+                            color_role: "font_default"
                             size_hint_x: 0.35
+                            size_hint_y: None
                             height: "40dp"
                             on_press: app.play_sound("click")
                             on_release: root.reset_bar("water")
-                
+
                 # Food section
                 BoxLayout:
                     orientation: "vertical"
                     size_hint_y: 0.33
-                    spacing: app.theme_config.get("grid_unit_half", "16dp")
-                    
-                    # Food label
+                    spacing: "8dp"
+
                     ThemedLabel:
                         text: "Food"
-                        font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
+                        size_role: "large"
+                        color_role: "font_default"
                         size_hint_y: None
-                        height: app.theme_config.get("grid_unit", "32dp")
+                        height: "32dp"
                         halign: "left"
                         text_size: self.size
                         valign: "middle"
-                    
-                    # Food bar and button in row
+
                     BoxLayout:
                         orientation: "horizontal"
-                        spacing: app.theme_config.get("grid_unit_half", "16dp")
-                        
-                        # Custom food progress bar - MUCH TALLER
+                        spacing: "12dp"
+
                         CustomProgressBar:
                             id: food_bar
                             size_hint_x: 0.65
                             size_hint_y: None
-                            height: "30dp"  # MUCH TALLER
-                            bar_color: [0.8, 0.4, 0, 0.8]  # Orange/brown for food
-                            canvas.before:
-                                Color:
-                                    rgba: 0.15, 0.15, 0.15, 0.5
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [4]
-                        
-                        # Food button
+                            height: "30dp"
+                            bar_color: app.theme_config.get("colors", {}).get("bar_food", [0.8, 0.4, 0, 0.8])
+
                         ThemedButton:
                             text: "Done"
+                            size_role: "medium"
+                            color_role: "font_default"
                             size_hint_x: 0.35
+                            size_hint_y: None
                             height: "40dp"
                             on_press: app.play_sound("click")
                             on_release: root.reset_bar("food")
-                
+
                 # Cleaning section
                 BoxLayout:
                     orientation: "vertical"
                     size_hint_y: 0.33
-                    spacing: app.theme_config.get("grid_unit_half", "16dp")
-                    
-                    # Cleaning label
+                    spacing: "8dp"
+
                     ThemedLabel:
                         text: "Cleaning"
-                        font_size: app.theme_config.get("font_sizes", {}).get("large", "26sp")
+                        size_role: "large"
+                        color_role: "font_default"
                         size_hint_y: None
-                        height: app.theme_config.get("grid_unit", "32dp")
+                        height: "32dp"
                         halign: "left"
                         text_size: self.size
                         valign: "middle"
-                    
-                    # Cleaning bar and button in row
+
                     BoxLayout:
                         orientation: "horizontal"
-                        spacing: app.theme_config.get("grid_unit_half", "16dp")
-                        
-                        # Custom cleaning progress bar - MUCH TALLER
+                        spacing: "12dp"
+
                         CustomProgressBar:
                             id: clean_bar
                             size_hint_x: 0.65
                             size_hint_y: None
-                            height: "30dp"  # MUCH TALLER
-                            bar_color: [0, 0.8, 0.2, 0.8]  # Green for cleaning
-                            canvas.before:
-                                Color:
-                                    rgba: 0.15, 0.15, 0.15, 0.5
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [4]
-                        
-                        # Cleaning button
+                            height: "30dp"
+                            bar_color: app.theme_config.get("colors", {}).get("bar_clean", [0, 0.8, 0.2, 0.8])
+
                         ThemedButton:
                             text: "Done"
+                            size_role: "medium"
+                            color_role: "font_default"
                             size_hint_x: 0.35
+                            size_hint_y: None
                             height: "40dp"
                             on_press: app.play_sound("click")
                             on_release: root.reset_bar("clean")
-            
-            # Right panel with pig image
+
+            # Right panel — pig portrait
             ThemedPanel:
                 orientation: "vertical"
-                size_hint_x: 0.6
-                padding: app.theme_config.get("grid_unit_half", "16dp")
-                
-                # Pig image (fills the panel)
+                size_hint_x: 0.5
+                padding: "12dp"
+
                 Image:
                     id: pigs_image
                     source: "assets/images/pigs_1.png"
                     size_hint: 1, 1
                     fit_mode: 'contain'
-                
-                # Hidden status elements (for compatibility)
-                ThemedLabel:
-                    id: pigs_status_label
-                    text: "Happiness: 64%"
-                    opacity: 0
-                    size_hint_y: None
-                    height: 0
-                
-                ThemedLabel:
-                    id: status_emoji
-                    text: "🐷"
-                    opacity: 0
-                    size_hint_y: None
-                    height: 0

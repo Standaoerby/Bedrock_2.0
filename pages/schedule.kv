@@ -1,245 +1,216 @@
 <ScheduleScreen>:
+    page_key: "schedule"
     FloatLayout:
         size_hint: 1, 1
-        # Только оверлей для этого экрана (без фонового изображения)
-        Image:
+
+        ScreenOverlay:
             source: app.get_overlay_image("schedule")
-            fit_mode: 'fill'
-            size_hint: 1, 1
-            pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            opacity: app.theme_config.get("overlay_opacity", 0.5)
-            
-        # Today + Tomorrow schedules
+
+        # Today + Tomorrow (visible when not in week mode)
         BoxLayout:
             orientation: "horizontal"
             size_hint: 0.9, 0.75
             pos_hint: {"center_x": 0.5, "center_y": 0.48}
-            spacing: app.theme_config.get("grid_unit", "32dp")
-            opacity: 1 if not root.week_mode else 0  # Visible only in day mode
-            
-            # Today schedule (left, larger) - SMALLER FONT
+            spacing: "16dp"
+            opacity: 1 if not root.week_mode else 0
+
+            # Today (left, larger)
             ThemedPanel:
                 orientation: "vertical"
-                size_hint_x: 0.6  # Today gets more horizontal space
-                padding: app.theme_config.get("grid_unit_half", "16dp")
-                
-                BoxLayout:
-                    orientation: "vertical"
-                    size_hint_y: 1
-                    
+                size_hint_x: 0.6
+                padding: "12dp"
+
+                ThemedLabel:
+                    text: "Today: %s, %s" % (root.today_date, root.today_day)
+                    size_role: "medium"
+                    color_role: "font_highlight"
+                    bold: True
+                    size_hint_y: None
+                    height: "32dp"
+
+                ScrollView:
+                    do_scroll_x: False
+                    do_scroll_y: True
+
                     ThemedLabel:
-                        text: f"Today: {root.today_date}, {root.today_day}"
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
-                        bold: True
+                        id: today_label
+                        text: "..."
+                        size_role: "small"
+                        color_role: "font_default"
+                        text_size: self.width, None
                         size_hint_y: None
-                        height: app.theme_config.get("grid_unit", "32dp")
-                        color: app.theme_config.get("colors", {}).get("font_highlight", [1, 1, 0.7, 1])
-                        
-                    ScrollView:
-                        do_scroll_x: False
-                        do_scroll_y: True
-                        
-                        ThemedLabel:
-                            id: today_label
-                            text: "..."
-                            font_size: "14sp"  # Smaller font (was 16sp)
-                            text_size: self.width, None
-                            size_hint_y: None
-                            height: self.texture_size[1]
-                            halign: "left"
-                            valign: "top"
-                            padding: [app.theme_config.get("grid_unit_quarter", "8dp"), 0]
-            
-            # Tomorrow schedule (right, smaller) - SMALLER FONT
+                        height: self.texture_size[1]
+                        halign: "left"
+                        valign: "top"
+                        padding: "8dp", 0
+
+            # Tomorrow (right, smaller)
             ThemedPanel:
                 orientation: "vertical"
-                size_hint_x: 0.4  # Tomorrow gets less horizontal space
-                padding: app.theme_config.get("grid_unit_half", "16dp")
-                
-                BoxLayout:
-                    orientation: "vertical"
-                    size_hint_y: 1
-                    
+                size_hint_x: 0.4
+                padding: "12dp"
+
+                ThemedLabel:
+                    text: "Tomorrow: %s, %s" % (root.tomorrow_date, root.tomorrow_day)
+                    size_role: "small"
+                    color_role: "font_secondary"
+                    bold: True
+                    size_hint_y: None
+                    height: "32dp"
+
+                ScrollView:
+                    do_scroll_x: False
+                    do_scroll_y: True
+
                     ThemedLabel:
-                        text: f"Tomorrow: {root.tomorrow_date}, {root.tomorrow_day}"
-                        font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")
-                        bold: True
+                        id: tomorrow_label
+                        text: "..."
+                        size_role: "tiny"
+                        color_role: "font_default"
+                        text_size: self.width, None
                         size_hint_y: None
-                        height: app.theme_config.get("grid_unit", "32dp")
-                        color: app.theme_config.get("colors", {}).get("font_secondary", [0.8, 1, 1, 1])
-                        
-                    ScrollView:
-                        do_scroll_x: False
-                        do_scroll_y: True
-                        
-                        ThemedLabel:
-                            id: tomorrow_label
-                            text: "..."
-                            font_size: "13sp"  # Smaller font (was 16sp)
-                            text_size: self.width, None
-                            size_hint_y: None
-                            height: self.texture_size[1]
-                            halign: "left"
-                            valign: "top"
-                            padding: [app.theme_config.get("grid_unit_quarter", "8dp"), 0]
-        
-        # Week view
+                        height: self.texture_size[1]
+                        halign: "left"
+                        valign: "top"
+                        padding: "8dp", 0
+
+        # Weekly view (visible when week_mode)
         ThemedPanel:
             orientation: "vertical"
             size_hint: 0.9, 0.65
             pos_hint: {"center_x": 0.5, "center_y": 0.45}
-            opacity: 1 if root.week_mode else 0  # Visible only in week mode
-            padding: app.theme_config.get("grid_unit_half", "16dp")
-            
-            # Fixed 5-column grid (Monday-Friday)
+            opacity: 1 if root.week_mode else 0
+            padding: "12dp"
+
             GridLayout:
                 id: week_grid
                 cols: 5
-                spacing: app.theme_config.get("grid_unit_quarter", "8dp")
+                spacing: "8dp"
                 size_hint_y: 1
-                
-                # Monday column
+
+                # Five day columns. id's are referenced from Python.
                 BoxLayout:
                     orientation: "vertical"
-                    size_hint_x: 0.2  # Equal width (1/5)
-                    
                     ThemedLabel:
                         text: "Monday"
-                        font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")
+                        size_role: "small"
+                        color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: app.theme_config.get("grid_unit", "32dp")
-                        color: app.theme_config.get("colors", {}).get("font_highlight", [1, 1, 0.7, 1])
-                        
+                        height: "32dp"
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
-                        
                         ThemedLabel:
                             id: monday_label
                             text: ""
-                            font_size: "14sp"
+                            size_role: "tiny"
+                            color_role: "font_default"
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
                             halign: "left"
                             valign: "top"
-                
-                # Tuesday column
+
                 BoxLayout:
                     orientation: "vertical"
-                    size_hint_x: 0.2  # Equal width (1/5)
-                    
                     ThemedLabel:
                         text: "Tuesday"
-                        font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")
+                        size_role: "small"
+                        color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: app.theme_config.get("grid_unit", "32dp")
-                        color: app.theme_config.get("colors", {}).get("font_highlight", [1, 1, 0.7, 1])
-                        
+                        height: "32dp"
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
-                        
                         ThemedLabel:
                             id: tuesday_label
                             text: ""
-                            font_size: "14sp"
+                            size_role: "tiny"
+                            color_role: "font_default"
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
                             halign: "left"
                             valign: "top"
-                
-                # Wednesday column
+
                 BoxLayout:
                     orientation: "vertical"
-                    size_hint_x: 0.2  # Equal width (1/5)
-                    
                     ThemedLabel:
                         text: "Wednesday"
-                        font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")
+                        size_role: "small"
+                        color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: app.theme_config.get("grid_unit", "32dp")
-                        color: app.theme_config.get("colors", {}).get("font_highlight", [1, 1, 0.7, 1])
-                        
+                        height: "32dp"
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
-                        
                         ThemedLabel:
                             id: wednesday_label
                             text: ""
-                            font_size: "14sp"
+                            size_role: "tiny"
+                            color_role: "font_default"
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
                             halign: "left"
                             valign: "top"
-                
-                # Thursday column
+
                 BoxLayout:
                     orientation: "vertical"
-                    size_hint_x: 0.2  # Equal width (1/5)
-                    
                     ThemedLabel:
                         text: "Thursday"
-                        font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")
+                        size_role: "small"
+                        color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: app.theme_config.get("grid_unit", "32dp")
-                        color: app.theme_config.get("colors", {}).get("font_highlight", [1, 1, 0.7, 1])
-                        
+                        height: "32dp"
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
-                        
                         ThemedLabel:
                             id: thursday_label
                             text: ""
-                            font_size: "14sp"
+                            size_role: "tiny"
+                            color_role: "font_default"
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
                             halign: "left"
                             valign: "top"
-                
-                # Friday column
+
                 BoxLayout:
                     orientation: "vertical"
-                    size_hint_x: 0.2  # Equal width (1/5)
-                    
                     ThemedLabel:
                         text: "Friday"
-                        font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")
+                        size_role: "small"
+                        color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: app.theme_config.get("grid_unit", "32dp")
-                        color: app.theme_config.get("colors", {}).get("font_highlight", [1, 1, 0.7, 1])
-                        
+                        height: "32dp"
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
-                        
                         ThemedLabel:
                             id: friday_label
                             text: ""
-                            font_size: "14sp"
+                            size_role: "tiny"
+                            color_role: "font_default"
                             text_size: self.width, None
                             size_hint_y: None
                             height: self.texture_size[1]
                             halign: "left"
                             valign: "top"
-        
-        # Toggle button - TALLER BY 4px
+
+        # Toggle button
         ThemedButton:
             id: week_button
             text: "View Weekly Schedule" if not root.week_mode else "Back to Today's Schedule"
-            font_size: app.theme_config.get("font_sizes", {}).get("small", "16sp")
-            size_hint: 0.6, None
-            height: app.theme_config.get("grid_unit", "36dp")  # Increased height by 4px (from 32dp to 36dp)
-            pos_hint: {"center_x": 0.5, "center_y": 0.08}  # Position unchanged
-            on_press: app.play_sound("click")  # Add sound effect
+            size_role: "small"
+            size_hint: 0.5, None
+            height: "40dp"
+            pos_hint: {"center_x": 0.5, "center_y": 0.08}
+            on_press: app.play_sound("click")
             on_release: root.toggle_week_mode()
