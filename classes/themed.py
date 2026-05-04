@@ -201,9 +201,11 @@ class ThemedSpinner(Spinner, _ThemeBound):
         if self.is_open:
             self.is_open = False
             return
-        # Opening: defer one frame so the current touch.up doesn't
-        # leak into DropDown's auto-dismiss.
-        Clock.schedule_once(lambda dt: setattr(self, "is_open", True), 0)
+        # Opening: defer ~150ms so the originating touch event chain
+        # (down/move/up + any debounce duplicates from MTD) is fully
+        # consumed before the DropDown is mapped — otherwise a tap
+        # registered after-the-open lands on auto_dismiss.
+        Clock.schedule_once(lambda dt: setattr(self, "is_open", True), 0.15)
 
     def _refresh(self):
         app = App.get_running_app()
