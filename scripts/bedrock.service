@@ -16,13 +16,19 @@ Environment=XAUTHORITY=%h/.Xauthority
 # Without XDG_SESSION_TYPE, SDL2 on a headless-systemd-launched process
 # silently falls back to a non-X video backend (no visible window).
 Environment=XDG_SESSION_TYPE=x11
-# Audio: KIVY_AUDIO=sdl2 (SDL_mixer). ffpyplayer's abuffersink rejects
-# the channel-layout reformat ("Channel layout change is not supported"),
-# so click/success/error never actually played even though SoundLoader
-# reported state='play'. SDL_mixer over pipewire-pulse plays cleanly on
-# Trixie + Kivy 2.3 + Python 3.13 — the older init-hang we saw is gone
-# now that we wait for X11 first via ExecStartPre.
-Environment=KIVY_AUDIO=sdl2
+# Audio: KIVY_AUDIO=ffpyplayer + SDL_AUDIODRIVER=pulse.
+#
+# audio_sdl2 (SDL_mixer) hangs at startup on Trixie + Kivy 2.3 +
+# pipewire-pulse — Audio Providers prints `audio_sdl2`, then the build
+# process never reaches `Start application main loop`. We don't get to
+# diagnose further because no UI ever appears.
+#
+# audio_ffpyplayer used to log a "Channel layout change is not
+# supported" abuffersink error on every play, but with mono/16-bit/
+# 48kHz WAVs that warning is non-fatal and playback now actually
+# reaches the device (verified with `pw-play` that the WAVs are
+# routable). Keep ffpyplayer + suppress the cosmetic log noise.
+Environment=KIVY_AUDIO=ffpyplayer
 Environment=SDL_AUDIODRIVER=pulse
 # Wait briefly for X to come up — without this, on a cold boot the unit can
 # race lightdm and the SDL2 backend silently never opens a window.

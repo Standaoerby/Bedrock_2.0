@@ -173,39 +173,63 @@ class BedrockApp(App):
             os.makedirs(d, exist_ok=True)
 
     def load_sounds(self):
-        """Load sound effects. Prefer .wav (universal Kivy support); fall back
-        to .ogg if no .wav present."""
+        """Resolve sound effect file paths. Stored as plain paths — playback
+        goes through `play_sound` which picks the right backend per OS."""
         sound_files = {
             "click":   ["assets/sounds/click.wav",   "assets/sounds/click.ogg"],
             "success": ["assets/sounds/success.wav", "assets/sounds/success.ogg"],
             "error":   ["assets/sounds/error.wav",   "assets/sounds/error.ogg"],
         }
+        # On Windows use Kivy's SoundLoader (audio_sdl2 / pygame work fine
+        # there). On Pi (Trixie + Kivy 2.3) both audio_sdl2 init-hangs and
+        # audio_ffpyplayer's abuffersink rejects the channel layout, so we
+        # shell out to pw-play instead — pipewire-pulse owns the device.
         for name, paths in sound_files.items():
             for path in paths:
-                if os.path.exists(path):
+                if not os.path.exists(path):
+                    continue
+                if _IS_PI:
+                    # Just remember the path; playback is via subprocess.
+                    self.sounds[name] = path
+                else:
                     snd = SoundLoader.load(path)
                     if snd is not None:
                         self.sounds[name] = snd
                         break
             if name not in self.sounds:
                 print(f"[bedrock] sound '{name}' not loaded; tried {paths}")
-    
+
     def play_sound(self, sound_name="click"):
-        """Play a cached sound with 50ms debounce. Reuses the same Sound
-        instance — stops any in-flight playback first so rapid clicks
-        retrigger correctly."""
+        """Play a cached sound with 50ms debounce.
+
+        On Windows reuse the same Sound instance (stop any in-flight first
+        so rapid clicks retrigger). On Pi spawn `pw-play` non-blocking —
+        each press creates a fresh subprocess so overlapping plays just
+        layer naturally.
+        """
         now = time.time()
         if (now - self.last_sound_time) < 0.05:
             return
         self.last_sound_time = now
 
-        sound = self.sounds.get(sound_name)
-        if sound is None:
+        entry = self.sounds.get(sound_name)
+        if entry is None:
             return
         try:
-            if sound.state == "play":
-                sound.stop()
-            sound.play()
+            if _IS_PI:
+                # entry is a path string. Detach so the click doesn't block
+                # the UI thread, and discard stdout/stderr.
+                import subprocess
+                subprocess.Popen(
+                    ["pw-play", entry],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                )
+            else:
+                if entry.state == "play":
+                    entry.stop()
+                entry.play()
         except Exception as e:
             print(f"[bedrock] play_sound({sound_name}) failed: {e}")
 
