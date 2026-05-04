@@ -1,198 +1,177 @@
-from kivy.uix.screenmanager import Screen
-from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
 import os
-import re
+from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
+from kivy.core.audio import SoundLoader
+
+from classes.base_screen import BaseScreen
+
 
 DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-class AlarmScreen(Screen):
+
+class AlarmScreen(BaseScreen):
+    page_key = StringProperty("alarm")
+
     alarm_time = StringProperty("07:30")
     alarm_active = BooleanProperty(True)
     alarm_repeat = ListProperty(["Mon", "Tue", "Wed", "Thu", "Fri"])
     selected_ringtone = StringProperty("morning.mp3")
     ringtone_list = ListProperty([])
     alarm_fadein = BooleanProperty(False)
-    current_sound = ObjectProperty(None, allownone=True)  # Store the sound object
+    current_sound = ObjectProperty(None, allownone=True)
 
-    def on_pre_enter(self):
+    # ── Lifecycle ─────────────────────────────────────────────────────
+    def do_on_pre_enter(self):
         self.load_ringtones()
         self.load_alarm_config()
         self.update_ui()
 
+    def do_on_leave(self):
+        self.stop_ringtone()
+        if "play_button" in self.ids:
+            self.ids.play_button.state = "normal"
+            self.ids.play_button.text = "Play"
+
+    # ── State load/save ───────────────────────────────────────────────
     def load_ringtones(self):
         folder = "media/ringtones"
-        if os.path.exists(folder):
-            self.ringtone_list = [f for f in os.listdir(folder) if f.lower().endswith(".mp3")]
+        if os.path.isdir(folder):
+            self.ringtone_list = sorted(
+                f for f in os.listdir(folder)
+                if f.lower().endswith((".mp3", ".wav", ".ogg"))
+            )
             if self.selected_ringtone not in self.ringtone_list and self.ringtone_list:
                 self.selected_ringtone = self.ringtone_list[0]
         else:
-            # If folder doesn't exist, use test values
-            self.ringtone_list = ["morning.mp3", "gentle.mp3", "loud.mp3", "robot.mp3"]
+            self.ringtone_list = ["morning.mp3", "robot.mp3"]
 
     def load_alarm_config(self):
-        app = self.get_app()
-        alarm = app.alarm_service.get_alarm()
-        if alarm:
-            self.alarm_time = alarm.get("time", "07:30")
-            self.alarm_active = alarm.get("enabled", True)
-            repeat = alarm.get("repeat", ["Mon", "Tue", "Wed", "Thu", "Fri"])
-            if repeat and all(isinstance(x, int) for x in repeat):
-                days_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-                self.alarm_repeat = [days_map[i-1] for i in repeat if 1 <= i <= 7]
-            else:
-                self.alarm_repeat = repeat
-            self.selected_ringtone = alarm.get("ringtone", self.selected_ringtone)
-            self.alarm_fadein = alarm.get("fadein", False)
+        alarm = self.get_app().alarm_service.get_alarm()
+        if not alarm:
+            return
+        self.alarm_time = alarm.get("time", "07:30")
+        self.alarm_active = alarm.get("enabled", True)
+        repeat = alarm.get("repeat", ["Mon", "Tue", "Wed", "Thu", "Fri"])
+        # Tolerate legacy int format
+        if repeat and all(isinstance(x, int) for x in repeat):
+            self.alarm_repeat = [DAYS_EN[i - 1] for i in repeat if 1 <= i <= 7]
+        else:
+            self.alarm_repeat = list(repeat)
+        self.selected_ringtone = alarm.get("ringtone", self.selected_ringtone)
+        self.alarm_fadein = alarm.get("fadein", False)
 
     def save_alarm(self):
         app = self.get_app()
-        # Play success sound when saving
         app.play_sound("success")
-        
-        alarm = {
+        app.alarm_service.set_alarm({
             "time": self.alarm_time,
             "enabled": self.alarm_active,
-            "repeat": self.alarm_repeat,
+            "repeat": list(self.alarm_repeat),
             "ringtone": self.selected_ringtone,
             "fadein": self.alarm_fadein,
-        }
-        app.alarm_service.set_alarm(alarm)
+        })
         self.update_ui()
 
     def update_ui(self):
-        # Update hours and minutes
-        hours, minutes = self.alarm_time.split(':')
-        self.ids.hour_label.text = hours
-        self.ids.minute_label.text = minutes
-        
-        # Update other UI elements
-        self.ids.active_checkbox.active = self.alarm_active
-        
+        h, m = self.alarm_time.split(":")
+        if "hour_label" in self.ids:
+            self.ids.hour_label.text = h
+        if "minute_label" in self.ids:
+            self.ids.minute_label.text = m
+        if "active_checkbox" in self.ids:
+            self.ids.active_checkbox.active = self.alarm_active
         for day in DAYS_EN:
             btn_id = f"repeat_{day.lower()}"
             if btn_id in self.ids:
                 self.ids[btn_id].state = "down" if day in self.alarm_repeat else "normal"
-        
-        if hasattr(self.ids, 'ringtone_spinner'):
+        if "ringtone_spinner" in self.ids:
             self.ids.ringtone_spinner.text = self.selected_ringtone
-        
-        if hasattr(self.ids, 'fadein_checkbox'):
+        if "fadein_checkbox" in self.ids:
             self.ids.fadein_checkbox.active = self.alarm_fadein
-        
-        # Reset play button state
-        if hasattr(self.ids, 'play_button'):
-            self.ids.play_button.state = 'normal'
-            self.ids.play_button.text = 'Play'
+        if "play_button" in self.ids:
+            self.ids.play_button.state = "normal"
+            self.ids.play_button.text = "Play"
 
+    # ── Time +/- ──────────────────────────────────────────────────────
     def increment_hour(self):
-        # Play sound (already added in kv file)
-        hours, minutes = self.alarm_time.split(':')
-        new_hour = (int(hours) + 1) % 24
-        self.alarm_time = f"{new_hour:02d}:{minutes}"
-        self.ids.hour_label.text = f"{new_hour:02d}"
+        h, m = self.alarm_time.split(":")
+        h = (int(h) + 1) % 24
+        self.alarm_time = f"{h:02d}:{m}"
+        self.update_ui()
 
     def decrement_hour(self):
-        # Play sound (already added in kv file)
-        hours, minutes = self.alarm_time.split(':')
-        new_hour = (int(hours) - 1) % 24
-        self.alarm_time = f"{new_hour:02d}:{minutes}"
-        self.ids.hour_label.text = f"{new_hour:02d}"
+        h, m = self.alarm_time.split(":")
+        h = (int(h) - 1) % 24
+        self.alarm_time = f"{h:02d}:{m}"
+        self.update_ui()
 
     def increment_minute(self):
-        # Play sound (already added in kv file)
-        hours, minutes = self.alarm_time.split(':')
-        new_minute = (int(minutes) + 1) % 60
-        self.alarm_time = f"{hours}:{new_minute:02d}"
-        self.ids.minute_label.text = f"{new_minute:02d}"
+        h, m = self.alarm_time.split(":")
+        m = (int(m) + 1) % 60
+        self.alarm_time = f"{h}:{m:02d}"
+        self.update_ui()
 
     def decrement_minute(self):
-        # Play sound (already added in kv file)
-        hours, minutes = self.alarm_time.split(':')
-        new_minute = (int(minutes) - 1) % 60
-        self.alarm_time = f"{hours}:{new_minute:02d}"
-        self.ids.minute_label.text = f"{new_minute:02d}"
+        h, m = self.alarm_time.split(":")
+        m = (int(m) - 1) % 60
+        self.alarm_time = f"{h}:{m:02d}"
+        self.update_ui()
 
+    # ── Toggles ───────────────────────────────────────────────────────
     def on_active_toggled(self, active):
-        # Play sound (already added in kv file)
         self.alarm_active = active
 
+    def on_fadein_toggled(self, active):
+        self.alarm_fadein = active
+
     def toggle_repeat(self, day, state):
-        # Play sound (already added in kv file)
         day = day.capitalize()
         if state == "down" and day not in self.alarm_repeat:
             self.alarm_repeat.append(day)
         elif state == "normal" and day in self.alarm_repeat:
             self.alarm_repeat.remove(day)
 
+    # ── Ringtone preview ──────────────────────────────────────────────
     def select_ringtone(self, name):
-        # Play sound (already added in kv file)
         self.selected_ringtone = name
-        # Stop any playing sound when ringtone is changed
         self.stop_ringtone()
-        # Reset play button
-        if hasattr(self.ids, 'play_button'):
-            self.ids.play_button.state = 'normal'
-            self.ids.play_button.text = 'Play'
+        if "play_button" in self.ids:
+            self.ids.play_button.state = "normal"
+            self.ids.play_button.text = "Play"
 
     def toggle_play_ringtone(self, state):
-        """Toggle between play and stop based on button state"""
-        app = self.get_app()
-        app.play_sound("click")  # Play UI sound
-        
-        if state == 'down':
+        if state == "down":
             self.play_ringtone()
-            self.ids.play_button.text = 'Stop'
+            if "play_button" in self.ids:
+                self.ids.play_button.text = "Stop"
         else:
             self.stop_ringtone()
-            self.ids.play_button.text = 'Play'
+            if "play_button" in self.ids:
+                self.ids.play_button.text = "Play"
 
     def play_ringtone(self):
-        """Play the selected ringtone"""
-        from kivy.core.audio import SoundLoader
-        
-        # Stop any currently playing sound
         self.stop_ringtone()
-        
-        folder = "media/ringtones"
-        path = os.path.join(folder, self.selected_ringtone)
+        path = os.path.join("media/ringtones", self.selected_ringtone)
         if os.path.exists(path):
             self.current_sound = SoundLoader.load(path)
             if self.current_sound:
                 self.current_sound.play()
 
     def stop_ringtone(self):
-        """Stop the currently playing ringtone"""
         if self.current_sound:
-            self.current_sound.stop()
+            try:
+                self.current_sound.stop()
+            except Exception:
+                pass
             self.current_sound = None
 
-    def on_fadein_toggled(self, active):
-        # Play sound (already added in kv file)
-        self.alarm_fadein = active
-
-    def get_app(self):
-        from kivy.app import App
-        return App.get_running_app()
-        
-    def on_leave(self):
-        """Clean up when leaving the screen"""
-        self.stop_ringtone()
-        if hasattr(self.ids, 'play_button'):
-            self.ids.play_button.state = 'normal'
-            self.ids.play_button.text = 'Play'
-            
+    # ── Test (debug) ──────────────────────────────────────────────────
     def test_alarm(self):
-        """Test the alarm by triggering it immediately (for debugging)"""
         app = self.get_app()
-        app.play_sound("click")  # Play UI sound
-        
-        if hasattr(app, 'alarm_clock'):
-            # Get current alarm settings
-            alarm = app.alarm_service.get_alarm()
-            ringtone = alarm.get("ringtone", "morning.mp3")
-            fadein = alarm.get("fadein", False)
-            
-            # Trigger the alarm with current settings
-            app.alarm_clock.trigger_alarm(ringtone, fadein)
+        if hasattr(app, "alarm_clock"):
+            alarm = app.alarm_service.get_alarm() or {}
+            app.alarm_clock.trigger_alarm(
+                alarm.get("ringtone", "morning.mp3"),
+                alarm.get("fadein", False),
+            )
             return True
         return False

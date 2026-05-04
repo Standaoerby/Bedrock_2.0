@@ -1,289 +1,277 @@
 <AlarmScreen>:
+    page_key: "alarm"
     FloatLayout:
         size_hint: 1, 1
 
-        # Overlay image (background lives in main.kv)
-        Image:
+        ScreenOverlay:
             source: app.get_overlay_image("alarm")
-            fit_mode: 'fill'
-            size_hint: 1, 1
-            pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            opacity: app.theme_config.get("overlay_opacity", 0.5)
 
-        # Main content container — vertical stack of 5 sections
         BoxLayout:
             orientation: "vertical"
-            size_hint: 0.9, 0.85
-            pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            spacing: app.theme_config.get("grid_unit", "32dp")
+            size_hint: 0.92, 0.85
+            pos_hint: {"center_x": 0.5, "center_y": 0.48}
+            spacing: "12dp"
 
-            # Section 1: Time and Active toggle
-            GridLayout:
-                cols: 3
-                spacing: [app.theme_config.get("grid_unit", "32dp"), 0]
-                size_hint: 1, None
-                height: app.theme_config.get("grid_unit_3x", "96dp")
+            # Section 1: Time + Active toggle
+            BoxLayout:
+                orientation: "horizontal"
+                size_hint_y: None
+                height: "120dp"
+                spacing: "12dp"
 
                 ThemedLabel:
                     text: "Time"
-                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
-                    size_hint_x: 0.15
+                    size_role: "medium"
+                    color_role: "font_default"
+                    size_hint_x: 0.12
                     halign: "left"
-                    valign: "center"
+                    valign: "middle"
+                    text_size: self.size
 
-                # Time selection with +/- buttons
+                # Hours +/- digit
                 BoxLayout:
-                    orientation: "horizontal"
-                    size_hint_x: 0.65
-                    spacing: app.theme_config.get("grid_unit_half", "16dp")
+                    orientation: "vertical"
+                    size_hint_x: 0.12
 
-                    # Hours (with buttons +/-)
-                    BoxLayout:
-                        orientation: "horizontal"
-                        size_hint_x: 0.45
+                    ThemedButton:
+                        text: "+"
+                        size_role: "large"
+                        color_role: "font_default"
+                        on_press: app.play_sound("click")
+                        on_release: root.increment_hour()
 
-                        BoxLayout:
-                            orientation: "vertical"
-                            size_hint_x: 0.2
+                    ThemedButton:
+                        text: "-"
+                        size_role: "large"
+                        color_role: "font_default"
+                        on_press: app.play_sound("click")
+                        on_release: root.decrement_hour()
 
-                            ThemedButton:
-                                text: "+"
-                                size_hint_y: 0.6
-                                on_press: app.play_sound("click")
-                                on_release: root.increment_hour()
+                ThemedLabel:
+                    id: hour_label
+                    text: root.alarm_time.split(':')[0]
+                    size_role: "huge"
+                    color_role: "font_default"
+                    size_hint_x: 0.18
+                    halign: "center"
+                    valign: "middle"
+                    font_size: "72sp"
 
-                            Widget:
-                                size_hint_y: 0.1
+                ThemedLabel:
+                    text: ":"
+                    size_role: "huge"
+                    color_role: "font_default"
+                    size_hint_x: 0.04
+                    halign: "center"
+                    valign: "middle"
+                    font_size: "72sp"
 
-                            ThemedButton:
-                                text: "-"
-                                size_hint_y: 0.6
-                                on_press: app.play_sound("click")
-                                on_release: root.decrement_hour()
+                ThemedLabel:
+                    id: minute_label
+                    text: root.alarm_time.split(':')[1]
+                    size_role: "huge"
+                    color_role: "font_default"
+                    size_hint_x: 0.18
+                    halign: "center"
+                    valign: "middle"
+                    font_size: "72sp"
 
-                        ThemedLabel:
-                            id: hour_label
-                            text: root.alarm_time.split(':')[0]
-                            font_size: app.theme_config.get("font_sizes", {}).get("xlarge", "52sp")
-                            halign: "center"
-                            valign: "middle"
-                            size_hint_x: 0.8
+                # Minutes +/-
+                BoxLayout:
+                    orientation: "vertical"
+                    size_hint_x: 0.12
 
-                    # Separator
-                    ThemedLabel:
-                        text: ":"
-                        font_size: app.theme_config.get("font_sizes", {}).get("xlarge", "52sp")
-                        halign: "center"
-                        valign: "center"
-                        size_hint_x: 0.1
+                    ThemedButton:
+                        text: "+"
+                        size_role: "large"
+                        color_role: "font_default"
+                        on_press: app.play_sound("click")
+                        on_release: root.increment_minute()
 
-                    # Minutes (with buttons +/-)
-                    BoxLayout:
-                        orientation: "horizontal"
-                        size_hint_x: 0.45
-
-                        ThemedLabel:
-                            id: minute_label
-                            text: root.alarm_time.split(':')[1]
-                            font_size: app.theme_config.get("font_sizes", {}).get("xlarge", "52sp")
-                            halign: "center"
-                            valign: "center"
-                            size_hint_x: 0.8
-
-                        BoxLayout:
-                            orientation: "vertical"
-                            size_hint_x: 0.2
-
-                            ThemedButton:
-                                text: "+"
-                                size_hint_y: 0.6
-                                on_press: app.play_sound("click")
-                                on_release: root.increment_minute()
-
-                            Widget:
-                                size_hint_y: 0.1
-
-                            ThemedButton:
-                                text: "-"
-                                size_hint_y: 0.6
-                                on_press: app.play_sound("click")
-                                on_release: root.decrement_minute()
+                    ThemedButton:
+                        text: "-"
+                        size_role: "large"
+                        color_role: "font_default"
+                        on_press: app.play_sound("click")
+                        on_release: root.decrement_minute()
 
                 # Active toggle
                 BoxLayout:
                     orientation: "horizontal"
-                    size_hint_x: 0.2
+                    size_hint_x: 0.24
+                    spacing: "4dp"
 
                     ThemedLabel:
                         text: "Active"
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
-                        size_hint_x: 0.65
+                        size_role: "medium"
+                        color_role: "font_default"
+                        size_hint_x: 0.6
                         halign: "right"
-                        valign: "center"
+                        valign: "middle"
+                        text_size: self.size
 
                     CheckBox:
                         id: active_checkbox
                         active: root.alarm_active
-                        size_hint_x: 0.35
+                        size_hint_x: 0.4
                         on_press: app.play_sound("click")
                         on_active: root.on_active_toggled(self.active)
 
-            # Section 2: Days of week
+            # Section 2: Repeat days
             BoxLayout:
                 orientation: "vertical"
-                size_hint: 1, None
-                height: app.theme_config.get("grid_unit_3x", "96dp")
-                spacing: app.theme_config.get("grid_unit_half", "16dp")
+                size_hint_y: None
+                height: "84dp"
+                spacing: "6dp"
 
                 ThemedLabel:
                     text: "Repeat on days:"
-                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                    size_role: "medium"
+                    color_role: "font_default"
+                    size_hint_y: None
+                    height: "28dp"
                     halign: "left"
-                    size_hint_y: 0.3
+                    valign: "middle"
+                    text_size: self.size
 
                 GridLayout:
                     cols: 7
-                    spacing: app.theme_config.get("grid_unit_half", "16dp")
-                    size_hint_y: 0.7
+                    spacing: "8dp"
+                    size_hint_y: None
+                    height: "48dp"
 
                     ToggleButton:
                         id: repeat_mon
                         text: "Mon"
                         state: "down" if "Mon" in root.alarm_repeat else "normal"
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Mon", self.state)
-                        font_name: app.theme_config["font_name"]
-                        font_size: app.theme_config.get("widget_font_size", "20sp")
                     ToggleButton:
                         id: repeat_tue
                         text: "Tue"
                         state: "down" if "Tue" in root.alarm_repeat else "normal"
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Tue", self.state)
-                        font_name: app.theme_config["font_name"]
-                        font_size: app.theme_config.get("widget_font_size", "20sp")
                     ToggleButton:
                         id: repeat_wed
                         text: "Wed"
                         state: "down" if "Wed" in root.alarm_repeat else "normal"
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Wed", self.state)
-                        font_name: app.theme_config["font_name"]
-                        font_size: app.theme_config.get("widget_font_size", "20sp")
                     ToggleButton:
                         id: repeat_thu
                         text: "Thu"
                         state: "down" if "Thu" in root.alarm_repeat else "normal"
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Thu", self.state)
-                        font_name: app.theme_config["font_name"]
-                        font_size: app.theme_config.get("widget_font_size", "20sp")
                     ToggleButton:
                         id: repeat_fri
                         text: "Fri"
                         state: "down" if "Fri" in root.alarm_repeat else "normal"
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Fri", self.state)
-                        font_name: app.theme_config["font_name"]
-                        font_size: app.theme_config.get("widget_font_size", "20sp")
                     ToggleButton:
                         id: repeat_sat
                         text: "Sat"
                         state: "down" if "Sat" in root.alarm_repeat else "normal"
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Sat", self.state)
-                        font_name: app.theme_config["font_name"]
-                        font_size: app.theme_config.get("widget_font_size", "20sp")
                     ToggleButton:
                         id: repeat_sun
                         text: "Sun"
                         state: "down" if "Sun" in root.alarm_repeat else "normal"
+                        font_name: app.theme_config.get("font_name", "Minecraftia")
+                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Sun", self.state)
-                        font_name: app.theme_config["font_name"]
-                        font_size: app.theme_config.get("widget_font_size", "20sp")
 
-            # Section 3: Ringtone selection
+            # Section 3: Ringtone + Play
             BoxLayout:
-                orientation: "vertical"
-                size_hint: 1, None
-                height: app.theme_config.get("grid_unit_2x", "64dp")
-                spacing: app.theme_config.get("grid_unit_half", "16dp")
+                orientation: "horizontal"
+                size_hint_y: None
+                height: "48dp"
+                spacing: "10dp"
 
                 ThemedLabel:
                     text: "Ringtone:"
-                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                    size_role: "medium"
+                    color_role: "font_default"
+                    size_hint_x: 0.18
                     halign: "left"
-                    size_hint_y: 0.3
+                    valign: "middle"
+                    text_size: self.size
 
-                BoxLayout:
-                    orientation: "horizontal"
-                    spacing: app.theme_config.get("grid_unit_half", "16dp")
-                    size_hint_y: 0.7
+                Spinner:
+                    id: ringtone_spinner
+                    text: root.selected_ringtone
+                    values: root.ringtone_list
+                    font_name: app.theme_config.get("font_name", "Minecraftia")
+                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
+                    size_hint_x: 0.6
+                    on_text: root.select_ringtone(self.text)
 
-                    Spinner:
-                        id: ringtone_spinner
-                        text: root.selected_ringtone
-                        values: root.ringtone_list
-                        font_name: app.theme_config["font_name"]
-                        font_size: app.theme_config.get("widget_font_size", "20sp")
-                        size_hint_x: 0.7
-                        size_hint_y: None
-                        height: app.theme_config.get("widget_heights", {}).get("button", "48dp")
-                        on_text: root.select_ringtone(self.text)
+                ToggleButton:
+                    id: play_button
+                    text: "Play"
+                    font_name: app.theme_config.get("font_name", "Minecraftia")
+                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "20sp")
+                    size_hint_x: 0.22
+                    on_state: root.toggle_play_ringtone(self.state)
 
-                    ToggleButton:
-                        id: play_button
-                        text: "Play"
-                        size_hint_x: 0.3
-                        size_hint_y: None
-                        height: app.theme_config.get("widget_heights", {}).get("button", "48dp")
-                        font_name: app.theme_config["font_name"]
-                        font_size: app.theme_config.get("widget_font_size", "20sp")
-                        on_state: root.toggle_play_ringtone(self.state)
-
-            # Section 4: Fade-in option
+            # Section 4: Fade-in
             BoxLayout:
                 orientation: "horizontal"
-                size_hint: 1, None
-                height: app.theme_config.get("grid_unit_1.5x", "48dp")
+                size_hint_y: None
+                height: "40dp"
+                spacing: "10dp"
 
                 Widget:
                     size_hint_x: 0.3
 
-                BoxLayout:
-                    orientation: "horizontal"
+                CheckBox:
+                    id: fadein_checkbox
+                    active: root.alarm_fadein
+                    size_hint_x: None
+                    width: "32dp"
+                    on_press: app.play_sound("click")
+                    on_active: root.on_fadein_toggled(self.active)
+
+                ThemedLabel:
+                    text: "Fade-in volume"
+                    size_role: "medium"
+                    color_role: "font_default"
                     size_hint_x: 0.4
-                    spacing: app.theme_config.get("grid_unit_half", "16dp")
-
-                    CheckBox:
-                        id: fadein_checkbox
-                        active: root.alarm_fadein
-                        size_hint_x: None
-                        width: app.theme_config.get("grid_unit", "32dp")
-                        on_press: app.play_sound("click")
-                        on_active: root.on_fadein_toggled(self.active)
-
-                    ThemedLabel:
-                        text: "Fade-in volume"
-                        font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
-                        halign: "left"
-                        valign: "center"
+                    halign: "left"
+                    valign: "middle"
+                    text_size: self.size
 
                 Widget:
                     size_hint_x: 0.3
 
-            # Section 5: Save button
+            # Section 5: Save
             AnchorLayout:
                 anchor_x: "center"
                 anchor_y: "center"
-                size_hint: 1, None
-                height: app.theme_config.get("grid_unit_1.5x", "48dp")
+                size_hint_y: None
+                height: "48dp"
 
                 ThemedButton:
                     text: "Save"
-                    font_size: app.theme_config.get("font_sizes", {}).get("medium", "22sp")
+                    size_role: "large"
+                    color_role: "font_default"
                     size_hint: 0.3, None
-                    height: app.theme_config.get("widget_heights", {}).get("button", "48dp")
+                    height: "44dp"
                     on_press: app.play_sound("click")
                     on_release: root.save_alarm()
