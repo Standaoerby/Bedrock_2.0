@@ -1,0 +1,28 @@
+# Reusable widget rules shared across all screens.
+#
+# - <ScreenOverlay@Image>: the per-screen overlay image (animals, decoration).
+#   Each screen sets `source` and inherits the rest. Replaces 6 copies of
+#   the same Image:{} block previously in pages/*.kv.
+#
+# - <BaseScreen>: bare scaffolding for a screen. The overlay Image lives here
+#   so subclasses don't redeclare it. Subclass KV rules add their own
+#   widgets directly; the overlay is rendered first (lowest z-order).
+
+<ScreenOverlay@Image>:
+    fit_mode: 'fill'
+    size_hint: 1, 1
+    pos_hint: {"center_x": 0.5, "center_y": 0.5}
+    opacity: app.theme_config.get("overlay_opacity", 0.3)
+
+<BaseScreen>:
+    # Subclasses are expected to declare their own FloatLayout root with
+    # widgets. The overlay image is conventionally added by each subclass
+    # using <ScreenOverlay> rule, e.g.:
+    #
+    #   <HomeScreen>:
+    #       FloatLayout:
+    #           ScreenOverlay:
+    #               source: app.get_overlay_image(root.page_key)
+    #           # ...content widgets
+    #
+    # The page_key property is set in Python (HomeScreen.page_key = 'home').
