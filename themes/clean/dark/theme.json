@@ -2,92 +2,223 @@
   "_about": "Clean theme — dark mode. Charcoal background, soft warm whites, blue accent. No overlay images.",
   "name": "Clean Dark",
   "mode": "dark",
-
   "font_name": "Roboto",
-  "font_color": [0.92, 0.94, 0.97, 1],
-
+  "font_color": [
+    0.92,
+    0.94,
+    0.97,
+    1
+  ],
   "font_sizes": {
-    "tiny":    "14sp",
-    "small":   "17sp",
+    "tiny": "14sp",
+    "small": "17sp",
     "default": "20sp",
-    "medium":  "24sp",
-    "large":   "30sp",
-    "xlarge":  "40sp",
-    "huge":    "140sp"
+    "medium": "24sp",
+    "large": "30sp",
+    "xlarge": "40sp",
+    "huge": "140sp"
   },
-
   "colors": {
-    "primary":        [0.45, 0.65, 0.95, 1],
-    "font_default":   [0.92, 0.94, 0.97, 1],
-    "font_secondary": [0.65, 0.72, 0.80, 1],
-    "font_highlight": [1.00, 0.80, 0.40, 1],
-    "font_action":    [0.45, 0.95, 0.55, 1],
-    "font_disabled":  [0.45, 0.48, 0.55, 1],
-
-    "active":      [0.30, 0.85, 0.40, 1],
-    "inactive":    [0.45, 0.48, 0.55, 1],
-    "semi_active": [0.55, 0.85, 0.65, 1],
-    "warning":     [1.00, 0.80, 0.20, 1],
-    "error":       [1.00, 0.40, 0.40, 1],
-
-    "shadow_light": [0, 0, 0, 0.55],
-    "shadow_dark":  [1, 1, 1, 0.30],
-
-    "trend_up":   [1.00, 0.45, 0.45, 1],
-    "trend_down": [0.45, 0.75, 1.00, 1],
-
-    "weekend": [1.00, 0.55, 0.55, 1],
-    "weekday": [0.55, 0.75, 1.00, 1],
-
-    "bar_water": [0.30, 0.70, 1.00, 0.85],
-    "bar_food":  [1.00, 0.55, 0.20, 0.85],
-    "bar_clean": [0.30, 0.85, 0.45, 0.85],
-
-    "button_bg":        [0.20, 0.24, 0.32, 1.00],
-    "button_bg_active": [0.30, 0.36, 0.48, 1.00],
-    "input_bg":         [0.12, 0.15, 0.20, 1.00]
+    "primary": [
+      0.45,
+      0.65,
+      0.95,
+      1
+    ],
+    "font_default": [
+      0.92,
+      0.94,
+      0.97,
+      1
+    ],
+    "font_secondary": [
+      0.65,
+      0.72,
+      0.8,
+      1
+    ],
+    "font_highlight": [
+      1.0,
+      0.8,
+      0.4,
+      1
+    ],
+    "font_action": [
+      0.45,
+      0.95,
+      0.55,
+      1
+    ],
+    "font_disabled": [
+      0.45,
+      0.48,
+      0.55,
+      1
+    ],
+    "active": [
+      0.3,
+      0.85,
+      0.4,
+      1
+    ],
+    "inactive": [
+      0.45,
+      0.48,
+      0.55,
+      1
+    ],
+    "semi_active": [
+      0.55,
+      0.85,
+      0.65,
+      1
+    ],
+    "warning": [
+      1.0,
+      0.8,
+      0.2,
+      1
+    ],
+    "error": [
+      1.0,
+      0.4,
+      0.4,
+      1
+    ],
+    "shadow_light": [
+      0,
+      0,
+      0,
+      0.55
+    ],
+    "shadow_dark": [
+      1,
+      1,
+      1,
+      0.3
+    ],
+    "trend_up": [
+      1.0,
+      0.45,
+      0.45,
+      1
+    ],
+    "trend_down": [
+      0.45,
+      0.75,
+      1.0,
+      1
+    ],
+    "weekend": [
+      1.0,
+      0.55,
+      0.55,
+      1
+    ],
+    "weekday": [
+      0.55,
+      0.75,
+      1.0,
+      1
+    ],
+    "bar_water": [
+      0.3,
+      0.7,
+      1.0,
+      0.85
+    ],
+    "bar_food": [
+      1.0,
+      0.55,
+      0.2,
+      0.85
+    ],
+    "bar_clean": [
+      0.3,
+      0.85,
+      0.45,
+      0.85
+    ],
+    "button_bg": [
+      0.2,
+      0.24,
+      0.32,
+      1.0
+    ],
+    "button_bg_active": [
+      0.3,
+      0.36,
+      0.48,
+      1.0
+    ],
+    "input_bg": [
+      0.12,
+      0.15,
+      0.2,
+      1.0
+    ]
   },
-
   "layout": {
     "grid_unit": 8,
-    "padding_xs":  4,
-    "padding_sm":  8,
-    "padding_md":  16,
-    "padding_lg":  24,
-    "spacing_xs":  4,
-    "spacing_sm":  8,
-    "spacing_md":  16,
-    "spacing_lg":  24,
+    "padding_xs": 4,
+    "padding_sm": 8,
+    "padding_md": 16,
+    "padding_lg": 24,
+    "spacing_xs": 4,
+    "spacing_sm": 8,
+    "spacing_md": 16,
+    "spacing_lg": 24,
     "widget_height_sm": 32,
     "widget_height_md": 48,
     "widget_height_lg": 64,
-    "menu_height":  72,
+    "menu_height": 72,
     "menu_padding": 8,
     "content_padding": 16,
-    "widget_spacing":  10,
-    "widget_height":   48,
+    "widget_spacing": 10,
+    "widget_height": 48,
     "small_widget_height": 36
   },
-
-  "panel_bg":     [0.10, 0.12, 0.18, 0.75],
+  "panel_bg": [
+    0.1,
+    0.12,
+    0.18,
+    0.75
+  ],
   "panel_radius": 14,
-  "overlay_opacity": 0,
   "background_image": "themes/clean/dark/background.png",
   "menu_button_normal": "",
   "menu_button_active": "",
-  "menu_button_size":       [180, 60],
-  "menu_button_font_size":  22,
-  "menu_button_padding":    [0, 0, 0, 0],
-  "menu_selected_color":    [0.45, 0.65, 0.95, 1],
-  "menu_unselected_color":  [0.65, 0.72, 0.80, 1],
+  "menu_button_size": [
+    180,
+    60
+  ],
+  "menu_button_font_size": 22,
+  "menu_button_padding": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "menu_selected_color": [
+    0.45,
+    0.65,
+    0.95,
+    1
+  ],
+  "menu_unselected_color": [
+    0.65,
+    0.72,
+    0.8,
+    1
+  ],
   "button_normal": "",
   "button_active": "",
   "overlay_images": {
-    "home":     "",
-    "alarm":    "",
+    "home": "",
+    "alarm": "",
     "schedule": "",
-    "weather":  "",
-    "pigs":     "",
+    "weather": "",
+    "pigs": "",
     "settings": ""
   }
 }

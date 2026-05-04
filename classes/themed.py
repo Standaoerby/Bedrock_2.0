@@ -257,12 +257,12 @@ class ScreenOverlay(Image, _ThemeBound):
         overlays = cfg.get("overlay_images", {}) or {}
         new_source = overlays.get(self.page_key, "") if self.page_key else ""
         # Always reassign so Image notices an empty-string transition and
-        # drops the old texture; opacity 0 hides it either way.
+        # drops the old texture.
         self.source = new_source
-        if not new_source:
-            self.opacity = 0
-        else:
-            self.opacity = cfg.get("overlay_opacity", 0.3)
+        # Overlay PNGs already carry their own alpha channel — render
+        # them fully opaque so the artwork reads cleanly. opacity 0
+        # only when the theme has no overlay for this page.
+        self.opacity = 1.0 if new_source else 0.0
 
 
 class ThemedPanel(BoxLayout, _ThemeBound):

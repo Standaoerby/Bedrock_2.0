@@ -2,92 +2,223 @@
   "_about": "Minecraft theme — dark mode (night landscape). Schema doc: themes/_template/theme.json",
   "name": "Minecraft Dark",
   "mode": "dark",
-
   "font_name": "Minecraftia",
-  "font_color": [0.95, 0.95, 0.95, 1],
-
+  "font_color": [
+    0.95,
+    0.95,
+    0.95,
+    1
+  ],
   "font_sizes": {
-    "tiny":    "12sp",
-    "small":   "14sp",
+    "tiny": "12sp",
+    "small": "14sp",
     "default": "18sp",
-    "medium":  "22sp",
-    "large":   "28sp",
-    "xlarge":  "36sp",
-    "huge":    "120sp"
+    "medium": "22sp",
+    "large": "28sp",
+    "xlarge": "36sp",
+    "huge": "120sp"
   },
-
   "colors": {
-    "primary":        [0.25, 0.65, 0.15, 1],
-    "font_default":   [0.95, 0.95, 0.95, 1],
-    "font_secondary": [0.65, 0.85, 1, 1],
-    "font_highlight": [1, 1, 0.7, 1],
-    "font_action":    [0.55, 1, 0.55, 1],
-    "font_disabled":  [0.45, 0.45, 0.5, 1],
-
-    "active":      [0.3, 0.95, 0.3, 1],
-    "inactive":    [0.45, 0.45, 0.5, 1],
-    "semi_active": [0.6, 0.85, 0.6, 1],
-    "warning":     [1, 0.75, 0.1, 1],
-    "error":       [1, 0.35, 0.35, 1],
-
-    "shadow_light": [0, 0, 0, 0.55],
-    "shadow_dark":  [1, 1, 1, 0.35],
-
-    "trend_up":   [1, 0.45, 0.45, 1],
-    "trend_down": [0.4, 0.75, 1, 1],
-
-    "weekend": [1, 0.55, 0.55, 1],
-    "weekday": [0.55, 0.75, 1, 1],
-
-    "bar_water": [0.3, 0.7, 1, 0.85],
-    "bar_food":  [1, 0.55, 0.15, 0.85],
-    "bar_clean": [0.3, 0.9, 0.4, 0.85],
-
-    "button_bg":        [0.30, 0.30, 0.32, 1.00],
-    "button_bg_active": [0.45, 0.45, 0.48, 1.00],
-    "input_bg":         [0.18, 0.18, 0.20, 1.00]
+    "primary": [
+      0.25,
+      0.65,
+      0.15,
+      1
+    ],
+    "font_default": [
+      0.95,
+      0.95,
+      0.95,
+      1
+    ],
+    "font_secondary": [
+      0.65,
+      0.85,
+      1,
+      1
+    ],
+    "font_highlight": [
+      1,
+      1,
+      0.7,
+      1
+    ],
+    "font_action": [
+      0.55,
+      1,
+      0.55,
+      1
+    ],
+    "font_disabled": [
+      0.45,
+      0.45,
+      0.5,
+      1
+    ],
+    "active": [
+      0.3,
+      0.95,
+      0.3,
+      1
+    ],
+    "inactive": [
+      0.45,
+      0.45,
+      0.5,
+      1
+    ],
+    "semi_active": [
+      0.6,
+      0.85,
+      0.6,
+      1
+    ],
+    "warning": [
+      1,
+      0.75,
+      0.1,
+      1
+    ],
+    "error": [
+      1,
+      0.35,
+      0.35,
+      1
+    ],
+    "shadow_light": [
+      0,
+      0,
+      0,
+      0.55
+    ],
+    "shadow_dark": [
+      1,
+      1,
+      1,
+      0.35
+    ],
+    "trend_up": [
+      1,
+      0.45,
+      0.45,
+      1
+    ],
+    "trend_down": [
+      0.4,
+      0.75,
+      1,
+      1
+    ],
+    "weekend": [
+      1,
+      0.55,
+      0.55,
+      1
+    ],
+    "weekday": [
+      0.55,
+      0.75,
+      1,
+      1
+    ],
+    "bar_water": [
+      0.3,
+      0.7,
+      1,
+      0.85
+    ],
+    "bar_food": [
+      1,
+      0.55,
+      0.15,
+      0.85
+    ],
+    "bar_clean": [
+      0.3,
+      0.9,
+      0.4,
+      0.85
+    ],
+    "button_bg": [
+      0.3,
+      0.3,
+      0.32,
+      1.0
+    ],
+    "button_bg_active": [
+      0.45,
+      0.45,
+      0.48,
+      1.0
+    ],
+    "input_bg": [
+      0.18,
+      0.18,
+      0.2,
+      1.0
+    ]
   },
-
   "layout": {
     "grid_unit": 8,
-    "padding_xs":  4,
-    "padding_sm":  8,
-    "padding_md":  16,
-    "padding_lg":  24,
-    "spacing_xs":  4,
-    "spacing_sm":  8,
-    "spacing_md":  16,
-    "spacing_lg":  24,
+    "padding_xs": 4,
+    "padding_sm": 8,
+    "padding_md": 16,
+    "padding_lg": 24,
+    "spacing_xs": 4,
+    "spacing_sm": 8,
+    "spacing_md": 16,
+    "spacing_lg": 24,
     "widget_height_sm": 32,
     "widget_height_md": 48,
     "widget_height_lg": 64,
-    "menu_height":  72,
+    "menu_height": 72,
     "menu_padding": 8,
     "content_padding": 16,
-    "widget_spacing":  10,
-    "widget_height":   48,
+    "widget_spacing": 10,
+    "widget_height": 48,
     "small_widget_height": 36
   },
-
-  "panel_bg": [0.05, 0.07, 0.12, 0.7],
+  "panel_bg": [
+    0.05,
+    0.07,
+    0.12,
+    0.7
+  ],
   "panel_radius": 12,
-  "overlay_opacity": 0.3,
   "background_image": "themes/minecraft/dark/background.png",
   "menu_button_normal": "themes/minecraft/dark/menu_button.png",
   "menu_button_active": "themes/minecraft/dark/menu_button_active.png",
-  "menu_button_size": [180, 60],
+  "menu_button_size": [
+    180,
+    60
+  ],
   "menu_button_font_size": 24,
-  "menu_button_padding": [0, 0, 0, 0],
-  "menu_selected_color":   [0.95, 0.95, 1, 1],
-  "menu_unselected_color": [0.6, 0.6, 0.65, 1],
+  "menu_button_padding": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "menu_selected_color": [
+    0.95,
+    0.95,
+    1,
+    1
+  ],
+  "menu_unselected_color": [
+    0.6,
+    0.6,
+    0.65,
+    1
+  ],
   "button_normal": "themes/minecraft/dark/button.png",
   "button_active": "themes/minecraft/dark/button_active.png",
   "overlay_images": {
-    "home":     "themes/minecraft/dark/overlay_home.png",
-    "alarm":    "themes/minecraft/dark/overlay_alarm.png",
+    "home": "themes/minecraft/dark/overlay_home.png",
+    "alarm": "themes/minecraft/dark/overlay_alarm.png",
     "schedule": "themes/minecraft/dark/overlay_schedule.png",
-    "weather":  "themes/minecraft/dark/overlay_weather.png",
-    "pigs":     "themes/minecraft/dark/overlay_pigs.png",
+    "weather": "themes/minecraft/dark/overlay_weather.png",
+    "pigs": "themes/minecraft/dark/overlay_pigs.png",
     "settings": "themes/minecraft/dark/overlay_settings.png"
   }
 }
