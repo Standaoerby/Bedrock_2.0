@@ -11,7 +11,7 @@ class HomeScreen(BaseScreen):
     alarm_active = BooleanProperty(False)
     weather_now_str = StringProperty("")
     weather_5h_str = StringProperty("")
-    weather_trend_arrow = StringProperty("")  # "↑" / "↓" / "="
+    weather_trend_arrow = StringProperty("")  # "▲" / "▼" / "=" — basic geometric shapes are reliably present in both Roboto and Minecraftia
     notification_text = StringProperty("")
     current_date = StringProperty("")
 
@@ -70,9 +70,9 @@ class HomeScreen(BaseScreen):
                 t_now = float(now.get("temperature", 0))
                 t_5h = float(f5.get("temperature", 0))
                 if t_5h > t_now:
-                    self.weather_trend_arrow = "↑"
+                    self.weather_trend_arrow = "▲"
                 elif t_5h < t_now:
-                    self.weather_trend_arrow = "↓"
+                    self.weather_trend_arrow = "▼"
                 else:
                     self.weather_trend_arrow = "="
             except (TypeError, ValueError):

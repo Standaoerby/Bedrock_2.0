@@ -22,15 +22,14 @@
                 ThemedPanel:
                     orientation: "vertical"
                     size_hint_x: 0.5
-                    padding: "12dp"
-                    spacing: "4dp"
+                    padding: "10dp"
+                    spacing: "2dp"
 
                     ThemedLabel:
                         text: "Weather Forecast"
-                        size_role: "large"
+                        size_role: "medium"
                         color_role: "font_highlight"
-                        size_hint_y: None
-                        height: "32dp"
+                        size_hint_y: 0.18
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
@@ -38,10 +37,9 @@
                     ThemedLabel:
                         id: current_temp
                         text: "0°C"
-                        size_role: "xlarge"
+                        size_role: "large"
                         color_role: "font_default"
-                        size_hint_y: None
-                        height: "44dp"
+                        size_hint_y: 0.22
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
@@ -49,10 +47,9 @@
                     ThemedLabel:
                         id: current_condition
                         text: "Weather condition"
-                        size_role: "medium"
+                        size_role: "small"
                         color_role: "font_default"
-                        size_hint_y: None
-                        height: "28dp"
+                        size_hint_y: 0.16
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
@@ -62,23 +59,18 @@
                     ThemedLabel:
                         id: current_precipitation
                         text: "Precipitation: 0%"
-                        size_role: "small"
+                        size_role: "tiny"
                         color_role: "font_secondary"
-                        size_hint_y: None
-                        height: "20dp"
+                        size_hint_y: 0.14
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
 
-                    Widget:
-                        # spacer pushes Refresh to the bottom
-
                     ThemedButton:
                         text: "Refresh"
-                        size_role: "medium"
+                        size_role: "small"
                         color_role: "font_default"
-                        size_hint_y: None
-                        height: "40dp"
+                        size_hint_y: 0.30
                         on_press: app.play_sound("click")
                         on_release: root.update_weather()
 

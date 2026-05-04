@@ -115,7 +115,7 @@
                         size_hint_x: 0.25
                         halign: "right"
                         valign: "middle"
-                        color: app.theme_config.get("colors", {}).get("trend_down", [0, 0.6, 1, 1]) if root.weather_trend_arrow == "↓" else (app.theme_config.get("colors", {}).get("trend_up", [1, 0.3, 0.3, 1]) if root.weather_trend_arrow == "↑" else app.theme_config.get("colors", {}).get("font_default", [1, 1, 1, 1]))
+                        color: app.theme_config.get("colors", {}).get("trend_down", [0, 0.6, 1, 1]) if root.weather_trend_arrow == "▼" else (app.theme_config.get("colors", {}).get("trend_up", [1, 0.3, 0.3, 1]) if root.weather_trend_arrow == "▲" else app.theme_config.get("colors", {}).get("font_default", [1, 1, 1, 1]))
 
                     ThemedLabel:
                         id: weather_forecast_label
