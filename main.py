@@ -27,7 +27,7 @@ Config.set('graphics', 'resizable', '0')
 from kivy.core.text import LabelBase
 from kivy.core.window import Window
 from kivy.lang import Builder
-from kivymd.app import MDApp
+from kivy.app import App
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
 from services.alarm_service import AlarmService
 from services.alarm_clock import AlarmClock
@@ -64,7 +64,7 @@ def load_user_config(path="config/user.json"):
     except (json.JSONDecodeError, OSError):
         return {}
 
-class BedrockApp(MDApp):
+class BedrockApp(App):
     use_kivy_settings = False  # F1 must not open Kivy's built-in settings panel
 
     current_screen = StringProperty("home")

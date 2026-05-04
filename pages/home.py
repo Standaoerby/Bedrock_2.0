@@ -1,9 +1,9 @@
-from kivymd.uix.screen import MDScreen
+from kivy.uix.screenmanager import Screen
 from kivy.clock import Clock
 from datetime import datetime
 from kivy.properties import StringProperty, BooleanProperty
 
-class HomeScreen(MDScreen):
+class HomeScreen(Screen):
     current_alarm_time = StringProperty("--:--")
     alarm_active = BooleanProperty(False)
     weather_now_str = StringProperty("")

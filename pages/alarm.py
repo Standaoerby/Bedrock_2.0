@@ -1,11 +1,11 @@
-from kivymd.uix.screen import MDScreen
+from kivy.uix.screenmanager import Screen
 from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
 import os
 import re
 
 DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-class AlarmScreen(MDScreen):
+class AlarmScreen(Screen):
     alarm_time = StringProperty("07:30")
     alarm_active = BooleanProperty(True)
     alarm_repeat = ListProperty(["Mon", "Tue", "Wed", "Thu", "Fri"])

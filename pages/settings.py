@@ -1,10 +1,10 @@
-from kivymd.uix.screen import MDScreen
+from kivy.uix.screenmanager import Screen
 from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
 import json
 import os
 from datetime import datetime, time
 
-class SettingsScreen(MDScreen):
+class SettingsScreen(Screen):
     # Текущие настройки
     current_theme = StringProperty("minecraft")
     available_themes = ListProperty([])  # Будем заполнять динамически

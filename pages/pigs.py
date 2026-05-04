@@ -1,4 +1,4 @@
-from kivymd.uix.screen import MDScreen
+from kivy.uix.screenmanager import Screen
 from kivy.clock import Clock
 import os
 from kivy.uix.boxlayout import BoxLayout
@@ -36,7 +36,7 @@ class CustomProgressBar(BoxLayout):
         self.fg_rect.pos = self.pos
         self.fg_rect.size = (self.width * (self.value / 100), self.height)
 
-class PigsScreen(MDScreen):
+class PigsScreen(Screen):
     def on_enter(self):
         self.update_bars()
         # Check status every 20 minutes instead of every 60 seconds

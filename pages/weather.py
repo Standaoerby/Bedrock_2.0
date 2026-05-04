@@ -1,4 +1,4 @@
-from kivymd.uix.screen import MDScreen
+from kivy.uix.screenmanager import Screen
 from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
@@ -72,7 +72,7 @@ class DayForecastItem(BoxLayout):
         self.add_widget(condition_label)
         self.add_widget(precip_label)
 
-class WeatherScreen(MDScreen):
+class WeatherScreen(Screen):
     def on_pre_enter(self):
         # Delay display to avoid accessing ids too early
         Clock.schedule_once(lambda dt: self.display_weather(), 0)

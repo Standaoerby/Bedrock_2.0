@@ -1,4 +1,4 @@
-from kivymd.uix.screen import MDScreen
+from kivy.uix.screenmanager import Screen
 from datetime import datetime, timedelta
 from kivy.properties import BooleanProperty, StringProperty
 
@@ -22,7 +22,7 @@ DAYS_SHORT = {
 
 TYPES_RU = {"0": "School", "1": "Extra"}
 
-class ScheduleScreen(MDScreen):
+class ScheduleScreen(Screen):
     week_mode = BooleanProperty(False)
     today_date = StringProperty("")
     today_day = StringProperty("")

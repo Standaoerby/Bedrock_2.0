@@ -1,4 +1,5 @@
 #:import Window kivy.core.window.Window
+#:import ScreenManager kivy.uix.screenmanager.ScreenManager
 #:import MarqueeLabel classes.marquee.MarqueeLabel
 
 #:include pages/home.kv
@@ -107,7 +108,7 @@ FloatLayout:
                         width: app.scale_size(app.theme_config.get("menu_button_size", [180,60])[1])
         
         # Контент (экраны) занимает оставшееся пространство
-        MDScreenManager:
+        ScreenManager:
             id: screen_manager
             HomeScreen:
                 name: "home"
