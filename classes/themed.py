@@ -115,15 +115,25 @@ class ThemedButton(Button, _ThemeBound):
 
 
 class ThemedToggleButton(ToggleButton, _ThemeBound):
-    """ToggleButton that picks up font_name + size + color from theme.
-    Same opt-in pattern as ThemedButton (color_role / size_role)."""
+    """ToggleButton that picks up font_name + size + color from theme,
+    AND replaces Kivy's default blue/grey atlas with theme-driven flat
+    colours (active → 'active' role, normal → 'inactive' role).
+
+    Same opt-in pattern as ThemedButton (color_role / size_role) for the
+    text. background_color is recomputed when state flips.
+    """
     color_role = StringProperty("")
     size_role = StringProperty("")
 
     def __init__(self, **kw):
         super().__init__(**kw)
         self.bind(color_role=lambda *_: self._refresh(),
-                  size_role=lambda *_: self._refresh())
+                  size_role=lambda *_: self._refresh(),
+                  state=lambda *_: self._refresh())
+        # Drop the atlas so background_color isn't tinted by Kivy's
+        # default 9-patch blue/grey artwork.
+        self.background_normal = ""
+        self.background_down = ""
         self._bind_theme()
 
     def _refresh(self):
@@ -136,6 +146,12 @@ class ThemedToggleButton(ToggleButton, _ThemeBound):
             self.color = _color_for(cfg, self.color_role)
         if self.size_role:
             self.font_size = _font_size_for(cfg, self.size_role)
+        # Flat themed background — active when toggled down.
+        colors = cfg.get("colors", {}) or {}
+        if self.state == "down":
+            self.background_color = colors.get("active", [0.3, 0.7, 0.4, 1])
+        else:
+            self.background_color = colors.get("inactive", [0.65, 0.67, 0.72, 1])
 
 
 class ThemedTextInput(TextInput, _ThemeBound):

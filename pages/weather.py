@@ -28,7 +28,9 @@ class DayForecastItem(BoxLayout):
         super().__init__(**kw)
         self.orientation = "horizontal"
         self.size_hint_y = None
-        self.height = 30
+        # 26 dp × 7 days + 1 dp spacing × 6 = ~190 dp — comfortably fits
+        # the ~220 dp available below the 'Weekly Forecast' title.
+        self.height = 26
         self.spacing = 8
 
         day_name = day_data.get("day", "")
