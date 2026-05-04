@@ -14,6 +14,10 @@
             padding: "4dp"
             spacing: "12dp"
             opacity: 1 if not root.week_mode else 0
+            # opacity alone doesn't stop touch propagation — disabled
+            # ensures the hidden panel doesn't swallow taps meant for
+            # the toggle button below.
+            disabled: root.week_mode
 
             # Today (left, larger)
             ThemedPanel:
@@ -81,6 +85,7 @@
             size_hint: 0.96, 0.84
             pos_hint: {"center_x": 0.5, "top": 0.98}
             opacity: 1 if root.week_mode else 0
+            disabled: not root.week_mode
             padding: "12dp"
 
             GridLayout:

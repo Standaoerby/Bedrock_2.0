@@ -61,18 +61,15 @@
                         text: "Precipitation: 0%"
                         size_role: "tiny"
                         color_role: "font_secondary"
-                        size_hint_y: 0.14
+                        size_hint_y: 0.20
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
 
-                    ThemedButton:
-                        text: "Refresh"
-                        size_role: "small"
-                        color_role: "font_default"
-                        size_hint_y: 0.30
-                        on_press: app.play_sound("click")
-                        on_release: root.update_weather()
+                    Widget:
+                        # spacer — weather auto-updates every 60s via
+                        # WeatherScreen.add_interval; no manual refresh
+                        # button needed
 
                 ThemedPanel:
                     orientation: "vertical"
