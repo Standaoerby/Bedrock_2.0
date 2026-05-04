@@ -14,6 +14,7 @@ Default values fall through cleanly when the theme dict doesn't have
 the requested key.
 """
 from kivy.app import App
+from kivy.clock import Clock
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
@@ -173,7 +174,15 @@ class ThemedSpinnerOption(SpinnerOption):
 class ThemedSpinner(Spinner, _ThemeBound):
     """Spinner with a themed dropdown — uses ThemedSpinnerOption rows.
     The Spinner button itself reads color_role / size_role like
-    ThemedButton."""
+    ThemedButton.
+
+    Fixes the open-then-immediately-close bug on touchscreens: Kivy's
+    default Spinner toggles the dropdown on `on_release`, so the very
+    same touch's release event can land on the freshly-opened DropDown's
+    auto-dismiss handler and shut it down. We override _toggle_dropdown
+    to schedule the actual `is_open = True` one frame later — by then
+    the originating touch is fully consumed.
+    """
 
     color_role = StringProperty("")
     size_role = StringProperty("")
@@ -186,6 +195,15 @@ class ThemedSpinner(Spinner, _ThemeBound):
         self.bind(color_role=lambda *_: self._refresh(),
                   size_role=lambda *_: self._refresh())
         self._bind_theme()
+
+    def _toggle_dropdown(self, *_):
+        # Closing is fine to do synchronously.
+        if self.is_open:
+            self.is_open = False
+            return
+        # Opening: defer one frame so the current touch.up doesn't
+        # leak into DropDown's auto-dismiss.
+        Clock.schedule_once(lambda dt: setattr(self, "is_open", True), 0)
 
     def _refresh(self):
         app = App.get_running_app()
