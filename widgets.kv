@@ -12,7 +12,9 @@
     fit_mode: 'fill'
     size_hint: 1, 1
     pos_hint: {"center_x": 0.5, "center_y": 0.5}
-    opacity: app.theme_config.get("overlay_opacity", 0.3)
+    # Hide entirely when no source — otherwise an empty Image keeps the
+    # previous theme's texture visible after a theme switch.
+    opacity: 0 if not self.source else app.theme_config.get("overlay_opacity", 0.3)
 
 <BaseScreen>:
     # Subclasses are expected to declare their own FloatLayout root with

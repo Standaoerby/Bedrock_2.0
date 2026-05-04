@@ -3,7 +3,7 @@
   "name": "Clean Light",
   "mode": "light",
 
-  "font_name": "Minecraftia",
+  "font_name": "Roboto",
   "font_color": [0.18, 0.20, 0.25, 1],
 
   "font_sizes": {
