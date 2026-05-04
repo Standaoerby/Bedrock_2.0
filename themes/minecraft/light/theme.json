@@ -29,6 +29,15 @@
   "overlay_opacity": 0.3,
   "panel_bg": [0, 0, 0, 0.2],
   
+  "layout": {
+    "menu_height": 70,
+    "menu_padding": 10,
+    "content_padding": 15,
+    "widget_spacing": 10,
+    "widget_height": 48,
+    "small_widget_height": 36
+  },
+
   "grid_unit": "32dp",
   "grid_unit_half": "16dp",
   "grid_unit_quarter": "8dp",

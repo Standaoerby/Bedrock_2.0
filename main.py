@@ -76,18 +76,11 @@ class BedrockApp(App):
     theme_mode = StringProperty("light")
     theme_config = DictProperty({})
 
-    # Параметры масштабирования для различных платформ
-    is_raspberry_pi = BooleanProperty(platform.system() != 'Windows')
-    ui_scale = NumericProperty(1.0)
-    font_scale = NumericProperty(1.0)
-    padding_scale = NumericProperty(1.0)
+    is_raspberry_pi = BooleanProperty(_IS_PI)
 
-    # Основные параметры размещения
-    menu_height = NumericProperty(70)
-    menu_padding = NumericProperty(10)
-    content_padding = NumericProperty(15)
-
-    # Общие значения для всех экранов
+    # ui_metrics kept as a DictProperty for backwards compat with screens
+    # that haven't been rewritten yet (P5 migrates them off). Values come
+    # from theme.json["layout"] now, no Pi-specific scaling.
     ui_metrics = DictProperty({
         'menu_height': 70,
         'menu_padding': 10,
@@ -99,53 +92,26 @@ class BedrockApp(App):
 
     def build(self):
         self.title = "Bedrock 2.0"
-        if _IS_PI:
-            print("Running on Pi — using touchscreen scale (0.9)")
-            self.ui_scale = 0.9
-            self.font_scale = 0.85
-            self.padding_scale = 0.8
-        else:
-            print("Running on Windows — using 1.0 scale for development")
-            self.ui_scale = 1.0
-            self.font_scale = 1.0
-            self.padding_scale = 1.0
-
-        self._update_ui_metrics()
 
         # Read persisted theme prefs so saved dark mode survives restart
         user_prefs = load_user_config()
         self.theme_name = user_prefs.get("theme", "minecraft")
         self.theme_mode = user_prefs.get("theme_mode", "light")
         self.theme_config = self.load_theme_config(self.theme_name, self.theme_mode)
-        
-        if self.is_raspberry_pi:
-            # Обработка размеров шрифтов
-            if "font_sizes" not in self.theme_config:
-                self.theme_config["font_sizes"] = {}
-                
-            self.theme_config["font_sizes"]["small"] = "14sp"
-            self.theme_config["font_sizes"]["medium"] = "16sp"
-            self.theme_config["font_sizes"]["large"] = "20sp"
-            self.theme_config["font_sizes"]["title"] = "24sp"
-            
-            # Обработка отступов - с проверкой типа
-            if "padding" not in self.theme_config:
-                self.theme_config["padding"] = {}
-            elif isinstance(self.theme_config["padding"], str):
-                # Если padding это строка, создаем новый словарь
-                old_padding = self.theme_config["padding"]
-                self.theme_config["padding"] = {
-                    "default": old_padding,
-                    "small": "4dp", 
-                    "medium": "8dp", 
-                    "large": "12dp"
-                }
-            else:
-                # Если padding это словарь, добавляем в него значения
-                self.theme_config["padding"]["small"] = "4dp"
-                self.theme_config["padding"]["medium"] = "8dp"
-                self.theme_config["padding"]["large"] = "12dp"
-        
+
+        # Pull layout metrics from theme.json — no platform-specific
+        # scaling, no in-place mutation of theme_config.
+        layout = self.theme_config.get("layout", {})
+        if layout:
+            self.ui_metrics = {
+                'menu_height':         layout.get("menu_height", 70),
+                'menu_padding':        layout.get("menu_padding", 10),
+                'content_padding':     layout.get("content_padding", 15),
+                'widget_spacing':      layout.get("widget_spacing", 10),
+                'widget_height':       layout.get("widget_height", 48),
+                'small_widget_height': layout.get("small_widget_height", 36),
+            }
+
         # Initialize sound system
         self.sounds = {}
         self.last_sound_time = 0
@@ -171,56 +137,20 @@ class BedrockApp(App):
 
         return Builder.load_file('main.kv')
 
-    def _update_ui_metrics(self):
-        """Обновляет метрики UI с учетом масштабирования"""
-        self.ui_metrics = {
-            'menu_height': int(70 * self.ui_scale),
-            'menu_padding': int(10 * self.padding_scale),
-            'content_padding': int(15 * self.padding_scale),
-            'widget_spacing': int(10 * self.padding_scale),
-            'widget_height': int(48 * self.ui_scale),
-            'small_widget_height': int(36 * self.ui_scale),
-        }
-        
-        self.menu_height = self.ui_metrics['menu_height']
-        self.menu_padding = self.ui_metrics['menu_padding']
-        self.content_padding = self.ui_metrics['content_padding']
+    # scale_size / scale_font are kept as no-op identity functions for
+    # backward compat with screens that still call them in KV — we drop
+    # the scaling assumption entirely (designed natively for 1024x600,
+    # use sp/dp consistently). P5 will remove these calls per-screen.
+    def scale_size(self, size):
+        return size
 
     def scale_font(self, size):
-        """Масштабирует размер шрифта в зависимости от платформы"""
         if isinstance(size, str):
-            # Если размер шрифта задан строкой (например, "20sp")
-            match = re.match(r'(\d+)(\w+)', size)
-            if match:
-                value = float(match.group(1))
-                unit = match.group(2)
-                return f"{int(value * self.font_scale)}{unit}"
-        # Если это число
-        try:
-            return f"{int(float(size) * self.font_scale)}sp"
-        except (ValueError, TypeError):
-            print(f"Warning: Could not scale font size: {size}, returning default")
-            return "14sp"
-
-    def scale_size(self, size):
-        """Масштабирует размеры виджетов в зависимости от платформы"""
-        if isinstance(size, (list, tuple)):
-            return [self.scale_size(item) for item in size]
-        
-        if isinstance(size, str):
-            # Если размер задан строкой (например, "48dp")
-            match = re.match(r'(\d+)(\w+)', size)
-            if match:
-                value = float(match.group(1))
-                unit = match.group(2)
-                return f"{int(value * self.ui_scale)}{unit}"
-        
-        # Если это число или что-то другое
-        try:
-            return int(float(size) * self.ui_scale)
-        except (TypeError, ValueError):
-            print(f"Warning: Could not scale size: {size}, returning as is")
             return size
+        try:
+            return f"{int(size)}sp"
+        except (TypeError, ValueError):
+            return "14sp"
 
     def ensure_directories(self):
         """Ensure all required directories exist (silent)."""
