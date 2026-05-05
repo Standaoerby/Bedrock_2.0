@@ -33,6 +33,13 @@ Environment=SDL_AUDIODRIVER=pulse
 # Wait briefly for X to come up — without this, on a cold boot the unit can
 # race lightdm and the SDL2 backend silently never opens a window.
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do [ -S /tmp/.X11-unix/X0 ] && exit 0; sleep 1; done; exit 1'
+# Kiosk panel — keep the screen on permanently. X11 default is to blank
+# the display after ~10 minutes of no input and DPMS-suspend it shortly
+# after; that produced "black screen but service still running" overnight
+# even though bedrock was perfectly healthy. -dpms disables DPMS,
+# `s off` disables the screensaver blank, `s noblank` keeps it from
+# blanking on inactivity.
+ExecStartPre=/bin/sh -c '/usr/bin/xset -dpms s off s noblank || true'
 ExecStart=@REPO_PATH@/venv/bin/python @REPO_PATH@/main.py
 Restart=on-failure
 RestartSec=5
