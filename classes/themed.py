@@ -349,9 +349,18 @@ class ThemedSpinner(Spinner, _ThemeBound):
         super().__init__(**kw)
         self.bind(color_role=lambda *_: self._refresh(),
                   size_role=lambda *_: self._refresh())
+        self._pending_open = None
         self._bind_theme()
 
     def _toggle_dropdown(self, *_):
+        # If a deferred open is in flight, cancelling here lets a fast
+        # double-tap (open then close inside 150ms) actually keep the
+        # spinner closed — without the cancel, the scheduled is_open=True
+        # would fire after the close path and reopen the dropdown.
+        if self._pending_open is not None:
+            self._pending_open.cancel()
+            self._pending_open = None
+
         # Closing is fine to do synchronously.
         if self.is_open:
             self.is_open = False
@@ -360,7 +369,11 @@ class ThemedSpinner(Spinner, _ThemeBound):
         # (down/move/up + any debounce duplicates from MTD) is fully
         # consumed before the DropDown is mapped — otherwise a tap
         # registered after-the-open lands on auto_dismiss.
-        Clock.schedule_once(lambda dt: setattr(self, "is_open", True), 0.15)
+        self._pending_open = Clock.schedule_once(self._do_open, 0.15)
+
+    def _do_open(self, _dt):
+        self._pending_open = None
+        self.is_open = True
 
     def _refresh(self):
         app = App.get_running_app()

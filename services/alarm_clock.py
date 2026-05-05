@@ -27,7 +27,6 @@ class AlarmClock:
         self.check_interval = check_interval
         self.alarm_event = None
         self.active_popup = None
-        self.last_check_date = None
         self._last_trigger_key: str | None = None
 
     def start(self) -> None:
@@ -43,10 +42,6 @@ class AlarmClock:
     def check_alarm(self, _dt) -> None:
         now = datetime.now()
         date_today = now.date()
-        if self.last_check_date != date_today:
-            self.last_check_date = date_today
-            logger.debug(f"date rolled over to {date_today}")
-
         day_short = now.strftime("%a")           # Mon / Tue / ...
         time_str = now.strftime("%H:%M")
 

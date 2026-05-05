@@ -79,6 +79,11 @@ class WeatherService:
         self.lon = lon
         self._store = JsonStore(path, _empty_cache, logger=logger)
         self.weather: dict = {}
+        # _fetch_in_flight is read on the UI thread (get_weather) and
+        # cleared on the bg fetch thread; the lock makes the
+        # check-and-set atomic so two near-simultaneous get_weather()
+        # calls can't both kick off fetches.
+        self._fetch_lock = threading.Lock()
         self._fetch_in_flight = False
         self.load()
 
@@ -216,17 +221,19 @@ class WeatherService:
         """Return the cached dict. If stale and no fetch is already in
         flight, kick off a background fetch — the next call sees the new
         data. The UI never blocks on the 10s HTTP timeout."""
-        if self.needs_update() and not self._fetch_in_flight:
-            self._fetch_in_flight = True
-
-            def _bg():
-                try:
-                    self.fetch_weather()
-                finally:
-                    self._fetch_in_flight = False
-
-            threading.Thread(target=_bg, daemon=True).start()
+        if self.needs_update():
+            with self._fetch_lock:
+                if not self._fetch_in_flight:
+                    self._fetch_in_flight = True
+                    threading.Thread(target=self._bg_fetch, daemon=True).start()
         return self.weather
+
+    def _bg_fetch(self) -> None:
+        try:
+            self.fetch_weather()
+        finally:
+            with self._fetch_lock:
+                self._fetch_in_flight = False
 
     def force_update(self) -> bool:
         """Synchronous fetch for explicit user action (Refresh button)."""

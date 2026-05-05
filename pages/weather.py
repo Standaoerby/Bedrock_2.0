@@ -69,6 +69,24 @@ class DayForecastItem(BoxLayout):
 class WeatherScreen(BaseScreen):
     page_key = StringProperty("weather")
 
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        # DayForecastItem rows freeze the active theme's font/color in
+        # their __init__ — they're plain Labels, not ThemedLabel — so a
+        # theme switch leaves the existing rows looking stale until the
+        # next 60s display_weather() rebuild. Bind to theme_config here
+        # to rebuild immediately on switch.
+        app = App.get_running_app()
+        if app is not None:
+            app.bind(theme_config=lambda *_: self._on_theme_changed())
+
+    def _on_theme_changed(self):
+        # Only rebuild if we're currently the visible screen — otherwise
+        # do_on_pre_enter will rebuild fresh on next entry anyway, and
+        # rebuilding off-screen wastes work.
+        if self.manager and self.manager.current == self.name:
+            self.display_weather()
+
     def do_on_pre_enter(self):
         self.schedule_once(self.display_weather, 0)
         self.add_interval(self.display_weather, 60)

@@ -31,6 +31,13 @@ class AlarmScreen(BaseScreen):
 
     def do_on_leave(self):
         self.stop_ringtone()
+        self._reset_play_button()
+
+    def _reset_play_button(self):
+        """Force the Play/Stop toggle back to its 'Play, not pressed'
+        state. Used after preview ringtone stops, when the selected
+        ringtone changes, and on screen leave — three places that
+        previously had identical inline blocks."""
         if "play_button" in self.ids:
             self.ids.play_button.state = "normal"
             self.ids.play_button.text = "Play"
@@ -91,9 +98,7 @@ class AlarmScreen(BaseScreen):
             self.ids.ringtone_spinner.text = self.selected_ringtone
         if "fadein_checkbox" in self.ids:
             self.ids.fadein_checkbox.active = self.alarm_fadein
-        if "play_button" in self.ids:
-            self.ids.play_button.state = "normal"
-            self.ids.play_button.text = "Play"
+        self._reset_play_button()
 
     # ── Time +/- ──────────────────────────────────────────────────────
     def increment_hour(self):
@@ -138,9 +143,7 @@ class AlarmScreen(BaseScreen):
     def select_ringtone(self, name):
         self.selected_ringtone = name
         self.stop_ringtone()
-        if "play_button" in self.ids:
-            self.ids.play_button.state = "normal"
-            self.ids.play_button.text = "Play"
+        self._reset_play_button()
 
     def toggle_play_ringtone(self, state):
         if state == "down":
