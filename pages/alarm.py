@@ -1,8 +1,8 @@
 import os
 from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
-from kivy.core.audio import SoundLoader
 
 from classes.base_screen import BaseScreen
+from classes.audio_player import AudioPlayer
 
 
 DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -17,7 +17,11 @@ class AlarmScreen(BaseScreen):
     selected_ringtone = StringProperty("morning.mp3")
     ringtone_list = ListProperty([])
     alarm_fadein = BooleanProperty(False)
-    current_sound = ObjectProperty(None, allownone=True)
+
+    # AudioPlayer is created once per AlarmScreen instance; play() implicitly
+    # stops the previous preview, so leaving the screen via do_on_leave only
+    # has to call .stop() explicitly.
+    _player = ObjectProperty(None, allownone=True)
 
     # ── Lifecycle ─────────────────────────────────────────────────────
     def do_on_pre_enter(self):
@@ -149,20 +153,16 @@ class AlarmScreen(BaseScreen):
                 self.ids.play_button.text = "Play"
 
     def play_ringtone(self):
-        self.stop_ringtone()
+        if self._player is None:
+            self._player = AudioPlayer()
         path = os.path.join("media/ringtones", self.selected_ringtone)
-        if os.path.exists(path):
-            self.current_sound = SoundLoader.load(path)
-            if self.current_sound:
-                self.current_sound.play()
+        # Loop the preview so the user can hear what the alarm will sound
+        # like; Stop button (or leaving the screen) cuts it.
+        self._player.play(path, loop=True, volume=1.0)
 
     def stop_ringtone(self):
-        if self.current_sound:
-            try:
-                self.current_sound.stop()
-            except Exception:
-                pass
-            self.current_sound = None
+        if self._player is not None:
+            self._player.stop()
 
     # ── Test (debug) ──────────────────────────────────────────────────
     def test_alarm(self):

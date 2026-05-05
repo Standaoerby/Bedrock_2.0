@@ -1,12 +1,13 @@
+import os
+
 from kivy.uix.modalview import ModalView
 from kivy.properties import StringProperty, ObjectProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
-from kivy.core.audio import SoundLoader
-from kivy.animation import Animation
 from kivy.clock import Clock
-import os
+
+from classes.audio_player import AudioPlayer
 
 class AlarmPopup(ModalView):
     """Popup that shows when alarm goes off"""
@@ -51,57 +52,51 @@ class AlarmPopup(ModalView):
         # Add layout to popup
         self.add_widget(layout)
         
-        # Audio properties
-        self.sound = None
+        # AudioPlayer abstracts away the Pi-vs-Windows backend split.
+        # Fade-in: pw-play on Pi can't change the volume of a running
+        # stream, so we kill+restart with a higher --volume each step.
+        # That introduces a tiny audible gap at each step, but spread
+        # over fade_time seconds it's barely noticeable, and skipping
+        # fade-in altogether would be a regression on the Windows side
+        # where Kivy SoundLoader supports live volume updates.
+        self._player = AudioPlayer()
         self.ringtone = ringtone
         self.fadein = fadein
-        self.volume = 0.0 if fadein else 1.0
-        self.max_volume = 1.0
-        self.fade_time = 30.0  # Seconds to fade from 0 to max volume
-        
+        self._volume = 0.0 if fadein else 1.0
+        self._max_volume = 1.0
+        self._fade_time = 30.0      # seconds to ramp 0 → max
+        self._fade_step = 0.05      # +5% per tick
+        self._fade_event = None
+
     def start_alarm(self):
-        """Start playing the alarm sound"""
-        folder = "media/ringtones"
-        path = os.path.join(folder, self.ringtone)
-        
-        if os.path.exists(path):
-            self.sound = SoundLoader.load(path)
-            if self.sound:
-                # Set initial volume
-                self.sound.volume = self.volume
-                self.sound.loop = True  # Loop the sound until turned off
-                self.sound.play()
-                
-                # Start fade-in if enabled
-                if self.fadein:
-                    self.start_fade_in()
-    
-    def start_fade_in(self):
-        """Gradually increase volume"""
-        self.fade_step = 0.01  # Small increment
-        self.fade_interval = self.fade_time * self.fade_step  # Time between volume increases
-        
-        # Schedule incremental volume increase
-        self._fade_event = Clock.schedule_interval(self._increase_volume, self.fade_interval)
-    
-    def _increase_volume(self, dt):
-        """Callback for incrementing volume"""
-        if self.sound and self.sound.volume < self.max_volume:
-            self.sound.volume += self.fade_step
-            return True  # Continue the interval
-        else:
-            return False  # Stop the interval
-    
-    def stop_alarm(self, *args):
-        """Stop the alarm and close the popup"""
-        # Cancel any scheduled fade events
-        if hasattr(self, '_fade_event'):
+        """Start playing the alarm sound (looping)."""
+        path = os.path.join("media/ringtones", self.ringtone)
+        if not self._player.play(path, loop=True, volume=self._volume):
+            return
+        if self.fadein:
+            self._start_fade_in()
+
+    def _start_fade_in(self):
+        # Tick interval = total fade time / number of steps. With
+        # _fade_step = 0.05 and _fade_time = 30, that's 1.5s per step.
+        steps = self._max_volume / self._fade_step
+        interval = self._fade_time / max(1, steps)
+        self._fade_event = Clock.schedule_interval(self._tick_volume, interval)
+
+    def _tick_volume(self, _dt):
+        if self._volume >= self._max_volume:
+            return False  # cancel the interval
+        self._volume = min(self._max_volume, self._volume + self._fade_step)
+        # Re-arm pw-play (Pi) / live-set volume (Kivy) by replaying.
+        # AudioPlayer.play() stops the previous instance first.
+        path = os.path.join("media/ringtones", self.ringtone)
+        self._player.play(path, loop=True, volume=self._volume)
+        return True
+
+    def stop_alarm(self, *_):
+        """Stop the alarm and dismiss the popup."""
+        if self._fade_event is not None:
             self._fade_event.cancel()
-        
-        # Stop the sound
-        if self.sound:
-            self.sound.stop()
-            self.sound = None
-        
-        # Dismiss the popup
+            self._fade_event = None
+        self._player.stop()
         self.dismiss()
