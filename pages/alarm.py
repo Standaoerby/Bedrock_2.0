@@ -1,8 +1,18 @@
 import os
+import time
+
 from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
 
 from classes.base_screen import BaseScreen
 from classes.audio_player import AudioPlayer
+
+# Debounce window for the Play/Stop toggle. The MTD touchscreen
+# sometimes emits two touch sequences for a single physical tap, which
+# flips the ToggleButton state twice and lands back in the original
+# state — the user sees "every other tap" missing. 300ms is long enough
+# to absorb that bounce but short enough that an intentional rapid
+# double-tap (Play → Stop quickly) still registers as two events.
+_TOGGLE_DEBOUNCE_SEC = 0.30
 
 
 DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -22,6 +32,7 @@ class AlarmScreen(BaseScreen):
     # stops the previous preview, so leaving the screen via do_on_leave only
     # has to call .stop() explicitly.
     _player = ObjectProperty(None, allownone=True)
+    _last_toggle_t: float = 0.0
 
     # ── Lifecycle ─────────────────────────────────────────────────────
     def do_on_pre_enter(self):
@@ -146,6 +157,23 @@ class AlarmScreen(BaseScreen):
         self._reset_play_button()
 
     def toggle_play_ringtone(self, state):
+        # MTD bounce defence — see _TOGGLE_DEBOUNCE_SEC comment. Two
+        # state events within the debounce window collapse to the first
+        # one's effect; we also force the button visual back into the
+        # state that actually happened so the UI doesn't lie.
+        now = time.monotonic()
+        if now - self._last_toggle_t < _TOGGLE_DEBOUNCE_SEC:
+            # Snap the ToggleButton back to the state that matches the
+            # last accepted toggle, so a bounce-induced rebound doesn't
+            # leave the visual at "down/Stop" while audio is silent (or
+            # vice versa).
+            if "play_button" in self.ids:
+                want_down = self._player is not None and self._player.is_playing
+                self.ids.play_button.state = "down" if want_down else "normal"
+                self.ids.play_button.text = "Stop" if want_down else "Play"
+            return
+        self._last_toggle_t = now
+
         if state == "down":
             self.play_ringtone()
             if "play_button" in self.ids:
