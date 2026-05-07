@@ -259,10 +259,15 @@ class ScreenOverlay(Image, _ThemeBound):
         # Always reassign so Image notices an empty-string transition and
         # drops the old texture.
         self.source = new_source
-        # Overlay PNGs already carry their own alpha channel — render
-        # them fully opaque so the artwork reads cleanly. opacity 0
-        # only when the theme has no overlay for this page.
-        self.opacity = 1.0 if new_source else 0.0
+        # overlay_opacity from theme.json controls how strongly the
+        # decorative artwork shows through panels. Default 0.5 is a
+        # compromise — text on top of panels stays readable but the art
+        # still reads as decoration. Themes can override per-mood.
+        # 0 only when the theme has no overlay for this page.
+        if new_source:
+            self.opacity = float(cfg.get("overlay_opacity", 0.5))
+        else:
+            self.opacity = 0.0
 
 
 class ThemedPanel(BoxLayout, _ThemeBound):

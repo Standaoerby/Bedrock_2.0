@@ -85,7 +85,9 @@
   "panel_bg":     [0, 0, 0, 0.25],
   "panel_radius": 12,
 
-  "_comment_overlays": "Per-screen decorative PNG drawn full-screen behind content. Set to '' (empty string) to disable for that screen — render still works, just without decoration. Opacity is fixed at 1.0 in code (PNG alpha owns transparency); honor that when authoring overlays.",
+  "_comment_overlays": "Per-screen decorative PNG drawn full-screen behind content. Set to '' (empty string) to disable for that screen — render still works, just without decoration.",
+  "_comment_overlay_opacity": "Global multiplier for overlay PNGs. PNGs already carry their own alpha channel; this knob lets a theme dial the whole decorative layer down (0 = invisible, 1 = full art) without re-exporting graphics. Use lower values when an overlay's saturation fights with text on top of panels.",
+  "overlay_opacity": 0.5,
   "overlay_images": {
     "home":     "",
     "alarm":    "",

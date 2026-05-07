@@ -187,6 +187,7 @@
     0.12,
     0.85
   ],
+  "overlay_opacity": 0.5,
   "panel_radius": 12,
   "background_image": "themes/minecraft/dark/background.png",
   "menu_button_normal": "themes/minecraft/dark/menu_button.png",

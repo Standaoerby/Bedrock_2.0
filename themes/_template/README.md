@@ -49,7 +49,8 @@ because JSON has no comment syntax. Feel free to add your own.
 
 **Required** (app crashes or renders badly if missing):
 - `name`, `font_name`, `font_color`, `font_sizes`, `colors`, `layout`,
-  `panel_bg`, `panel_radius`, `background_image`, `overlay_images`.
+  `panel_bg`, `panel_radius`, `background_image`, `overlay_images`,
+  `overlay_opacity`.
 
 **Optional** (sensible default if missing):
 - `mode` (informational only — actual mode is `app.theme_mode`)
@@ -75,6 +76,7 @@ because JSON has no comment syntax. Feel free to add your own.
 | `panel_radius` | int (dp) | `ThemedPanel` | Corner radius. |
 | `background_image` | path | `main.kv` | App-wide background, sized for 1024x600. |
 | `overlay_images` | dict | `ScreenOverlay` (themed.py) | One PNG per screen, full-bleed. Empty `""` to disable. |
+| `overlay_opacity` | float (0..1) | `ScreenOverlay` (themed.py) | Global dimmer for the decorative layer. PNG already has its own alpha; this multiplies it. Default `0.5`. Lower if artwork fights with text. |
 
 ### Menu styling (top bar)
 
