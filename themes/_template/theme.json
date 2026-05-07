@@ -8,7 +8,7 @@
   "font_name": "Minecraftia",
   "font_color": [1, 1, 1, 1],
 
-  "_comment_font_sizes": "Seven canonical roles — referenced from KV via size_role: 'medium'. Pick a coherent scale; current panel is 1024x600 native.",
+  "_comment_font_sizes": "Canonical sizes (tiny..huge) + semantic aliases (section_title/field_label/metric_value). Referenced from KV via size_role: 'medium' or size_role: 'section_title'. Panel is 1024x600 native; pick a coherent scale.",
   "font_sizes": {
     "tiny":    "12sp",
     "small":   "14sp",
@@ -16,7 +16,12 @@
     "medium":  "22sp",
     "large":   "28sp",
     "xlarge":  "36sp",
-    "huge":    "120sp"
+    "huge":    "120sp",
+
+    "_comment_semantic": "Use these in KV instead of raw t-shirt sizes — they let you tune section vs field vs metric typography per theme without hunting through KV files.",
+    "section_title": "28sp",
+    "field_label":   "22sp",
+    "metric_value":  "18sp"
   },
 
   "_comment_colors": "Named color roles — referenced from KV via color_role: 'font_highlight'. font_* are text colors; active/inactive/warning/error are semantic; trend/weekend/weekday/bar_* are domain-specific.",
@@ -46,10 +51,15 @@
 
     "bar_water": [0.1, 0.6, 0.9, 0.85],
     "bar_food":  [0.95, 0.55, 0.15, 0.85],
-    "bar_clean": [0.25, 0.85, 0.35, 0.85]
+    "bar_clean": [0.25, 0.85, 0.35, 0.85],
+
+    "_comment_button_input": "Flat background for ThemedButton/ThemedSpinner/ThemedTextInput. button_bg_active is the pressed state. input_bg is the textbox fill. In dark themes, keep input_bg dark so font_default is readable inside it.",
+    "button_bg":         [0.42, 0.28, 0.14, 1],
+    "button_bg_active":  [0.58, 0.40, 0.22, 1],
+    "input_bg":          [0.15, 0.18, 0.22, 0.92]
   },
 
-  "_comment_layout": "Single source of truth for spacing/sizing. grid_unit = 8 dp; everything else is a multiple of it. padding_*/spacing_* are sm=8, md=16, lg=24, xl=32. widget_height_* are sm=32, md=48, lg=64. menu_* / content_padding / widget_spacing are kept for legacy <ThemedButton> and screen rules.",
+  "_comment_layout": "Single source of truth for spacing/sizing — exposed to KV as `app.ui_metrics['<key>']`. grid_unit = 8 dp; everything else is a multiple of it. padding_*/spacing_* are xs=4, sm=8, md=16, lg=24. widget_height_* are sm=32, md=48, lg=64. menu_* / content_padding / widget_spacing / widget_height / small_widget_height are kept for legacy main.kv menu and older screen rules.",
   "layout": {
     "grid_unit": 8,
     "padding_xs":  4,
@@ -75,8 +85,7 @@
   "panel_bg":     [0, 0, 0, 0.25],
   "panel_radius": 12,
 
-  "_comment_overlays": "Per-screen overlay PNG. Set to '' (empty string) to disable per-screen overlays — the screen still renders, just without a decoration layer.",
-  "overlay_opacity": 0.3,
+  "_comment_overlays": "Per-screen decorative PNG drawn full-screen behind content. Set to '' (empty string) to disable for that screen — render still works, just without decoration. Opacity is fixed at 1.0 in code (PNG alpha owns transparency); honor that when authoring overlays.",
   "overlay_images": {
     "home":     "",
     "alarm":    "",

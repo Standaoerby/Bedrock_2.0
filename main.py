@@ -78,6 +78,20 @@ def load_user_config(path="config/user.json"):
     except (json.JSONDecodeError, OSError):
         return {}
 
+
+# Fallback grid/spacing tokens used when a theme.json omits a key. Every
+# screen's KV expects these to exist on app.ui_metrics, so we merge with
+# defaults rather than relying on the theme to be complete.
+_DEFAULT_LAYOUT = {
+    "grid_unit": 8,
+    "padding_xs": 4, "padding_sm": 8, "padding_md": 16, "padding_lg": 24,
+    "spacing_xs": 4, "spacing_sm": 8, "spacing_md": 16, "spacing_lg": 24,
+    "widget_height_sm": 32, "widget_height_md": 48, "widget_height_lg": 64,
+    "menu_height": 72, "menu_padding": 8,
+    "content_padding": 16, "widget_spacing": 10,
+    "widget_height": 48, "small_widget_height": 36,
+}
+
 class BedrockApp(App):
     use_kivy_settings = False  # F1 must not open Kivy's built-in settings panel
 
@@ -91,17 +105,11 @@ class BedrockApp(App):
 
     is_raspberry_pi = BooleanProperty(_IS_PI)
 
-    # ui_metrics kept as a DictProperty for backwards compat with screens
-    # that haven't been rewritten yet (P5 migrates them off). Values come
-    # from theme.json["layout"] now, no Pi-specific scaling.
-    ui_metrics = DictProperty({
-        'menu_height': 70,
-        'menu_padding': 10,
-        'content_padding': 15,
-        'widget_spacing': 10,
-        'widget_height': 48,
-        'small_widget_height': 36,
-    })
+    # All grid/spacing/sizing tokens, mirrored from theme.layout. KV reads
+    # them as `app.ui_metrics['padding_md']` etc — single source of truth
+    # for layout, no hardcoded dp scattered across pages/*.kv. Refreshed
+    # whenever the theme is switched (apply_theme reassigns the dict).
+    ui_metrics = DictProperty({})
 
     def build(self):
         self.title = "Bedrock 2.0"
@@ -112,18 +120,7 @@ class BedrockApp(App):
         self.theme_mode = user_prefs.get("theme_mode", "light")
         self.theme_config = self.load_theme_config(self.theme_name, self.theme_mode)
 
-        # Pull layout metrics from theme.json — no platform-specific
-        # scaling, no in-place mutation of theme_config.
-        layout = self.theme_config.get("layout", {})
-        if layout:
-            self.ui_metrics = {
-                'menu_height':         layout.get("menu_height", 70),
-                'menu_padding':        layout.get("menu_padding", 10),
-                'content_padding':     layout.get("content_padding", 15),
-                'widget_spacing':      layout.get("widget_spacing", 10),
-                'widget_height':       layout.get("widget_height", 48),
-                'small_widget_height': layout.get("small_widget_height", 36),
-            }
+        self._refresh_ui_metrics()
 
         # Initialize sound system
         self.sounds = {}
@@ -262,10 +259,19 @@ class BedrockApp(App):
         self.theme_mode = new_mode
         # DictProperty fires on identity change — reassign to a fresh dict
         self.theme_config = dict(new_config)
+        self._refresh_ui_metrics()
 
         if persist:
             self._persist_theme_choice()
         return True
+
+    def _refresh_ui_metrics(self):
+        """Rebuild ui_metrics from the current theme.layout, falling back to
+        _DEFAULT_LAYOUT for any missing keys. Reassign as a fresh dict so
+        the DictProperty notifies KV bindings."""
+        merged = dict(_DEFAULT_LAYOUT)
+        merged.update(self.theme_config.get("layout", {}) or {})
+        self.ui_metrics = merged
 
     def _persist_theme_choice(self):
         """Write current theme_name/theme_mode back into config/user.json without clobbering other keys."""

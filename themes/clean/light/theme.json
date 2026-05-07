@@ -16,7 +16,10 @@
     "medium": "24sp",
     "large": "30sp",
     "xlarge": "40sp",
-    "huge": "200sp"
+    "huge": "200sp",
+    "section_title": "30sp",
+    "field_label": "24sp",
+    "metric_value": "20sp"
   },
   "colors": {
     "primary": [
