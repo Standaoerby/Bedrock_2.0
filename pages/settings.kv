@@ -11,25 +11,26 @@
             size_hint: 0.85, None
             height: self.minimum_height
             pos_hint: {"center_x": 0.5, "top": 0.98}
-            padding: "8dp", "4dp", "8dp", "4dp"
-            spacing: "12dp"
+            padding: app.ui_metrics["padding_xs"]
+            spacing: app.ui_metrics["spacing_md"]
 
             # Theme + dark mode
             ThemedPanel:
                 orientation: "vertical"
                 size_hint_y: None
-                height: "120dp"
-                padding: "12dp"
+                height: 2 * app.ui_metrics["widget_height_md"] + 2 * app.ui_metrics["padding_md"]
+                padding: app.ui_metrics["padding_md"]
+                spacing: app.ui_metrics["spacing_xs"]
 
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint_y: None
-                    height: "50dp"
-                    spacing: "10dp"
+                    height: app.ui_metrics["widget_height_md"]
+                    spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
                         text: "Theme:"
-                        size_role: "medium"
+                        size_role: "field_label"
                         color_role: "font_default"
                         halign: "right"
                         valign: "middle"
@@ -39,7 +40,7 @@
                         id: theme_spinner
                         text: root.current_theme
                         values: root.available_themes
-                        size_role: "medium"
+                        size_role: "field_label"
                         color_role: "font_default"
                         size_hint_x: 0.7
                         on_text: root.change_theme(self.text)
@@ -47,12 +48,12 @@
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint_y: None
-                    height: "50dp"
-                    spacing: "10dp"
+                    height: app.ui_metrics["widget_height_md"]
+                    spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
                         text: "Dark Mode" if root.dark_mode_available else "Dark Mode (not available)"
-                        size_role: "medium"
+                        size_role: "field_label"
                         color: app.theme_config.get("colors", {}).get("font_default", [1, 1, 1, 1]) if root.dark_mode_available else app.theme_config.get("colors", {}).get("font_disabled", [0.6, 0.6, 0.6, 1])
                         halign: "right"
                         valign: "middle"
@@ -69,18 +70,19 @@
             ThemedPanel:
                 orientation: "vertical"
                 size_hint_y: None
-                height: "110dp"
-                padding: "12dp"
+                height: 2 * app.ui_metrics["widget_height_md"] + 2 * app.ui_metrics["padding_md"]
+                padding: app.ui_metrics["padding_md"]
+                spacing: app.ui_metrics["spacing_xs"]
 
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint_y: None
-                    height: "40dp"
-                    spacing: "10dp"
+                    height: app.ui_metrics["widget_height_md"]
+                    spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
                         text: "Username:"
-                        size_role: "medium"
+                        size_role: "field_label"
                         color_role: "font_default"
                         halign: "right"
                         valign: "middle"
@@ -89,19 +91,19 @@
                     ThemedTextInput:
                         id: username_input
                         text: root.username
-                        size_role: "medium"
+                        size_role: "field_label"
                         size_hint_x: 0.7
                         multiline: False
 
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint_y: None
-                    height: "40dp"
-                    spacing: "10dp"
+                    height: app.ui_metrics["widget_height_md"]
+                    spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
                         text: "Birth Date:"
-                        size_role: "medium"
+                        size_role: "field_label"
                         color_role: "font_default"
                         halign: "right"
                         valign: "middle"
@@ -110,19 +112,19 @@
                     BoxLayout:
                         orientation: "horizontal"
                         size_hint_x: 0.7
-                        spacing: "5dp"
+                        spacing: app.ui_metrics["spacing_xs"]
 
                         ThemedTextInput:
                             id: birth_day
                             text: root.birth_day
-                            size_role: "medium"
+                            size_role: "field_label"
                             size_hint_x: 0.22
                             multiline: False
                             input_filter: "int"
 
                         ThemedLabel:
                             text: "/"
-                            size_role: "medium"
+                            size_role: "field_label"
                             color_role: "font_default"
                             size_hint_x: 0.05
                             halign: "center"
@@ -130,14 +132,14 @@
                         ThemedTextInput:
                             id: birth_month
                             text: root.birth_month
-                            size_role: "medium"
+                            size_role: "field_label"
                             size_hint_x: 0.22
                             multiline: False
                             input_filter: "int"
 
                         ThemedLabel:
                             text: "/"
-                            size_role: "medium"
+                            size_role: "field_label"
                             color_role: "font_default"
                             size_hint_x: 0.05
                             halign: "center"
@@ -145,7 +147,7 @@
                         ThemedTextInput:
                             id: birth_year
                             text: root.birth_year
-                            size_role: "medium"
+                            size_role: "field_label"
                             size_hint_x: 0.3
                             multiline: False
                             input_filter: "int"
@@ -155,13 +157,13 @@
                 anchor_x: "center"
                 anchor_y: "center"
                 size_hint_y: None
-                height: "60dp"
+                height: app.ui_metrics["widget_height_lg"]
 
                 ThemedButton:
                     text: "Save Settings"
                     size_role: "large"
                     color_role: "font_default"
                     size_hint: 0.4, None
-                    height: "50dp"
+                    height: app.ui_metrics["widget_height_md"]
                     on_press: app.play_sound("click")
                     on_release: root.save_all_settings()

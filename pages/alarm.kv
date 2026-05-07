@@ -11,19 +11,19 @@
             size_hint: 0.96, None
             height: self.minimum_height
             pos_hint: {"center_x": 0.5, "top": 0.98}
-            padding: "8dp", "4dp", "8dp", "4dp"
-            spacing: "10dp"
+            padding: app.ui_metrics["padding_xs"]
+            spacing: app.ui_metrics["spacing_sm"]
 
             # Section 1: Time + Active toggle
             BoxLayout:
                 orientation: "horizontal"
                 size_hint_y: None
                 height: "120dp"
-                spacing: "12dp"
+                spacing: app.ui_metrics["spacing_md"]
 
                 ThemedLabel:
                     text: "Time"
-                    size_role: "medium"
+                    size_role: "field_label"
                     color_role: "font_default"
                     size_hint_x: 0.12
                     halign: "left"
@@ -57,6 +57,7 @@
                     size_hint_x: 0.18
                     halign: "center"
                     valign: "middle"
+                    # Picker digit — big but not full-screen-clock big.
                     font_size: "72sp"
 
                 ThemedLabel:
@@ -101,11 +102,11 @@
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint_x: 0.24
-                    spacing: "4dp"
+                    spacing: app.ui_metrics["spacing_xs"]
 
                     ThemedLabel:
                         text: "Active"
-                        size_role: "medium"
+                        size_role: "field_label"
                         color_role: "font_default"
                         size_hint_x: 0.6
                         halign: "right"
@@ -123,29 +124,29 @@
             BoxLayout:
                 orientation: "vertical"
                 size_hint_y: None
-                height: "84dp"
-                spacing: "6dp"
+                height: app.ui_metrics["widget_height_md"] + app.ui_metrics["widget_height_sm"] + app.ui_metrics["spacing_xs"]
+                spacing: app.ui_metrics["spacing_xs"]
 
                 ThemedLabel:
                     text: "Repeat on days:"
-                    size_role: "medium"
+                    size_role: "field_label"
                     color_role: "font_default"
                     size_hint_y: None
-                    height: "28dp"
+                    height: app.ui_metrics["widget_height_sm"]
                     halign: "left"
                     valign: "middle"
                     text_size: self.size
 
                 GridLayout:
                     cols: 7
-                    spacing: "8dp"
+                    spacing: app.ui_metrics["spacing_sm"]
                     size_hint_y: None
-                    height: "48dp"
+                    height: app.ui_metrics["widget_height_md"]
 
                     ThemedToggleButton:
                         id: repeat_mon
                         color_role: "font_default"
-                        size_role: "medium"
+                        size_role: "field_label"
                         text: "Mon"
                         state: "down" if "Mon" in root.alarm_repeat else "normal"
                         on_press: app.play_sound("click")
@@ -153,7 +154,7 @@
                     ThemedToggleButton:
                         id: repeat_tue
                         color_role: "font_default"
-                        size_role: "medium"
+                        size_role: "field_label"
                         text: "Tue"
                         state: "down" if "Tue" in root.alarm_repeat else "normal"
                         on_press: app.play_sound("click")
@@ -161,7 +162,7 @@
                     ThemedToggleButton:
                         id: repeat_wed
                         color_role: "font_default"
-                        size_role: "medium"
+                        size_role: "field_label"
                         text: "Wed"
                         state: "down" if "Wed" in root.alarm_repeat else "normal"
                         on_press: app.play_sound("click")
@@ -169,7 +170,7 @@
                     ThemedToggleButton:
                         id: repeat_thu
                         color_role: "font_default"
-                        size_role: "medium"
+                        size_role: "field_label"
                         text: "Thu"
                         state: "down" if "Thu" in root.alarm_repeat else "normal"
                         on_press: app.play_sound("click")
@@ -177,7 +178,7 @@
                     ThemedToggleButton:
                         id: repeat_fri
                         color_role: "font_default"
-                        size_role: "medium"
+                        size_role: "field_label"
                         text: "Fri"
                         state: "down" if "Fri" in root.alarm_repeat else "normal"
                         on_press: app.play_sound("click")
@@ -185,7 +186,7 @@
                     ThemedToggleButton:
                         id: repeat_sat
                         color_role: "font_default"
-                        size_role: "medium"
+                        size_role: "field_label"
                         text: "Sat"
                         state: "down" if "Sat" in root.alarm_repeat else "normal"
                         on_press: app.play_sound("click")
@@ -193,7 +194,7 @@
                     ThemedToggleButton:
                         id: repeat_sun
                         color_role: "font_default"
-                        size_role: "medium"
+                        size_role: "field_label"
                         text: "Sun"
                         state: "down" if "Sun" in root.alarm_repeat else "normal"
                         on_press: app.play_sound("click")
@@ -203,12 +204,12 @@
             BoxLayout:
                 orientation: "horizontal"
                 size_hint_y: None
-                height: "48dp"
-                spacing: "10dp"
+                height: app.ui_metrics["widget_height_md"]
+                spacing: app.ui_metrics["spacing_sm"]
 
                 ThemedLabel:
                     text: "Ringtone:"
-                    size_role: "medium"
+                    size_role: "field_label"
                     color_role: "font_default"
                     size_hint_x: 0.18
                     halign: "left"
@@ -219,7 +220,7 @@
                     id: ringtone_spinner
                     text: root.selected_ringtone
                     values: root.ringtone_list
-                    size_role: "medium"
+                    size_role: "field_label"
                     color_role: "font_default"
                     size_hint_x: 0.6
                     on_text: root.select_ringtone(self.text)
@@ -227,7 +228,7 @@
                 ThemedToggleButton:
                     id: play_button
                     color_role: "font_default"
-                    size_role: "medium"
+                    size_role: "field_label"
                     text: "Play"
                     size_hint_x: 0.22
                     on_state: root.toggle_play_ringtone(self.state)
@@ -236,8 +237,8 @@
             BoxLayout:
                 orientation: "horizontal"
                 size_hint_y: None
-                height: "40dp"
-                spacing: "10dp"
+                height: app.ui_metrics["widget_height_md"]
+                spacing: app.ui_metrics["spacing_sm"]
 
                 Widget:
                     size_hint_x: 0.3
@@ -246,13 +247,13 @@
                     id: fadein_checkbox
                     active: root.alarm_fadein
                     size_hint_x: None
-                    width: "32dp"
+                    width: app.ui_metrics["widget_height_sm"]
                     on_press: app.play_sound("click")
                     on_active: root.on_fadein_toggled(self.active)
 
                 ThemedLabel:
                     text: "Fade-in volume"
-                    size_role: "medium"
+                    size_role: "field_label"
                     color_role: "font_default"
                     size_hint_x: 0.4
                     halign: "left"
@@ -267,13 +268,13 @@
                 anchor_x: "center"
                 anchor_y: "center"
                 size_hint_y: None
-                height: "48dp"
+                height: app.ui_metrics["widget_height_md"]
 
                 ThemedButton:
                     text: "Save"
                     size_role: "large"
                     color_role: "font_default"
                     size_hint: 0.3, None
-                    height: "44dp"
+                    height: app.ui_metrics["widget_height_md"]
                     on_press: app.play_sound("click")
                     on_release: root.save_alarm()

@@ -10,50 +10,50 @@
             orientation: "horizontal"
             size_hint: 0.96, 0.94
             pos_hint: {"center_x": 0.5, "top": 0.98}
-            padding: "8dp", "4dp", "8dp", "4dp"
-            spacing: "16dp"
+            padding: app.ui_metrics["padding_xs"]
+            spacing: app.ui_metrics["spacing_md"]
 
             # Left panel — 3 sections (Water/Food/Cleaning)
             ThemedPanel:
                 orientation: "vertical"
                 size_hint_x: 0.5
-                padding: "16dp"
-                spacing: "20dp"
+                padding: app.ui_metrics["padding_md"]
+                spacing: app.ui_metrics["spacing_lg"]
 
                 # Water section
                 BoxLayout:
                     orientation: "vertical"
                     size_hint_y: 0.33
-                    spacing: "8dp"
+                    spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
                         text: "Water"
-                        size_role: "large"
+                        size_role: "section_title"
                         color_role: "font_default"
                         size_hint_y: None
-                        height: "32dp"
+                        height: app.ui_metrics["widget_height_sm"]
                         halign: "left"
                         text_size: self.size
                         valign: "middle"
 
                     BoxLayout:
                         orientation: "horizontal"
-                        spacing: "12dp"
+                        spacing: app.ui_metrics["spacing_md"]
 
                         CustomProgressBar:
                             id: water_bar
                             size_hint_x: 0.65
                             size_hint_y: None
-                            height: "30dp"
+                            height: app.ui_metrics["widget_height_sm"]
                             bar_color: app.theme_config.get("colors", {}).get("bar_water", [0, 0.6, 0.8, 0.8])
 
                         ThemedButton:
                             text: "Done"
-                            size_role: "medium"
+                            size_role: "field_label"
                             color_role: "font_default"
                             size_hint_x: 0.35
                             size_hint_y: None
-                            height: "40dp"
+                            height: app.ui_metrics["widget_height_md"]
                             on_press: app.play_sound("click")
                             on_release: root.reset_bar("water")
 
@@ -61,36 +61,36 @@
                 BoxLayout:
                     orientation: "vertical"
                     size_hint_y: 0.33
-                    spacing: "8dp"
+                    spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
                         text: "Food"
-                        size_role: "large"
+                        size_role: "section_title"
                         color_role: "font_default"
                         size_hint_y: None
-                        height: "32dp"
+                        height: app.ui_metrics["widget_height_sm"]
                         halign: "left"
                         text_size: self.size
                         valign: "middle"
 
                     BoxLayout:
                         orientation: "horizontal"
-                        spacing: "12dp"
+                        spacing: app.ui_metrics["spacing_md"]
 
                         CustomProgressBar:
                             id: food_bar
                             size_hint_x: 0.65
                             size_hint_y: None
-                            height: "30dp"
+                            height: app.ui_metrics["widget_height_sm"]
                             bar_color: app.theme_config.get("colors", {}).get("bar_food", [0.8, 0.4, 0, 0.8])
 
                         ThemedButton:
                             text: "Done"
-                            size_role: "medium"
+                            size_role: "field_label"
                             color_role: "font_default"
                             size_hint_x: 0.35
                             size_hint_y: None
-                            height: "40dp"
+                            height: app.ui_metrics["widget_height_md"]
                             on_press: app.play_sound("click")
                             on_release: root.reset_bar("food")
 
@@ -98,36 +98,36 @@
                 BoxLayout:
                     orientation: "vertical"
                     size_hint_y: 0.33
-                    spacing: "8dp"
+                    spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
                         text: "Cleaning"
-                        size_role: "large"
+                        size_role: "section_title"
                         color_role: "font_default"
                         size_hint_y: None
-                        height: "32dp"
+                        height: app.ui_metrics["widget_height_sm"]
                         halign: "left"
                         text_size: self.size
                         valign: "middle"
 
                     BoxLayout:
                         orientation: "horizontal"
-                        spacing: "12dp"
+                        spacing: app.ui_metrics["spacing_md"]
 
                         CustomProgressBar:
                             id: clean_bar
                             size_hint_x: 0.65
                             size_hint_y: None
-                            height: "30dp"
+                            height: app.ui_metrics["widget_height_sm"]
                             bar_color: app.theme_config.get("colors", {}).get("bar_clean", [0, 0.8, 0.2, 0.8])
 
                         ThemedButton:
                             text: "Done"
-                            size_role: "medium"
+                            size_role: "field_label"
                             color_role: "font_default"
                             size_hint_x: 0.35
                             size_hint_y: None
-                            height: "40dp"
+                            height: app.ui_metrics["widget_height_md"]
                             on_press: app.play_sound("click")
                             on_release: root.reset_bar("clean")
 
@@ -135,7 +135,7 @@
             ThemedPanel:
                 orientation: "vertical"
                 size_hint_x: 0.5
-                padding: "12dp"
+                padding: app.ui_metrics["padding_md"]
 
                 Image:
                     id: pigs_image

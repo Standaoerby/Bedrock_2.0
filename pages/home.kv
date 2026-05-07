@@ -12,14 +12,14 @@
         ThemedPanel:
             orientation: "vertical"
             size_hint: 0.35, None
-            height: "48dp"
+            height: app.ui_metrics["widget_height_md"]
             pos_hint: {"x": 0.05, "top": 0.97}
-            padding: ["20dp", "8dp", "12dp", "6dp"]
+            padding: app.ui_metrics["padding_sm"]
 
             ThemedLabel:
                 id: date_label
                 text: root.current_date
-                size_role: "medium"
+                size_role: "field_label"
                 color_role: "font_default"
                 halign: "center"
                 valign: "middle"
@@ -29,14 +29,14 @@
         ThemedPanel:
             orientation: "horizontal"
             size_hint: 0.35, None
-            height: "48dp"
+            height: app.ui_metrics["widget_height_md"]
             pos_hint: {"right": 0.95, "top": 0.97}
-            padding: ["10dp", "6dp", "10dp", "6dp"]
-            spacing: "4dp"
+            padding: app.ui_metrics["padding_sm"]
+            spacing: app.ui_metrics["spacing_xs"]
 
             ThemedLabel:
                 text: "Alarm:"
-                size_role: "medium"
+                size_role: "field_label"
                 color_role: "font_default"
                 size_hint_x: 0.35
                 halign: "right"
@@ -56,7 +56,7 @@
             ThemedButton:
                 id: alarm_status_button
                 text: "ON" if root.alarm_active else "OFF"
-                size_role: "medium"
+                size_role: "field_label"
                 size_hint_x: 0.25
                 size_hint_y: 0.85
                 pos_hint: {"center_y": 0.5}
@@ -86,13 +86,13 @@
         ThemedPanel:
             orientation: "vertical"
             size_hint: 0.6, None
-            height: "48dp"
+            height: app.ui_metrics["widget_height_md"]
             pos_hint: {"center_x": 0.5, "center_y": 0.22}
-            padding: ["10dp", "8dp", "10dp", "6dp"]
+            padding: app.ui_metrics["padding_sm"]
 
             BoxLayout:
                 orientation: "horizontal"
-                spacing: "16dp"
+                spacing: app.ui_metrics["spacing_md"]
 
                 ThemedLabel:
                     id: weather_now_label
@@ -106,7 +106,7 @@
                 BoxLayout:
                     orientation: "horizontal"
                     size_hint_x: 0.4
-                    spacing: "6dp"
+                    spacing: app.ui_metrics["spacing_xs"]
 
                     Label:
                         # Plain Label so we can pin font_name to "Symbols"
@@ -124,13 +124,15 @@
                     ThemedLabel:
                         id: weather_forecast_label
                         text: root.weather_5h_str
-                        size_role: "medium"
+                        size_role: "field_label"
                         color_role: "font_default"
                         size_hint_x: 0.75
                         halign: "left"
                         valign: "middle"
 
-        # Notification marquee — bottom strip
+        # Notification marquee — bottom strip. Height is intentionally
+        # larger than widget_height_md (48) — the marquee text needs
+        # vertical breathing room around the scrolling line.
         BoxLayout:
             orientation: "horizontal"
             size_hint: 0.85, None

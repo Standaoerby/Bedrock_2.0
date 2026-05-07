@@ -11,8 +11,8 @@
             orientation: "horizontal"
             size_hint: 0.96, 0.84
             pos_hint: {"center_x": 0.5, "top": 0.98}
-            padding: "4dp"
-            spacing: "12dp"
+            padding: app.ui_metrics["padding_xs"]
+            spacing: app.ui_metrics["spacing_md"]
             opacity: 1 if not root.week_mode else 0
             # opacity alone doesn't stop touch propagation — disabled
             # ensures the hidden panel doesn't swallow taps meant for
@@ -23,15 +23,16 @@
             ThemedPanel:
                 orientation: "vertical"
                 size_hint_x: 0.6
-                padding: "12dp"
+                padding: app.ui_metrics["padding_md"]
+                spacing: app.ui_metrics["spacing_sm"]
 
                 ThemedLabel:
                     text: "Today: %s, %s" % (root.today_date, root.today_day)
-                    size_role: "medium"
+                    size_role: "section_title"
                     color_role: "font_highlight"
                     bold: True
                     size_hint_y: None
-                    height: "32dp"
+                    height: app.ui_metrics["widget_height_md"]
 
                 ScrollView:
                     do_scroll_x: False
@@ -40,28 +41,29 @@
                     ThemedLabel:
                         id: today_label
                         text: "..."
-                        size_role: "small"
+                        size_role: "metric_value"
                         color_role: "font_default"
                         text_size: self.width, None
                         size_hint_y: None
                         height: self.texture_size[1]
                         halign: "left"
                         valign: "top"
-                        padding: "8dp", 0
+                        padding: app.ui_metrics["padding_sm"], 0
 
             # Tomorrow (right, smaller)
             ThemedPanel:
                 orientation: "vertical"
                 size_hint_x: 0.4
-                padding: "12dp"
+                padding: app.ui_metrics["padding_md"]
+                spacing: app.ui_metrics["spacing_sm"]
 
                 ThemedLabel:
                     text: "Tomorrow: %s, %s" % (root.tomorrow_date, root.tomorrow_day)
-                    size_role: "small"
+                    size_role: "field_label"
                     color_role: "font_secondary"
                     bold: True
                     size_hint_y: None
-                    height: "32dp"
+                    height: app.ui_metrics["widget_height_md"]
 
                 ScrollView:
                     do_scroll_x: False
@@ -77,7 +79,7 @@
                         height: self.texture_size[1]
                         halign: "left"
                         valign: "top"
-                        padding: "8dp", 0
+                        padding: app.ui_metrics["padding_sm"], 0
 
         # Weekly view (visible when week_mode)
         ThemedPanel:
@@ -86,12 +88,12 @@
             pos_hint: {"center_x": 0.5, "top": 0.98}
             opacity: 1 if root.week_mode else 0
             disabled: not root.week_mode
-            padding: "12dp"
+            padding: app.ui_metrics["padding_md"]
 
             GridLayout:
                 id: week_grid
                 cols: 5
-                spacing: "8dp"
+                spacing: app.ui_metrics["spacing_sm"]
                 size_hint_y: 1
 
                 # Five day columns. id's are referenced from Python.
@@ -99,11 +101,11 @@
                     orientation: "vertical"
                     ThemedLabel:
                         text: "Monday"
-                        size_role: "small"
+                        size_role: "field_label"
                         color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: "32dp"
+                        height: app.ui_metrics["widget_height_sm"]
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
@@ -122,11 +124,11 @@
                     orientation: "vertical"
                     ThemedLabel:
                         text: "Tuesday"
-                        size_role: "small"
+                        size_role: "field_label"
                         color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: "32dp"
+                        height: app.ui_metrics["widget_height_sm"]
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
@@ -145,11 +147,11 @@
                     orientation: "vertical"
                     ThemedLabel:
                         text: "Wednesday"
-                        size_role: "small"
+                        size_role: "field_label"
                         color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: "32dp"
+                        height: app.ui_metrics["widget_height_sm"]
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
@@ -168,11 +170,11 @@
                     orientation: "vertical"
                     ThemedLabel:
                         text: "Thursday"
-                        size_role: "small"
+                        size_role: "field_label"
                         color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: "32dp"
+                        height: app.ui_metrics["widget_height_sm"]
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
@@ -191,11 +193,11 @@
                     orientation: "vertical"
                     ThemedLabel:
                         text: "Friday"
-                        size_role: "small"
+                        size_role: "field_label"
                         color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: "32dp"
+                        height: app.ui_metrics["widget_height_sm"]
                     ScrollView:
                         do_scroll_x: False
                         do_scroll_y: True
@@ -214,10 +216,10 @@
         ThemedButton:
             id: week_button
             text: "View Weekly Schedule" if not root.week_mode else "Back to Today's Schedule"
-            size_role: "small"
+            size_role: "field_label"
             color_role: "font_default"
             size_hint: 0.5, None
-            height: "40dp"
+            height: app.ui_metrics["widget_height_md"]
             pos_hint: {"center_x": 0.5, "center_y": 0.08}
             on_press: app.play_sound("click")
             on_release: root.toggle_week_mode()
