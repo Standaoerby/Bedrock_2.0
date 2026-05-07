@@ -64,6 +64,7 @@ def create_app() -> Flask:
             "dashboard.html",
             service=state.service_status(),
             weather=state.weather_snapshot(),
+            sensors=state.sensors_snapshot(),
             user=user_cfg,
             alarm=read_json(ALARM_CONFIG, default={}),
             themes=_list_themes(),
@@ -132,13 +133,19 @@ def create_app() -> Flask:
             try:
                 cfg["lat"] = float(request.form.get("lat") or cfg.get("lat", 51.539))
                 cfg["lon"] = float(request.form.get("lon") or cfg.get("lon", -0.1426))
+                cfg["temp_offset"] = float(request.form.get("temp_offset") or cfg.get("temp_offset", 0))
+                cfg["humidity_offset"] = float(request.form.get("humidity_offset") or cfg.get("humidity_offset", 0))
             except ValueError:
-                flash("Latitude/longitude must be numeric", "error")
+                flash("Numeric fields must be numeric", "error")
                 return redirect(url_for("settings"))
             write_json(USER_CONFIG, cfg)
-            flash("Settings saved", "success")
+            flash("Settings saved — sensor service picks up the new offsets on its next poll (~30s)", "success")
             return redirect(url_for("settings"))
-        return render_template("settings.html", user=read_json(USER_CONFIG, default={}))
+        return render_template(
+            "settings.html",
+            user=read_json(USER_CONFIG, default={}),
+            sensors=state.sensors_snapshot(),
+        )
 
     # ── Schedule (raw JSON editor for the prototype) ──────────────────
 

@@ -12,7 +12,9 @@ import subprocess
 from typing import Optional
 
 from .config_io import read_json
-from .paths import WEATHER_CACHE
+from .paths import WEATHER_CACHE, CACHE_DIR
+
+SENSORS_CACHE = CACHE_DIR / "sensors.json"
 
 
 def is_pi() -> bool:
@@ -54,10 +56,9 @@ def weather_snapshot() -> dict:
     return read_json(WEATHER_CACHE, default={})
 
 
-def sensors_snapshot() -> Optional[dict]:
-    """Latest sensor reading. Bedrock's SensorService doesn't currently
-    write a cache file — for the prototype we skip live readings and
-    leave that as a follow-up (would require IPC or a cache file
-    written by sensor_service).
-    """
-    return None
+def sensors_snapshot() -> dict:
+    """Latest sensor reading as written by SensorService to
+    cache/sensors.json on every poll. Includes both raw and
+    offset-corrected temperature/humidity so the calibration UI can
+    show 'sensor sees X, you see X+offset'."""
+    return read_json(SENSORS_CACHE, default={}) or {}

@@ -54,6 +54,27 @@
     </div>
 
     <div class="card">
+        <h2>Sensors</h2>
+        {% if sensors %}
+        <dl class="kv">
+            <dt>Temperature</dt>
+            <dd>
+                {{ '%.1f' % sensors.temperature }} °C
+                <span class="muted">(raw {{ '%.1f' % sensors.temperature_raw }}, offset {{ '%+.1f' % sensors.temp_offset }})</span>
+            </dd>
+            <dt>Humidity</dt>
+            <dd>{{ '%.1f' % sensors.humidity }} %RH</dd>
+            <dt>CO₂</dt><dd>{{ sensors.co2 }} ppm</dd>
+            <dt>TVOC</dt><dd>{{ sensors.tvoc }} ppb</dd>
+            <dt>Air quality</dt><dd>{{ sensors.air_quality }}</dd>
+        </dl>
+        <a class="btn" href="{{ url_for('settings') }}#calibration">Calibrate</a>
+        {% else %}
+        <p class="muted">No sensor cache yet. Bedrock writes one every ~30s.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
         <h2>Panel screen</h2>
         <p class="muted">Live screenshot of the Pi panel — captured on load.</p>
         <img class="screenshot" src="{{ url_for('screenshot_image') }}" alt="Panel screenshot">

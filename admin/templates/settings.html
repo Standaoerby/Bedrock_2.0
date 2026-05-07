@@ -26,6 +26,45 @@
         </label>
     </fieldset>
 
+    <fieldset class="block">
+        <legend>Sensor calibration</legend>
+        <p class="muted">
+            The AHT21 sits on the Pi case and picks up case heat — typically reads 7-8&nbsp;°C
+            above the actual room temperature. Apply a negative offset to correct.
+        </p>
+
+        {% if sensors %}
+        <dl class="kv">
+            <dt>Sensor reads</dt>
+            <dd>
+                {{ '%.1f' % sensors.temperature_raw }} °C raw,
+                {{ '%.1f' % sensors.humidity_raw }}&nbsp;%RH raw
+            </dd>
+            <dt>Panel shows</dt>
+            <dd>
+                {{ '%.1f' % sensors.temperature }} °C,
+                {{ '%.1f' % sensors.humidity }}&nbsp;%RH
+                <span class="muted">
+                    (offsets {{ '%+.1f' % sensors.temp_offset }} °C / {{ '%+.1f' % sensors.humidity_offset }}&nbsp;%RH)
+                </span>
+            </dd>
+        </dl>
+        {% else %}
+        <p class="muted">No sensor cache yet — start Bedrock and reload.</p>
+        {% endif %}
+
+        <label class="inline">
+            <span>Temperature offset (°C)</span>
+            <input type="number" step="0.1" name="temp_offset"
+                   value="{{ '%.1f' % (user.temp_offset if user.temp_offset is defined else 0.0) }}">
+        </label>
+        <label class="inline">
+            <span>Humidity offset (%RH)</span>
+            <input type="number" step="0.1" name="humidity_offset"
+                   value="{{ '%.1f' % (user.humidity_offset if user.humidity_offset is defined else 0.0) }}">
+        </label>
+    </fieldset>
+
     <div class="row">
         <button class="btn-primary" type="submit">Save</button>
     </div>

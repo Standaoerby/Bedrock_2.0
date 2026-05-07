@@ -9,8 +9,16 @@ fall back to the slow-random-walk mocks in services/mock_sensors.py. The
 fallback also kicks in on Pi when the libraries fail to import (typically
 because `python3-lgpio` / circuitpython packages weren't installed) — the
 UI keeps working, just with placeholder values.
+
+Calibration: temp_offset / humidity_offset live in config/user.json. The
+AHT21 chip on the Pi 5 case sees ~7-8 C above ambient because the Pi
+itself heats it. Apply a negative offset to correct. Reloaded on demand
+via reload_calibration() — admin web UI calls this through a follow-up
+endpoint, or just restart bedrock.service.
 """
+import json
 import logging
+import os
 import platform
 import time
 from threading import Lock, Thread
@@ -18,6 +26,9 @@ from threading import Lock, Thread
 from services import mock_sensors
 
 logger = logging.getLogger(__name__)
+
+USER_CONFIG_PATH = "config/user.json"
+SENSORS_CACHE_PATH = "cache/sensors.json"
 
 # Real ENS160 lives at 0x53 (or 0x52 if ADDR is tied low). 0x68 is for RTC
 # chips like DS3231 / IMU MPU6050 — using that address here was the bug
@@ -94,6 +105,34 @@ class SensorService:
             "tvoc": 0,
             "air_quality": "Unknown",
         }
+        # Calibration offsets — added to raw sensor reading. Negative
+        # offset compensates for case heat (~ -7.5 on Pi5).
+        self._temp_offset = 0.0
+        self._humidity_offset = 0.0
+        self._cal_mtime = 0.0
+        self.reload_calibration()
+
+    def reload_calibration(self) -> None:
+        """Re-read calibration offsets from config/user.json. Cheap to
+        call from a polling thread — only re-parses when mtime changed."""
+        try:
+            mtime = os.path.getmtime(USER_CONFIG_PATH)
+        except OSError:
+            return
+        if mtime == self._cal_mtime:
+            return
+        try:
+            with open(USER_CONFIG_PATH, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return
+        self._temp_offset = float(cfg.get("temp_offset", 0.0))
+        self._humidity_offset = float(cfg.get("humidity_offset", 0.0))
+        self._cal_mtime = mtime
+        logger.info(
+            f"calibration reloaded: temp_offset={self._temp_offset:+.2f} "
+            f"humidity_offset={self._humidity_offset:+.2f}"
+        )
 
     # ── Lifecycle ─────────────────────────────────────────────────────
     def start(self) -> None:
@@ -150,13 +189,20 @@ class SensorService:
     def update_readings(self) -> None:
         if not self.sensor_available:
             return
+        # Pick up live calibration edits from the admin UI without
+        # restarting the panel.
+        self.reload_calibration()
         # Read everything before taking the lock so I2C wait never blocks
         # get_readings() callers.
         co2 = self.ens.eCO2
         tvoc = self.ens.TVOC
         aqi = self.ens.AQI
-        temperature = self.aht.temperature
-        humidity = self.aht.relative_humidity
+        temperature_raw = self.aht.temperature
+        humidity_raw = self.aht.relative_humidity
+        # Calibration applied here so debug log shows the corrected
+        # value the user actually sees on the panel.
+        temperature = temperature_raw + self._temp_offset
+        humidity = max(0.0, min(100.0, humidity_raw + self._humidity_offset))
         air_quality = _AQI_LABEL.get(aqi, f"Unknown ({aqi})")
 
         with self._lock:
@@ -165,11 +211,34 @@ class SensorService:
             self._readings["air_quality"] = air_quality
             self._readings["temperature"] = temperature
             self._readings["humidity"] = humidity
+            self._readings["temperature_raw"] = temperature_raw
+            self._readings["humidity_raw"] = humidity_raw
 
         logger.debug(
-            f"t={temperature:.1f}C h={humidity:.1f}% "
+            f"t={temperature:.1f}C (raw {temperature_raw:.1f}, off {self._temp_offset:+.1f}) "
+            f"h={humidity:.1f}% "
             f"CO2={co2}ppm TVOC={tvoc}ppb AQI={air_quality}"
         )
+
+        # Write a snapshot for the admin UI. Best-effort — failures here
+        # never block the sensor loop.
+        try:
+            os.makedirs(os.path.dirname(SENSORS_CACHE_PATH), exist_ok=True)
+            with open(SENSORS_CACHE_PATH, "w", encoding="utf-8") as f:
+                json.dump({
+                    "temperature": round(temperature, 2),
+                    "humidity": round(humidity, 2),
+                    "temperature_raw": round(temperature_raw, 2),
+                    "humidity_raw": round(humidity_raw, 2),
+                    "temp_offset": self._temp_offset,
+                    "humidity_offset": self._humidity_offset,
+                    "co2": co2,
+                    "tvoc": tvoc,
+                    "air_quality": air_quality,
+                    "updated": time.time(),
+                }, f, ensure_ascii=False, indent=2)
+        except OSError:
+            pass
 
     def get_readings(self) -> dict:
         """Atomic snapshot of the latest readings."""
