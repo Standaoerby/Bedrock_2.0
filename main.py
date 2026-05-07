@@ -28,6 +28,7 @@ from kivy.core.text import LabelBase
 from kivy.core.window import Window
 from kivy.lang import Builder
 from kivy.app import App
+from kivy.metrics import dp
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
 from services.alarm_service import AlarmService
 from services.alarm_clock import AlarmClock
@@ -47,6 +48,7 @@ from classes.themed import (  # noqa: F401 — registers Factory classes
     ScreenOverlay,
     ShadowLabel,
 )
+from classes.overflow import OverflowColumn  # noqa: F401 — Factory class
 from kivy.core.audio import SoundLoader
 
 LabelBase.register(name="Minecraftia", fn_regular="assets/fonts/Minecraftia-Regular.ttf")
@@ -267,11 +269,16 @@ class BedrockApp(App):
 
     def _refresh_ui_metrics(self):
         """Rebuild ui_metrics from the current theme.layout, falling back to
-        _DEFAULT_LAYOUT for any missing keys. Reassign as a fresh dict so
-        the DictProperty notifies KV bindings."""
+        _DEFAULT_LAYOUT for any missing keys. Numeric values pass through
+        dp() so KV consumers can use `app.ui_metrics['padding_md']`
+        directly without each KV file importing dp itself. Reassign as a
+        fresh dict so the DictProperty notifies KV bindings."""
         merged = dict(_DEFAULT_LAYOUT)
         merged.update(self.theme_config.get("layout", {}) or {})
-        self.ui_metrics = merged
+        self.ui_metrics = {
+            k: (dp(v) if isinstance(v, (int, float)) else v)
+            for k, v in merged.items()
+        }
 
     def _persist_theme_choice(self):
         """Write current theme_name/theme_mode back into config/user.json without clobbering other keys."""

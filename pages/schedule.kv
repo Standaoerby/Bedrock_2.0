@@ -32,11 +32,10 @@
                     color_role: "font_highlight"
                     bold: True
                     size_hint_y: None
-                    height: app.ui_metrics["widget_height_md"]
+                    height: app.ui_metrics["widget_height_lg"]
 
-                ScrollView:
-                    do_scroll_x: False
-                    do_scroll_y: True
+                OverflowColumn:
+                    padding: app.ui_metrics["padding_sm"], 0
 
                     ThemedLabel:
                         id: today_label
@@ -48,7 +47,6 @@
                         height: self.texture_size[1]
                         halign: "left"
                         valign: "top"
-                        padding: app.ui_metrics["padding_sm"], 0
 
             # Tomorrow (right, smaller)
             ThemedPanel:
@@ -63,11 +61,10 @@
                     color_role: "font_secondary"
                     bold: True
                     size_hint_y: None
-                    height: app.ui_metrics["widget_height_md"]
+                    height: app.ui_metrics["widget_height_lg"]
 
-                ScrollView:
-                    do_scroll_x: False
-                    do_scroll_y: True
+                OverflowColumn:
+                    padding: app.ui_metrics["padding_sm"], 0
 
                     ThemedLabel:
                         id: tomorrow_label
@@ -79,7 +76,6 @@
                         height: self.texture_size[1]
                         halign: "left"
                         valign: "top"
-                        padding: app.ui_metrics["padding_sm"], 0
 
         # Weekly view (visible when week_mode)
         ThemedPanel:
@@ -105,10 +101,8 @@
                         color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_sm"]
-                    ScrollView:
-                        do_scroll_x: False
-                        do_scroll_y: True
+                        height: app.ui_metrics["widget_height_md"]
+                    OverflowColumn:
                         ThemedLabel:
                             id: monday_label
                             text: ""
@@ -128,10 +122,8 @@
                         color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_sm"]
-                    ScrollView:
-                        do_scroll_x: False
-                        do_scroll_y: True
+                        height: app.ui_metrics["widget_height_md"]
+                    OverflowColumn:
                         ThemedLabel:
                             id: tuesday_label
                             text: ""
@@ -151,10 +143,8 @@
                         color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_sm"]
-                    ScrollView:
-                        do_scroll_x: False
-                        do_scroll_y: True
+                        height: app.ui_metrics["widget_height_md"]
+                    OverflowColumn:
                         ThemedLabel:
                             id: wednesday_label
                             text: ""
@@ -174,10 +164,8 @@
                         color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_sm"]
-                    ScrollView:
-                        do_scroll_x: False
-                        do_scroll_y: True
+                        height: app.ui_metrics["widget_height_md"]
+                    OverflowColumn:
                         ThemedLabel:
                             id: thursday_label
                             text: ""
@@ -197,10 +185,8 @@
                         color_role: "font_highlight"
                         bold: True
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_sm"]
-                    ScrollView:
-                        do_scroll_x: False
-                        do_scroll_y: True
+                        height: app.ui_metrics["widget_height_md"]
+                    OverflowColumn:
                         ThemedLabel:
                             id: friday_label
                             text: ""

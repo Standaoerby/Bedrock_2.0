@@ -32,7 +32,7 @@
                         size_role: "section_title"
                         color_role: "font_highlight"
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_md"]
+                        height: app.ui_metrics["widget_height_lg"]
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
@@ -87,7 +87,7 @@
                         size_role: "section_title"
                         color_role: "font_highlight"
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_md"]
+                        height: app.ui_metrics["widget_height_lg"]
                         halign: "left"
                         valign: "middle"
                         text_size: self.size
@@ -161,19 +161,11 @@
                     size_role: "section_title"
                     color_role: "font_highlight"
                     size_hint_y: None
-                    height: app.ui_metrics["widget_height_md"]
+                    height: app.ui_metrics["widget_height_lg"]
                     halign: "center"
                     valign: "middle"
                     text_size: self.size
 
-                ScrollView:
-                    do_scroll_x: False
-                    do_scroll_y: True
-                    bar_width: 4
-
-                    GridLayout:
-                        id: weekly_forecast_container
-                        cols: 1
-                        spacing: app.ui_metrics["spacing_xs"]
-                        size_hint_y: None
-                        height: self.minimum_height
+                OverflowColumn:
+                    id: weekly_forecast_container
+                    spacing: app.ui_metrics["spacing_xs"]
