@@ -179,6 +179,9 @@ logs/
 _backups/
 scripts/.deploy_target
 
+# Ringtones — keep .mp3 in repo, .wav are derived (converted on Pi for low-latency playback)
+media/ringtones/*.wav
+
 # OS
 .DS_Store
 Thumbs.db
