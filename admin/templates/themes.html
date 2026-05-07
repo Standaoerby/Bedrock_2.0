@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Themes — Bedrock Admin{% endblock %}
+{% block body %}
+<h1>Themes</h1>
+<p class="muted">Pick one of the installed themes. Bedrock applies it the next time you restart the panel service.</p>
+
+<form method="post" action="{{ url_for('themes_apply') }}" class="card">
+    <label class="block">
+        <span>Theme</span>
+        <select name="theme" required>
+            {% for t in themes %}
+            <option value="{{ t.name }}" {% if current.theme == t.name %}selected{% endif %}>
+                {{ t.name }}{% if not t.has_dark %} (no dark){% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <fieldset class="block">
+        <legend>Mode</legend>
+        <label class="inline">
+            <input type="radio" name="mode" value="light"
+                   {% if current.theme_mode != 'dark' %}checked{% endif %}>
+            Light
+        </label>
+        <label class="inline">
+            <input type="radio" name="mode" value="dark"
+                   {% if current.theme_mode == 'dark' %}checked{% endif %}>
+            Dark
+        </label>
+    </fieldset>
+
+    <label class="inline">
+        <input type="checkbox" name="auto_dark_mode"
+               {% if current.auto_dark_mode %}checked{% endif %}>
+        Auto-switch on sunrise/sunset
+    </label>
+
+    <div class="row">
+        <button type="submit" class="btn-primary">Save</button>
+        <form method="post" action="{{ url_for('action_restart') }}" style="display:inline">
+            <button type="submit" class="btn-warning">Save &amp; restart Bedrock</button>
+        </form>
+    </div>
+</form>
+
+<h2>Installed</h2>
+<table class="data">
+    <thead><tr><th>Name</th><th>Light</th><th>Dark</th></tr></thead>
+    <tbody>
+        {% for t in themes %}
+        <tr>
+            <td>{{ t.name }}</td>
+            <td>{{ '✓' if t.has_light else '—' }}</td>
+            <td>{{ '✓' if t.has_dark else '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

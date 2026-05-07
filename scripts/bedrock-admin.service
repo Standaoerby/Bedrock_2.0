@@ -1,0 +1,19 @@
+[Unit]
+Description=Bedrock 2.0 — admin web UI (Flask, port 8080)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@REPO_PATH@
+Environment=PYTHONUNBUFFERED=1
+# Flask dev server is fine for local-only use behind a single-user
+# password. If we ever expose this beyond LAN, swap to waitress/gunicorn.
+ExecStart=@REPO_PATH@/venv/bin/python -m admin.server
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

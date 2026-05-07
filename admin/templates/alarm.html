@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Alarm — Bedrock Admin{% endblock %}
+{% block body %}
+<h1>Alarm</h1>
+
+<form method="post" class="card">
+    <label class="block">
+        <span>Time</span>
+        <input type="time" name="time" value="{{ alarm.time or '07:00' }}" required>
+    </label>
+
+    <label class="inline">
+        <input type="checkbox" name="active" {% if alarm.active %}checked{% endif %}>
+        Active
+    </label>
+    <label class="inline">
+        <input type="checkbox" name="fade_in" {% if alarm.fade_in %}checked{% endif %}>
+        Fade-in volume
+    </label>
+
+    <fieldset class="block">
+        <legend>Repeat on days</legend>
+        {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+        <label class="inline">
+            <input type="checkbox" name="repeat" value="{{ d }}"
+                   {% if d in (alarm.repeat or []) %}checked{% endif %}>
+            {{ d }}
+        </label>
+        {% endfor %}
+    </fieldset>
+
+    <label class="block">
+        <span>Ringtone</span>
+        <select name="ringtone">
+            <option value="">(default)</option>
+            {% for r in ringtones %}
+            <option value="{{ r }}" {% if alarm.ringtone == r %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <div class="row">
+        <button class="btn-primary" type="submit">Save</button>
+    </div>
+</form>
+{% endblock %}

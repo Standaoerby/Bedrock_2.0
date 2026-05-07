@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Bedrock Admin{% endblock %}
+{% block body %}
+<h1>Dashboard</h1>
+<p class="muted">Snapshot at {{ now }}</p>
+
+<section class="grid">
+    <div class="card">
+        <h2>Service</h2>
+        <dl class="kv">
+            <dt>Status</dt><dd class="{{ 'ok' if service.active else 'err' }}">
+                {{ 'active' if service.active else (service.raw_status or 'inactive') }}
+            </dd>
+            <dt>Since</dt><dd>{{ service.since or '—' }}</dd>
+            <dt>Platform</dt><dd>{{ service.platform }}</dd>
+        </dl>
+        <form method="post" action="{{ url_for('action_restart') }}" class="row">
+            <button class="btn-warning" type="submit">Restart Bedrock</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Theme</h2>
+        <dl class="kv">
+            <dt>Theme</dt><dd>{{ user.theme or '—' }}</dd>
+            <dt>Mode</dt><dd>{{ user.theme_mode or '—' }}</dd>
+            <dt>Auto dark</dt><dd>{{ 'on' if user.auto_dark_mode else 'off' }}</dd>
+        </dl>
+        <a class="btn" href="{{ url_for('themes') }}">Change theme</a>
+    </div>
+
+    <div class="card">
+        <h2>Alarm</h2>
+        <dl class="kv">
+            <dt>Time</dt><dd>{{ alarm.time or '—' }}</dd>
+            <dt>Active</dt><dd>{{ 'yes' if alarm.active else 'no' }}</dd>
+            <dt>Repeat</dt><dd>{{ (alarm.repeat or [])|join(', ') or 'never' }}</dd>
+            <dt>Ringtone</dt><dd>{{ alarm.ringtone or '—' }}</dd>
+        </dl>
+        <a class="btn" href="{{ url_for('alarm') }}">Edit alarm</a>
+    </div>
+
+    <div class="card">
+        <h2>Weather</h2>
+        {% if weather %}
+        <dl class="kv">
+            <dt>Now</dt>
+            <dd>{{ weather.current_temp|default('—') }} °C, {{ weather.condition|default('—') }}</dd>
+            <dt>Updated</dt><dd>{{ weather.updated|default('—') }}</dd>
+        </dl>
+        {% else %}
+        <p class="muted">No weather cache yet.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2>Panel screen</h2>
+        <p class="muted">Live screenshot of the Pi panel — captured on load.</p>
+        <img class="screenshot" src="{{ url_for('screenshot_image') }}" alt="Panel screenshot">
+        <div class="row">
+            <form method="post" action="{{ url_for('action_screenshot') }}">
+                <button class="btn" type="submit">Refresh</button>
+            </form>
+            {% for s in ['home','alarm','schedule','weather','pigs','settings'] %}
+            <form method="post" action="{{ url_for('action_switch_screen', name=s) }}">
+                <button class="btn-small" type="submit">{{ s }}</button>
+            </form>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

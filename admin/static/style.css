@@ -1,0 +1,308 @@
+/* Bedrock Admin — minimal, clean, no framework. Inspired by the
+   "clean" theme of the panel itself: cream paper, slate text,
+   orange accents, dark blue primary. Mobile-friendly via flexbox. */
+
+:root {
+    --bg: #f4f1ea;
+    --surface: #faf7f0;
+    --border: #d9d4c8;
+    --text: #2e3340;
+    --text-muted: #6b7180;
+    --primary: #5b8cd9;
+    --primary-hover: #4576c5;
+    --accent: #d97333;
+    --warning: #d49b27;
+    --warning-hover: #b88112;
+    --error: #c33b3b;
+    --success: #4a8a4a;
+    --radius: 6px;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.5;
+}
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1 { font-size: 1.6rem; font-weight: 600; margin: 0 0 1rem; }
+h2 { font-size: 1.15rem; font-weight: 600; margin: 0 0 0.75rem; }
+
+.muted { color: var(--text-muted); font-size: 0.9rem; }
+.ok { color: var(--success); font-weight: 500; }
+.err { color: var(--error); font-weight: 500; }
+
+/* ── Topbar ──────────────────────────────────────────────────────── */
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+.brand a {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text);
+}
+.topnav {
+    display: flex;
+    gap: 1rem;
+    flex: 1;
+}
+.topnav a {
+    color: var(--text);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+.topnav a:hover {
+    background: var(--bg);
+    text-decoration: none;
+}
+.user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+.user .logout {
+    color: var(--text-muted);
+}
+
+/* ── Layout ──────────────────────────────────────────────────────── */
+.content {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 3rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 1rem;
+}
+
+/* ── Forms ──────────────────────────────────────────────────────── */
+label.block {
+    display: block;
+    margin-bottom: 1rem;
+}
+label.block > span {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+label.inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-right: 1.25rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+}
+fieldset.block {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+fieldset.block legend {
+    padding: 0 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+input[type="text"],
+input[type="password"],
+input[type="time"],
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+    width: 100%;
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: white;
+    color: var(--text);
+}
+input[type="time"], input[type="date"], input[type="number"] {
+    width: auto;
+    min-width: 9rem;
+}
+textarea {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+}
+input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: -1px;
+    border-color: var(--primary);
+}
+input[type="range"] {
+    width: 100%;
+    accent-color: var(--primary);
+}
+output {
+    display: inline-block;
+    min-width: 3rem;
+    margin-left: 0.5rem;
+    font-family: ui-monospace, monospace;
+    color: var(--text-muted);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+.btn, .btn-primary, .btn-warning, .btn-small {
+    display: inline-block;
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: white;
+    color: var(--text);
+    cursor: pointer;
+    text-decoration: none;
+}
+.btn:hover { background: var(--bg); }
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+.btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+.btn-warning {
+    background: var(--warning);
+    color: white;
+    border-color: var(--warning);
+}
+.btn-warning:hover {
+    background: var(--warning-hover);
+    border-color: var(--warning-hover);
+}
+.btn-small {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.85rem;
+}
+
+.row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+}
+.row form { margin: 0; }
+
+/* ── Definition list (key-value) ──────────────────────────────────── */
+dl.kv {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.25rem 0.75rem;
+    margin: 0 0 1rem;
+    font-size: 0.95rem;
+}
+dl.kv dt {
+    color: var(--text-muted);
+}
+dl.kv dd {
+    margin: 0;
+    color: var(--text);
+}
+
+/* ── Data table ──────────────────────────────────────────────────── */
+table.data {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    background: var(--surface);
+}
+table.data th, table.data td {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+table.data th {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* ── Flash messages ──────────────────────────────────────────────── */
+.flash-stack {
+    margin-bottom: 1rem;
+}
+.flash {
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 0.5rem;
+    border: 1px solid transparent;
+}
+.flash-success {
+    background: #e6f1e6;
+    border-color: #b9d8b9;
+    color: #2e6a2e;
+}
+.flash-error {
+    background: #f6dcdc;
+    border-color: #e9b4b4;
+    color: #8c2727;
+}
+
+/* ── Login ───────────────────────────────────────────────────────── */
+.login-card {
+    max-width: 360px;
+    margin: 4rem auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem;
+    box-shadow: var(--shadow);
+}
+.login-card h1 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+.login-card form button {
+    width: 100%;
+    padding: 0.65rem;
+    margin-top: 0.75rem;
+}
+
+/* ── Screenshot ──────────────────────────────────────────────────── */
+.screenshot {
+    width: 100%;
+    max-width: 1024px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin: 0.5rem 0;
+    background: #000;
+}

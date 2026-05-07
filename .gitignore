@@ -182,6 +182,10 @@ scripts/.deploy_target
 # Ringtones — keep .mp3 in repo, .wav are derived (converted on Pi for low-latency playback)
 media/ringtones/*.wav
 
+# Admin auth secrets — password hashes + Flask session key. Each
+# install bootstraps its own via `python -m admin.cli set-password`.
+config/admin.json
+
 # OS
 .DS_Store
 Thumbs.db

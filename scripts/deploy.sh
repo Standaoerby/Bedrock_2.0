@@ -113,13 +113,29 @@ fi
 if "${SSH[@]}" "cd '$REPO_PATH' && \
    git diff --name-only '$PREV_HEAD' '$NEW_HEAD' 2>/dev/null | grep -q '^scripts/bedrock\.service$'"; then
   echo ""
-  echo "═══ systemd unit changed — re-installing ═══"
+  echo "═══ bedrock.service changed — re-installing ═══"
   "${SSH[@]}" "
     sed 's|@REPO_PATH@|$REPO_PATH|g' '$REPO_PATH/scripts/bedrock.service' \
       > ~/.config/systemd/user/bedrock.service
     systemctl --user daemon-reload
   "
 fi
+
+# ────────────────────────────────────────────────────────────────────────
+# 4c. Install/sync bedrock-admin.service. Idempotent: re-templates the
+#    unit each time so adding/changing it elsewhere just works.
+# ────────────────────────────────────────────────────────────────────────
+echo ""
+echo "═══ bedrock-admin.service sync ═══"
+"${SSH[@]}" "
+  mkdir -p ~/.config/systemd/user
+  if [ -f '$REPO_PATH/scripts/bedrock-admin.service' ]; then
+    sed 's|@REPO_PATH@|$REPO_PATH|g' '$REPO_PATH/scripts/bedrock-admin.service' \
+      > ~/.config/systemd/user/bedrock-admin.service
+    systemctl --user daemon-reload
+    systemctl --user enable bedrock-admin.service 2>/dev/null || true
+  fi
+"
 
 # ────────────────────────────────────────────────────────────────────────
 # 5. Smoke test — import the entry module. Failure → rollback.
@@ -146,9 +162,23 @@ else
   echo "   ssh -i $SSH_KEY $PI_USER@$PI_IP \"cd '$REPO_PATH' && venv/bin/python main.py\""
 fi
 
+# ────────────────────────────────────────────────────────────────────────
+# 7. Restart admin web UI (idempotent — runs even if no admin code changed,
+#    so picking up template/style edits doesn't need a special invocation).
+# ────────────────────────────────────────────────────────────────────────
+if "${SSH[@]}" "systemctl --user list-unit-files bedrock-admin.service --no-legend 2>/dev/null | grep -q bedrock-admin"; then
+  echo ""
+  echo "═══ RESTART admin ═══"
+  "${SSH[@]}" "systemctl --user restart bedrock-admin.service"
+  sleep 1
+  "${SSH[@]}" "systemctl --user status bedrock-admin.service --no-pager -l | head -8" || true
+  echo "   admin URL: http://$PI_IP:8080"
+fi
+
 echo ""
 echo "✅ Deploy complete."
 echo "   $PREV_HEAD → $NEW_HEAD"
 # On Trixie, user-scope `journalctl --user` is empty by default; user logs land
 # in the system journal under _SYSTEMD_USER_UNIT — needs sudo to read.
 echo "   logs:  ssh -i $SSH_KEY $PI_USER@$PI_IP \"sudo journalctl _SYSTEMD_USER_UNIT=bedrock.service -f\""
+echo "   admin: ssh -i $SSH_KEY $PI_USER@$PI_IP \"sudo journalctl _SYSTEMD_USER_UNIT=bedrock-admin.service -f\""

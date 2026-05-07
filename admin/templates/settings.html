@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Settings — Bedrock Admin{% endblock %}
+{% block body %}
+<h1>Settings</h1>
+
+<form method="post" class="card">
+    <label class="block">
+        <span>Username (shown on panel)</span>
+        <input type="text" name="username" value="{{ user.username or '' }}">
+    </label>
+
+    <label class="block">
+        <span>Birth date (YYYY-MM-DD)</span>
+        <input type="date" name="birthdate" value="{{ user.birthdate or '' }}">
+    </label>
+
+    <fieldset class="block">
+        <legend>Weather location</legend>
+        <label class="inline">
+            <span>Latitude</span>
+            <input type="number" step="0.0001" name="lat" value="{{ user.lat if user.lat is defined else 51.539 }}">
+        </label>
+        <label class="inline">
+            <span>Longitude</span>
+            <input type="number" step="0.0001" name="lon" value="{{ user.lon if user.lon is defined else -0.1426 }}">
+        </label>
+    </fieldset>
+
+    <div class="row">
+        <button class="btn-primary" type="submit">Save</button>
+    </div>
+</form>
+{% endblock %}

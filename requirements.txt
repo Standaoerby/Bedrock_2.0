@@ -11,3 +11,7 @@ ffpyplayer
 adafruit-circuitpython-ens160
 adafruit-circuitpython-ahtx0
 adafruit-blinka
+
+# Admin web UI — Flask + werkzeug (werkzeug ships with Flask, used for
+# password hashing). No bcrypt to avoid the gcc compilation step on Pi.
+flask>=3.0,<4.0

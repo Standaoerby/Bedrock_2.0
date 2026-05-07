@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Schedule — Bedrock Admin{% endblock %}
+{% block body %}
+<h1>Schedule</h1>
+<p class="muted">Raw JSON editor for the prototype — schema follows
+<code>config/schedule.json</code>. A friendlier per-day grid will land
+later.</p>
+
+<form method="post" class="card">
+    <textarea name="raw_json" rows="24" spellcheck="false">{{ raw }}</textarea>
+    <div class="row">
+        <button class="btn-primary" type="submit">Save</button>
+    </div>
+</form>
+{% endblock %}
