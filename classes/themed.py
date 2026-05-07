@@ -13,6 +13,8 @@ app.theme_config → widget). KV bindings on instances are not fought.
 Default values fall through cleanly when the theme dict doesn't have
 the requested key.
 """
+import time
+
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.label import Label
@@ -29,6 +31,38 @@ from kivy.properties import StringProperty
 _DEFAULT_COLOR = [1, 1, 1, 1]
 _DEFAULT_FONT_SIZE = "20sp"
 _DEFAULT_FONT_NAME = "Minecraftia"
+
+# Window inside which a second touch_down on the same widget is treated
+# as a hardware bounce and swallowed. 300ms absorbs realistic ILITEK +
+# MTD double-fire (typically <50ms apart) without blocking deliberate
+# rapid taps a kid would make.
+_BUTTON_DEBOUNCE_SEC = 0.30
+
+
+class _BounceFilter:
+    """Mixin that drops a second touch_down arriving within
+    _BUTTON_DEBOUNCE_SEC of an accepted one *on the same widget*.
+
+    The downstream touch_up of the bounce never finds a matching grab
+    (we returned True from touch_down without calling super()), so
+    Kivy's ButtonBehavior doesn't fire on_release for it either —
+    state and dispatched events stay consistent with one physical tap.
+
+    Why at the touch layer rather than logic layer: doing the check
+    inside individual handlers (e.g. toggle_play_ringtone) caught the
+    audio side but left the button visual flickering down→up→down→up,
+    which the user reads as 'glitchy'. Swallowing the touch keeps the
+    visual rock-solid too.
+    """
+    _last_touch_down_t = 0.0
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos) and not self.disabled:
+            now = time.monotonic()
+            if now - self._last_touch_down_t < _BUTTON_DEBOUNCE_SEC:
+                return True  # bounce — swallow it
+            self._last_touch_down_t = now
+        return super().on_touch_down(touch)
 
 
 def _color_for(theme_config, role, fallback=None):
@@ -90,7 +124,7 @@ class ThemedLabel(Label, _ThemeBound):
             self.font_size = _font_size_for(cfg, self.size_role)
 
 
-class ThemedButton(Button, _ThemeBound):
+class ThemedButton(_BounceFilter, Button, _ThemeBound):
     color_role = StringProperty("")
     size_role = StringProperty("")
 
@@ -121,7 +155,7 @@ class ThemedButton(Button, _ThemeBound):
         self.background_color = colors.get("button_bg", [1, 1, 1, 1])
 
 
-class ThemedToggleButton(ToggleButton, _ThemeBound):
+class ThemedToggleButton(_BounceFilter, ToggleButton, _ThemeBound):
     """ToggleButton that picks up font_name + size + color from theme,
     AND replaces Kivy's default blue/grey atlas with theme-driven flat
     colours (active → 'active' role, normal → 'inactive' role).
