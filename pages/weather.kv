@@ -10,15 +10,21 @@
             orientation: "vertical"
             size_hint: 0.96, 0.94
             pos_hint: {"center_x": 0.5, "top": 0.98}
-            padding: app.ui_metrics["padding_xs"]
+            padding: app.ui_metrics["padding_sm"]
             spacing: app.ui_metrics["spacing_sm"]
 
             # Top row: Forecast | Sensors — same layout model on both
             # panels (heading + fixed-height rows + bottom spacer) so
             # row heights and panel padding line up across the seam.
+            #
+            # size_hint_y was 0.45 — that left only ~181 dp inside each
+            # panel after outer padding, menu, and panel padding ate the
+            # budget, so the 5-sensor list overflowed past the panel.
+            # 0.65 gives ~250 dp inside each panel — fits all rows in
+            # both minecraft and clean themes with breathing room.
             BoxLayout:
                 orientation: "horizontal"
-                size_hint_y: 0.45
+                size_hint_y: 0.65
                 spacing: app.ui_metrics["spacing_md"]
 
                 ThemedPanel:
@@ -149,10 +155,11 @@
 
                     Widget:
 
-            # Bottom: Weekly forecast
+            # Bottom: Weekly forecast — uses OverflowColumn so a long
+            # forecast scrolls inside the panel.
             ThemedPanel:
                 orientation: "vertical"
-                size_hint_y: 0.55
+                size_hint_y: 0.35
                 padding: app.ui_metrics["padding_md"]
                 spacing: app.ui_metrics["spacing_sm"]
 
