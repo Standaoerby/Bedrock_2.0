@@ -27,7 +27,7 @@
                     spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
-                        text: "Theme:"
+                        text: app.i18n_strings.get("settings_theme", "Theme") + ":"
                         size_role: "field_label"
                         color_role: "font_default"
                         halign: "right"
@@ -50,7 +50,7 @@
                     spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
-                        text: "Dark Mode" if root.dark_mode_available else "Dark Mode (not available)"
+                        text: app.i18n_strings.get("settings_dark_mode", "Dark Mode")
                         size_role: "field_label"
                         color: app.theme_config.get("colors", {}).get("font_default", [1, 1, 1, 1]) if root.dark_mode_available else app.theme_config.get("colors", {}).get("font_disabled", [0.6, 0.6, 0.6, 1])
                         halign: "right"
@@ -63,6 +63,152 @@
                         disabled: not root.dark_mode_available
                         size_hint_x: 0.4
                         on_active: root.toggle_dark_mode(self.active)
+
+            # Language picker
+            ThemedPanel:
+                orientation: "vertical"
+                size_hint_y: None
+                height: app.ui_metrics["widget_height_md"] + 2 * app.ui_metrics["padding_md"]
+                padding: app.ui_metrics["padding_md"]
+                spacing: app.ui_metrics["spacing_xs"]
+
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: app.ui_metrics["widget_height_md"]
+                    spacing: app.ui_metrics["spacing_sm"]
+
+                    ThemedLabel:
+                        text: app.i18n_strings.get("settings_language", "Language") + ":"
+                        size_role: "field_label"
+                        color_role: "font_default"
+                        halign: "right"
+                        valign: "middle"
+                        size_hint_x: 0.3
+
+                    ThemedSpinner:
+                        id: language_spinner
+                        text: root.language
+                        values: root.available_languages
+                        size_role: "field_label"
+                        color_role: "font_default"
+                        size_hint_x: 0.7
+                        on_text: root.change_language(self.text)
+
+            # Auto-theme panel — strategy + threshold (LDR) + live status
+            ThemedPanel:
+                orientation: "vertical"
+                size_hint_y: None
+                height: 3 * app.ui_metrics["widget_height_md"] + 2 * app.ui_metrics["padding_md"]
+                padding: app.ui_metrics["padding_md"]
+                spacing: app.ui_metrics["spacing_xs"]
+
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: app.ui_metrics["widget_height_md"]
+                    spacing: app.ui_metrics["spacing_sm"]
+
+                    ThemedLabel:
+                        text: app.i18n_strings.get("settings_auto_theme", "Auto Theme") + ":"
+                        size_role: "field_label"
+                        color_role: "font_default"
+                        halign: "right"
+                        valign: "middle"
+                        size_hint_x: 0.3
+
+                    ThemedSpinner:
+                        id: auto_theme_spinner
+                        text: root.auto_theme_strategy
+                        values: root.auto_theme_strategies
+                        size_role: "field_label"
+                        color_role: "font_default"
+                        size_hint_x: 0.7
+                        on_text: root.change_auto_theme_strategy(self.text)
+
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: app.ui_metrics["widget_height_md"]
+                    spacing: app.ui_metrics["spacing_sm"]
+                    disabled: root.auto_theme_strategy != "ldr"
+                    opacity: 1 if root.auto_theme_strategy == "ldr" else 0.4
+
+                    ThemedLabel:
+                        text: app.i18n_strings.get("settings_threshold", "Threshold") + ":"
+                        size_role: "field_label"
+                        color_role: "font_default"
+                        halign: "right"
+                        valign: "middle"
+                        size_hint_x: 0.3
+
+                    ThemedTextInput:
+                        id: threshold_input
+                        text: str(int(root.light_sensor_threshold))
+                        size_role: "field_label"
+                        size_hint_x: 0.7
+                        multiline: False
+                        input_filter: "int"
+                        on_text_validate: root.change_threshold(self.text)
+                        on_focus: root.change_threshold(self.text) if not self.focus else None
+
+                ThemedLabel:
+                    text: root.auto_theme_status
+                    size_role: "field_label"
+                    color_role: "font_default"
+                    halign: "center"
+                    valign: "middle"
+                    size_hint_y: None
+                    height: app.ui_metrics["widget_height_md"]
+
+            # Volume panel — system volume via wpctl on Pi (also driven
+            # by GPIO 23/24 buttons when those are wired). On Windows the
+            # backend is "cache" and changes don't touch system audio.
+            ThemedPanel:
+                orientation: "vertical"
+                size_hint_y: None
+                height: app.ui_metrics["widget_height_md"] + 2 * app.ui_metrics["padding_md"]
+                padding: app.ui_metrics["padding_md"]
+                spacing: app.ui_metrics["spacing_xs"]
+
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: app.ui_metrics["widget_height_md"]
+                    spacing: app.ui_metrics["spacing_sm"]
+
+                    ThemedLabel:
+                        text: app.i18n_strings.get("settings_volume", "Volume") + ":"
+                        size_role: "field_label"
+                        color_role: "font_default"
+                        halign: "right"
+                        valign: "middle"
+                        size_hint_x: 0.3
+
+                    ThemedButton:
+                        text: "-"
+                        size_role: "field_label"
+                        color_role: "font_default"
+                        size_hint_x: 0.15
+                        on_press: app.play_sound("click")
+                        on_release: root.volume_down()
+
+                    ThemedLabel:
+                        id: volume_value_label
+                        text: str(int(root.current_volume)) + "%"
+                        size_role: "field_label"
+                        color_role: "font_default"
+                        halign: "center"
+                        valign: "middle"
+                        size_hint_x: 0.4
+
+                    ThemedButton:
+                        text: "+"
+                        size_role: "field_label"
+                        color_role: "font_default"
+                        size_hint_x: 0.15
+                        on_press: app.play_sound("click")
+                        on_release: root.volume_up()
 
             # User panel
             ThemedPanel:
@@ -79,7 +225,7 @@
                     spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
-                        text: "Username:"
+                        text: app.i18n_strings.get("settings_username", "Username") + ":"
                         size_role: "field_label"
                         color_role: "font_default"
                         halign: "right"
@@ -100,7 +246,7 @@
                     spacing: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
-                        text: "Birth Date:"
+                        text: app.i18n_strings.get("settings_birthday", "Birthday") + ":"
                         size_role: "field_label"
                         color_role: "font_default"
                         halign: "right"
@@ -158,7 +304,7 @@
                 height: app.ui_metrics["widget_height_lg"]
 
                 ThemedButton:
-                    text: "Save Settings"
+                    text: app.i18n_strings.get("settings_save", "Save")
                     size_role: "large"
                     color_role: "font_default"
                     size_hint: 0.4, None

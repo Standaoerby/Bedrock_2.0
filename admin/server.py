@@ -1,4 +1,4 @@
-"""Flask app for the Bedrock 2.0 admin UI.
+"""Flask app for the Bedrock admin UI.
 
 Single-file route registry — kept flat for the prototype. Split into
 blueprints when it gets unwieldy.

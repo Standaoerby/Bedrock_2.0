@@ -10,45 +10,68 @@ from kivy.clock import Clock
 from classes.audio_player import AudioPlayer
 
 class AlarmPopup(ModalView):
-    """Popup that shows when alarm goes off"""
-    
+    """Popup that shows when alarm goes off.
+
+    on_snooze: callable assigned by AlarmClock right after construction —
+    invoked by the Snooze button before dismissal. AlarmClock writes
+    directly to the attribute (`popup.on_snooze = lambda: ...`); we
+    only read it back in `_snooze()`. Kivy's property dispatch is not
+    used — if you ever need multiple subscribers, switch to
+    `popup.bind(on_snooze=...)` instead. Default None hides the
+    button's effect (callback is no-op)."""
+
+    on_snooze = ObjectProperty(None, allownone=True)
+
     def __init__(self, ringtone="morning.mp3", fadein=False, **kwargs):
         super(AlarmPopup, self).__init__(**kwargs)
         self.size_hint = (0.7, 0.5)  # 70% of screen width, 50% of height
         self.auto_dismiss = False  # Prevent dismissing by clicking outside
         self.background_color = [0, 0, 0, 0.9]  # Semi-transparent black background
-        
+
         # Create layout
         layout = BoxLayout(orientation='vertical', padding=20, spacing=20)
-        
+
         # Get app instance for theme configuration
         from kivy.app import App
         app = App.get_running_app()
         theme = app.theme_config
         font_name = theme.get("font_name", "Minecraftia")
-        
+        i18n = getattr(app, "i18n_strings", {}) or {}
+
         # Wake up label
         wake_up_label = Label(
             text="WAKE UP!",
             font_name=font_name,
             font_size=theme.get("font_sizes", {}).get("large", "28sp"),
-            size_hint_y=0.7
+            size_hint_y=0.6
         )
-        
-        # Turn off button
-        turn_off_button = Button(
-            text="Turn Off",
+
+        # Buttons row — snooze + dismiss side by side
+        buttons_row = BoxLayout(orientation='horizontal', spacing=20, size_hint_y=0.4)
+
+        snooze_button = Button(
+            text=i18n.get("alarm_snooze", "Snooze"),
             font_name=font_name,
             font_size=theme.get("font_sizes", {}).get("large", "28sp"),
-            size_hint=(0.5, 0.3),
-            pos_hint={'center_x': 0.5}
+            size_hint_x=0.5,
+        )
+        snooze_button.bind(on_release=self._snooze)
+
+        turn_off_button = Button(
+            text=i18n.get("alarm_dismiss", "Turn Off"),
+            font_name=font_name,
+            font_size=theme.get("font_sizes", {}).get("large", "28sp"),
+            size_hint_x=0.5,
         )
         turn_off_button.bind(on_release=self.stop_alarm)
-        
+
+        buttons_row.add_widget(snooze_button)
+        buttons_row.add_widget(turn_off_button)
+
         # Add widgets to layout
         layout.add_widget(wake_up_label)
-        layout.add_widget(turn_off_button)
-        
+        layout.add_widget(buttons_row)
+
         # Add layout to popup
         self.add_widget(layout)
         
@@ -99,4 +122,17 @@ class AlarmPopup(ModalView):
             self._fade_event.cancel()
             self._fade_event = None
         self._player.stop()
+        self.dismiss()
+
+    def _snooze(self, *_):
+        """User pressed Snooze — silence audio, fire callback, dismiss."""
+        if self._fade_event is not None:
+            self._fade_event.cancel()
+            self._fade_event = None
+        self._player.stop()
+        if callable(self.on_snooze):
+            try:
+                self.on_snooze()
+            except Exception:
+                pass
         self.dismiss()

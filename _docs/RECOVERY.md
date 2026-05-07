@@ -1,5 +1,12 @@
 # Recovery: 1.0.x → 0.8.2
 
+> **Update 2026-05-07:** Этот recovery шёл от `0.8.2` baseline. Позже выяснилось,
+> что **отдельная ветка `0.5.5`** в репо `Standaoerby/bedrock-app` (локально
+> `C:\_PROJECTS\bedrock.old\bedrock-app`) содержала рабочие фичи, не дошедшие
+> ни до 0.8.2, ни до текущего ui-rewrite: i18n, snooze, auto-theme, volume
+> controls, welcome notification. План восстановления —
+> [MIGRATION_FROM_0_5_5.md](MIGRATION_FROM_0_5_5.md).
+
 ## Что произошло
 
 После релиза `0.8.2` (commit `65164b2`) на Pi пошли в ветку 1.0.x. Целью была

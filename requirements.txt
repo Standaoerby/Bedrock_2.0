@@ -15,3 +15,11 @@ adafruit-blinka
 # Admin web UI — Flask + werkzeug (werkzeug ships with Flask, used for
 # password hashing). No bcrypt to avoid the gcc compilation step on Pi.
 flask>=3.0,<4.0
+
+# Auto-theme: sunrise/sunset calculation when the LDR strategy is off.
+# Pure Python, no native deps.
+astral>=3.2
+
+# Volume control: GPIO buttons on BCM 23 (up) / 24 (down). Pi-only.
+# Optional — VolumeService falls back to UI-only control if missing.
+gpiozero; sys_platform == "linux"

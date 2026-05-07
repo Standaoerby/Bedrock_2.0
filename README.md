@@ -1,4 +1,4 @@
-# Bedrock 2.0
+# Bedrock 2.1
 
 Мультимедийная панель управления для Raspberry Pi 5 с touchscreen 1024×600.
 Часы, будильник, погода, расписание, трекер ухода за свинками. Pure Kivy 2.3
@@ -7,6 +7,12 @@ Windows для разработки. Веб-админка на отдельно
 
 ## Текущая версия
 
+- **`v2.1.0`** на ветке `ui-rewrite` — миграция утерянных фич из 0.5.5
+  поверх 2.0 ядра: i18n (en/ru), auto-theme через LDR на BCM 12 + astral
+  как опция, volume control через pipewire `wpctl` + GPIO кнопки 23/24,
+  snooze в alarm popup, welcome notification + startup chime. Полный
+  список — [_docs/MIGRATION_FROM_0_5_5.md](_docs/MIGRATION_FROM_0_5_5.md)
+  и [_docs/CHANGELOG.md](_docs/CHANGELOG.md).
 - **`v2.0.0`** на ветке `ui-rewrite` — полный rewrite UI с 0.8.x на pure Kivy,
   единая 8dp-сетка через `app.ui_metrics`, две темы с light/dark, OverflowColumn
   для авто-скролла переполняющихся контейнеров, веб-админка на `:8080`.

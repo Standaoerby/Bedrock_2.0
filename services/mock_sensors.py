@@ -11,6 +11,7 @@ with sensor_service.ENS160_ADDRESS / AHTX0_ADDRESS.
 """
 import logging
 import random
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -82,3 +83,23 @@ def ENS160(i2c, address: int = ENS160_ADDRESS) -> MockENS160:
 
 def AHTx0(i2c, address: int = AHTX0_ADDRESS) -> MockAHTx0:
     return MockAHTx0(i2c, address)
+
+
+class MockLDR:
+    """Day/night simulation matching how the real LDR module reports:
+    digital read returns 0 when bright, 1 when dark. Drives auto-theme on
+    Windows where there's no GPIO. `set_override(True/False)` lets dev
+    flip the value manually for testing."""
+
+    def __init__(self) -> None:
+        self._override: bool | None = None
+
+    def set_override(self, light: bool | None) -> None:
+        self._override = light
+
+    def read_digital(self) -> int:
+        if self._override is not None:
+            return 0 if self._override else 1
+        # 06:00–22:00 = light, otherwise dark
+        h = datetime.now().hour
+        return 0 if 6 <= h < 22 else 1

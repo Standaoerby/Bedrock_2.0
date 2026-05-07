@@ -1,12 +1,18 @@
 import json
 import os
 from datetime import datetime
-from kivy.properties import StringProperty, BooleanProperty, ListProperty
+from kivy.properties import (
+    StringProperty,
+    BooleanProperty,
+    ListProperty,
+    NumericProperty,
+)
 
 from classes.base_screen import BaseScreen
 
 
 USER_CONFIG = "config/user.json"
+AUTO_THEME_STRATEGIES = ["off", "ldr", "astral"]
 
 
 class SettingsScreen(BaseScreen):
@@ -20,11 +26,25 @@ class SettingsScreen(BaseScreen):
     birth_day = StringProperty("")
     birth_month = StringProperty("")
     birth_year = StringProperty("")
+    language = StringProperty("en")
+    available_languages = ListProperty(["en", "ru"])
+    auto_theme_strategy = StringProperty("off")
+    auto_theme_strategies = ListProperty(AUTO_THEME_STRATEGIES)
+    auto_theme_status = StringProperty("")
+    light_sensor_threshold = NumericProperty(3)
+    current_volume = NumericProperty(50)
+    volume_backend = StringProperty("")
 
     def do_on_pre_enter(self):
         self.scan_available_themes()
         self.load_settings()
         self.check_dark_mode_availability()
+        self._load_available_languages()
+        self.refresh_auto_theme_status()
+        self.refresh_volume_status()
+        # 2s tick for live LDR status, 1s for volume — BaseScreen cancels on leave.
+        self.add_interval(self.refresh_auto_theme_status, 2)
+        self.add_interval(self.refresh_volume_status, 1)
 
     def scan_available_themes(self):
         themes = []
@@ -58,6 +78,15 @@ class SettingsScreen(BaseScreen):
         self.current_theme = cfg.get("theme", "minecraft")
         self.dark_mode_enabled = cfg.get("theme_mode", "light") == "dark"
         self.username = cfg.get("username", "")
+        self.language = cfg.get("language", "en")
+        # Strategy: prefer the new key, fall back to legacy auto_dark_mode
+        # bool that the admin UI used to write before this feature landed.
+        if "auto_theme_strategy" in cfg:
+            strategy = cfg.get("auto_theme_strategy", "off")
+        else:
+            strategy = "ldr" if cfg.get("auto_dark_mode") else "off"
+        self.auto_theme_strategy = strategy if strategy in AUTO_THEME_STRATEGIES else "off"
+        self.light_sensor_threshold = int(cfg.get("light_sensor_threshold", 3))
         birthdate = cfg.get("birthdate", "")
         if birthdate:
             try:
@@ -67,6 +96,11 @@ class SettingsScreen(BaseScreen):
                 self.birth_day = str(d.day)
             except ValueError:
                 self.birth_year = self.birth_month = self.birth_day = ""
+
+    def _load_available_languages(self):
+        app = self.get_app()
+        if app and hasattr(app, "translator"):
+            self.available_languages = app.translator.available_languages()
 
     def save_all_settings(self):
         if "username_input" in self.ids:
@@ -87,6 +121,9 @@ class SettingsScreen(BaseScreen):
             "theme_mode": mode,
             "username": self.username,
             "birthdate": self.get_birthdate_string(),
+            "language": self.language,
+            "auto_theme_strategy": self.auto_theme_strategy,
+            "light_sensor_threshold": int(self.light_sensor_threshold),
         })
         try:
             with open(USER_CONFIG, "w", encoding="utf-8") as f:
@@ -120,6 +157,82 @@ class SettingsScreen(BaseScreen):
         if app and hasattr(app, "apply_theme"):
             mode = "dark" if self.dark_mode_enabled else "light"
             app.apply_theme(self.current_theme, mode)
+
+    def change_language(self, language):
+        if not language or language == self.language:
+            return
+        if language not in self.available_languages:
+            return
+        self.language = language
+        app = self.get_app()
+        if app and hasattr(app, "set_language"):
+            app.set_language(language)
+
+    def change_auto_theme_strategy(self, strategy):
+        if strategy not in AUTO_THEME_STRATEGIES:
+            return
+        if strategy == self.auto_theme_strategy:
+            return
+        self.auto_theme_strategy = strategy
+        app = self.get_app()
+        ats = getattr(app, "auto_theme_service", None) if app else None
+        if ats is not None:
+            ats.set_strategy(strategy)
+        self.refresh_auto_theme_status()
+
+    def change_threshold(self, value):
+        try:
+            new = max(1, min(int(value), 10))
+        except (TypeError, ValueError):
+            return
+        if new == self.light_sensor_threshold:
+            return
+        self.light_sensor_threshold = new
+        app = self.get_app()
+        ats = getattr(app, "auto_theme_service", None) if app else None
+        if ats is not None:
+            ats.set_threshold(new)
+
+    def volume_up(self):
+        app = self.get_app()
+        vs = getattr(app, "volume_service", None) if app else None
+        if vs is not None:
+            vs.step_up()
+
+    def volume_down(self):
+        app = self.get_app()
+        vs = getattr(app, "volume_service", None) if app else None
+        if vs is not None:
+            vs.step_down()
+
+    def refresh_volume_status(self):
+        app = self.get_app()
+        vs = getattr(app, "volume_service", None) if app else None
+        if vs is None:
+            return
+        status = vs.status()
+        self.current_volume = status["volume"]
+        self.volume_backend = status["backend"]
+
+    def refresh_auto_theme_status(self):
+        app = self.get_app()
+        ats = getattr(app, "auto_theme_service", None) if app else None
+        if ats is None:
+            self.auto_theme_status = ""
+            return
+        s = ats.status()
+        strategy = s.get("strategy", "off")
+        if strategy == "off":
+            self.auto_theme_status = "Off"
+        elif strategy == "astral":
+            self.auto_theme_status = s.get("description", "astral")
+        elif strategy == "ldr":
+            backend = s.get("backend", "none")
+            light = s.get("current_light")
+            light_str = "—" if light is None else ("light" if light else "dark")
+            self.auto_theme_status = f"LDR · {backend} · now: {light_str}"
+        else:
+            self.auto_theme_status = strategy
 
     def update_birthdate(self):
         if not all(k in self.ids for k in ("birth_day", "birth_month", "birth_year")):

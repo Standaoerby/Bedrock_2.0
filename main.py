@@ -1,8 +1,11 @@
+import logging
 import os
 import platform
 import time
 import json
 import re
+
+logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────────────────────────
 # Kivy graphics config MUST be set before kivy.core.window is imported.
@@ -26,10 +29,13 @@ Config.set('graphics', 'resizable', '0')
 
 from kivy.core.text import LabelBase
 from kivy.core.window import Window
+from kivy.clock import Clock
 from kivy.lang import Builder
 from kivy.app import App
 from kivy.metrics import dp
 from kivy.properties import StringProperty, BooleanProperty, NumericProperty, DictProperty
+from app.events import event_bus
+from app.i18n import Translator
 from services.alarm_service import AlarmService
 from services.alarm_clock import AlarmClock
 from services.weather_service import WeatherService
@@ -37,6 +43,8 @@ from services.schedule_service import ScheduleService
 from services.pigs_service import PigsService
 from services.notifications_service import NotificationService
 from services.sensor_service import SensorService
+from services.auto_theme_service import AutoThemeService
+from services.volume_service import VolumeService
 from classes.marquee import MarqueeLabel
 from classes.themed import (  # noqa: F401 — registers Factory classes
     ThemedLabel,
@@ -113,8 +121,31 @@ class BedrockApp(App):
     # whenever the theme is switched (apply_theme reassigns the dict).
     ui_metrics = DictProperty({})
 
+    # i18n: KV reads `app.i18n_strings.get("menu_home", "Home")`. The dict
+    # is reassigned on language switch so DictProperty fires and KV
+    # bindings re-evaluate. `language` is the active locale code.
+    language = StringProperty("en")
+    i18n_strings = DictProperty({})
+
     def build(self):
-        self.title = "Bedrock 2.0"
+        from app import __version__ as _version
+        self.title = f"Bedrock {_version}"
+
+        # Pin gpiozero's pin factory once before any service touches GPIO.
+        # Both SensorService (LDR on BCM 12) and VolumeService (Buttons on
+        # BCM 23/24) use gpiozero — without an explicit factory each call
+        # to `gpiozero.Device(...)` re-resolves the default, and on Pi 5
+        # that lazy resolution can race when services start in different
+        # orders. Forcing LGPIOFactory eagerly here makes the factory a
+        # process-shared singleton, eliminating GPIO chip 0 double-claim.
+        if _IS_PI:
+            try:
+                from gpiozero import Device  # type: ignore
+                from gpiozero.pins.lgpio import LGPIOFactory  # type: ignore
+                Device.pin_factory = LGPIOFactory()
+                logger.info("gpiozero pin_factory pinned to LGPIOFactory")
+            except Exception as e:
+                logger.warning(f"could not pin LGPIOFactory: {e}")
 
         # Read persisted theme prefs so saved dark mode survives restart
         user_prefs = load_user_config()
@@ -123,6 +154,13 @@ class BedrockApp(App):
         self.theme_config = self.load_theme_config(self.theme_name, self.theme_mode)
 
         self._refresh_ui_metrics()
+
+        # i18n init — must happen before main.kv loads so MenuButton text
+        # resolves on first render rather than blank-then-pop.
+        self.translator = Translator()
+        self.language = user_prefs.get("language", "en")
+        self.translator.load(self.language)
+        self.i18n_strings = self.translator.merged()
 
         # Initialize sound system
         self.sounds = {}
@@ -146,6 +184,22 @@ class BedrockApp(App):
         # Alarm clock — checks alarm.json every 30s and shows popup at fire time
         self.alarm_clock = AlarmClock(self)
         self.alarm_clock.start()
+
+        # Auto-theme — strategy chosen from user.json, falls back through
+        # legacy `auto_dark_mode: bool` (true → ldr, false → off) for
+        # configs written by the admin web UI before this feature landed.
+        self.auto_theme_service = AutoThemeService(self)
+        strategy = user_prefs.get("auto_theme_strategy")
+        if strategy is None:
+            strategy = "ldr" if user_prefs.get("auto_dark_mode") else "off"
+        threshold = int(user_prefs.get("light_sensor_threshold", 3))
+        self.auto_theme_service.set_threshold(threshold)
+        self.auto_theme_service.set_strategy(strategy, persist=False)
+
+        # Volume — wpctl on Pi 5/Trixie, in-memory cache on Windows.
+        # GPIO 23 (up) / 24 (down) bound through gpiozero when available.
+        self.volume_service = VolumeService(self)
+        self.volume_service.start()
 
         return Builder.load_file('main.kv')
 
@@ -178,6 +232,10 @@ class BedrockApp(App):
             "click":   ["assets/sounds/click.wav",   "assets/sounds/click.ogg"],
             "success": ["assets/sounds/success.wav", "assets/sounds/success.ogg"],
             "error":   ["assets/sounds/error.wav",   "assets/sounds/error.ogg"],
+            # Restored from 0.5.5: confirm fires on save settings / volume
+            # change, startup plays once at app boot.
+            "confirm": ["assets/sounds/confirm.wav", "assets/sounds/confirm.ogg"],
+            "startup": ["assets/sounds/startup.wav", "assets/sounds/startup.ogg"],
         }
         # On Windows use Kivy's SoundLoader (audio_sdl2 / pygame work fine
         # there). On Pi (Trixie + Kivy 2.3) both audio_sdl2 init-hangs and
@@ -196,7 +254,7 @@ class BedrockApp(App):
                         self.sounds[name] = snd
                         break
             if name not in self.sounds:
-                print(f"[bedrock] sound '{name}' not loaded; tried {paths}")
+                logger.warning(f"sound '{name}' not loaded; tried {paths}")
 
     def play_sound(self, sound_name="click"):
         """Play a cached sound with 50ms debounce.
@@ -293,6 +351,40 @@ class BedrockApp(App):
         except OSError as e:
             print(f"_persist_theme_choice: write failed: {e}")
 
+    def set_language(self, language: str, persist: bool = True) -> bool:
+        """Switch active locale and trigger KV rebind via DictProperty
+        reassignment. Persists to config/user.json by default."""
+        if not language or language == self.language:
+            return False
+        try:
+            self.translator.load(language)
+        except Exception as e:
+            print(f"set_language: load {language} failed: {e}")
+            return False
+        self.language = language
+        self.i18n_strings = self.translator.merged()
+        if persist:
+            self._persist_user_pref("language", language)
+        event_bus.publish("language_changed", {"language": language})
+        return True
+
+    def _persist_user_pref(self, key: str, value) -> None:
+        path = "config/user.json"
+        prefs = load_user_config(path)
+        prefs[key] = value
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(prefs, f, ensure_ascii=False, indent=2)
+        except OSError as e:
+            print(f"_persist_user_pref: write failed for {key}: {e}")
+
+    def tr(self, key: str, default: str | None = None) -> str:
+        """Python-side translation lookup. KV should use
+        `app.i18n_strings.get(key, default)` so bindings re-evaluate on
+        language switch."""
+        return self.translator.tr(key, default)
+
     def get_overlay_image(self, page):
         return self.theme_config["overlay_images"].get(page, "")
 
@@ -304,6 +396,30 @@ class BedrockApp(App):
         self.root.ids.screen_manager.bind(current=self._update_current_screen)
         # F1..F6 cycle screens — handy for headless screenshot/debug via xdotool
         Window.bind(on_keyboard=self._dev_keyboard_shortcut)
+        # Welcome notification + startup chime — deferred 1.2s so the
+        # first frame paints before the audio kicks in.
+        Clock.schedule_once(self._fire_welcome, 1.2)
+
+    def user_prefs(self) -> dict:
+        """Re-read config/user.json. Cheap (small JSON), called from
+        services that need to react to admin-side edits without a
+        restart. No caching here — callers re-read at decision points."""
+        return load_user_config()
+
+    def _fire_welcome(self, _dt) -> None:
+        prefs = self.user_prefs()
+        username = prefs.get("username", "").strip() or "User"
+        template = self.i18n_strings.get("welcome_back", "Welcome back, {username}!")
+        try:
+            text = template.format(username=username)
+        except (KeyError, IndexError):
+            text = template
+        if hasattr(self, "notification_service"):
+            try:
+                self.notification_service.add(text, "system")
+            except Exception:
+                pass
+        self.play_sound("startup")
 
     def _dev_keyboard_shortcut(self, _window, key, _scancode, _codepoint, _modifiers):
         keymap = {282: 'home', 283: 'alarm', 284: 'schedule',
@@ -317,6 +433,10 @@ class BedrockApp(App):
         """Clean up when the application exits"""
         if hasattr(self, 'alarm_clock'):
             self.alarm_clock.stop()
+        if hasattr(self, 'auto_theme_service'):
+            self.auto_theme_service.stop()
+        if hasattr(self, 'volume_service'):
+            self.volume_service.stop()
         if hasattr(self, 'sensor_service'):
             self.sensor_service.stop()
 

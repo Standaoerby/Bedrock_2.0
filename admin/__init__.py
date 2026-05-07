@@ -1,4 +1,4 @@
-"""Bedrock 2.0 admin web UI.
+"""Bedrock admin web UI.
 
 A Flask app served separately from the Kivy panel app. Reads/writes
 the same `config/*.json` files Bedrock uses; Bedrock picks up changes

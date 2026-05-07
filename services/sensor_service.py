@@ -36,10 +36,29 @@ SENSORS_CACHE_PATH = "cache/sensors.json"
 ENS160_ADDRESS = 0x53
 AHTX0_ADDRESS = 0x38
 
+# LDR (light dependent resistor) on BCM GPIO 12, digital read with pull-up:
+# 0 = light, 1 = dark (LDR drops resistance under light, pulls input low).
+# Smoothing buffer kept inside SensorService — read_light_level() returns
+# the majority of the last LDR_BUFFER_SIZE samples, so brief flickers
+# (cloud passing, hand wave) don't churn the auto-theme.
+LDR_GPIO_PIN = 12
+LDR_BUFFER_SIZE = 4
+
 # Per-update polling cadence. The UI polls get_readings() far more often
 # than this; the readings are just served from cache between updates.
 UPDATE_INTERVAL_SEC = 30
 MAX_CONSECUTIVE_FAILURES = 5
+
+# LDR backend — gpiozero shares its LGPIOFactory with VolumeService's
+# Buttons, so GPIO chip 0 is opened exactly once per process. Going raw
+# `lgpio.gpiochip_open(0)` here would double-claim against gpiozero —
+# that's the failure mode that bit the 1.0.x branch (see RECOVERY.md).
+try:
+    from gpiozero import DigitalInputDevice as _LdrInput  # type: ignore
+    _GPIOZERO_AVAILABLE = True
+except ImportError:
+    _LdrInput = None  # type: ignore
+    _GPIOZERO_AVAILABLE = False
 
 
 # ── Backend resolution ────────────────────────────────────────────────
@@ -112,6 +131,13 @@ class SensorService:
         self._cal_mtime = 0.0
         self.reload_calibration()
 
+        # LDR state — initialised in _init_ldr(), called from start().
+        self._ldr_backend: str = "none"        # "gpiozero" / "mock" / "none"
+        self._ldr_device = None                 # gpiozero DigitalInputDevice
+        self._ldr_mock = None                   # MockLDR for Windows / no GPIO
+        self._ldr_buffer: list[bool] = []
+        self._ldr_lock = Lock()
+
     def reload_calibration(self) -> None:
         """Re-read calibration offsets from config/user.json. Cheap to
         call from a polling thread — only re-parses when mtime changed."""
@@ -139,6 +165,7 @@ class SensorService:
         """Initialise hardware and spawn the polling thread. Idempotent
         for callers that retry — but cheap enough that we don't bother
         reusing a previous instance."""
+        self._init_ldr()
         try:
             if _use_real_sensors:
                 self.i2c = busio.I2C(board.SCL, board.SDA)
@@ -165,7 +192,84 @@ class SensorService:
         self.running = False
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=1.0)
+        self._release_ldr()
         logger.info("sensor service stopped")
+
+    # ── LDR (light sensor on GPIO 12) ─────────────────────────────────
+    def _init_ldr(self) -> None:
+        """Claim BCM 12 via gpiozero (which uses the process-shared
+        LGPIOFactory on Pi 5). On Windows / no gpiozero, fall back to
+        MockLDR — auto-theme stays usable in dev."""
+        if _GPIOZERO_AVAILABLE:
+            try:
+                # pull_up=True matches the LDR voltage divider: light
+                # pulls the pin LOW (value=0), dark leaves it HIGH (value=1).
+                self._ldr_device = _LdrInput(LDR_GPIO_PIN, pull_up=True)
+                _ = self._ldr_device.value  # smoke read
+                self._ldr_backend = "gpiozero"
+                logger.info(f"LDR ready on BCM {LDR_GPIO_PIN} via gpiozero")
+                return
+            except Exception as e:
+                logger.warning(f"gpiozero LDR init failed: {e}")
+                if self._ldr_device is not None:
+                    try:
+                        self._ldr_device.close()
+                    except Exception:
+                        pass
+                self._ldr_device = None
+
+        # Fallback: mock (Windows / no GPIO available)
+        self._ldr_mock = mock_sensors.MockLDR()
+        self._ldr_backend = "mock"
+        logger.info("LDR using mock (day/night by hour)")
+
+    def _release_ldr(self) -> None:
+        if self._ldr_device is not None:
+            try:
+                self._ldr_device.close()
+            except Exception:
+                pass
+            self._ldr_device = None
+
+    def _read_ldr_raw(self) -> int | None:
+        """Return 0 (light) / 1 (dark), or None if backend isn't ready."""
+        try:
+            if self._ldr_backend == "gpiozero":
+                return int(self._ldr_device.value)
+            if self._ldr_backend == "mock":
+                return self._ldr_mock.read_digital()
+        except Exception as e:
+            logger.warning(f"LDR raw read failed ({self._ldr_backend}): {e}")
+        return None
+
+    def read_light_level(self) -> bool | None:
+        """Smoothed light reading: True = light, False = dark, None if
+        the backend isn't usable. Each call samples the GPIO once and
+        returns the majority of the last LDR_BUFFER_SIZE samples."""
+        raw = self._read_ldr_raw()
+        if raw is None:
+            return None
+        is_light = raw == 0
+        with self._ldr_lock:
+            self._ldr_buffer.append(is_light)
+            if len(self._ldr_buffer) > LDR_BUFFER_SIZE:
+                self._ldr_buffer.pop(0)
+            light_votes = sum(self._ldr_buffer)
+            total = len(self._ldr_buffer)
+        # Strict majority — at boundary (50/50) keep current vote
+        return light_votes * 2 > total or (light_votes * 2 == total and is_light)
+
+    def get_light_status(self) -> dict:
+        """For the settings UI — backend type + last buffer state."""
+        with self._ldr_lock:
+            buf = list(self._ldr_buffer)
+        return {
+            "backend": self._ldr_backend,
+            "available": self._ldr_backend != "none",
+            "mock": self._ldr_backend == "mock",
+            "buffer": buf,
+            "current_light": (sum(buf) * 2 > len(buf)) if buf else None,
+        }
 
     # ── Polling thread ────────────────────────────────────────────────
     def _background_update(self) -> None:

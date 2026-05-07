@@ -70,19 +70,19 @@ FloatLayout:
                     spacing: app.ui_metrics['widget_spacing']
                     
                     MenuButton:
-                        text: "Home"
+                        text: app.i18n_strings.get("menu_home", "Home")
                         screen_name: "home"
                     MenuButton:
-                        text: "Alarm"
+                        text: app.i18n_strings.get("menu_alarm", "Alarm")
                         screen_name: "alarm"
                     MenuButton:
-                        text: "School"
+                        text: app.i18n_strings.get("menu_schedule", "School")
                         screen_name: "schedule"
                     MenuButton:
-                        text: "Climate"
+                        text: app.i18n_strings.get("menu_weather", "Climate")
                         screen_name: "weather"
                     MenuButton:
-                        text: "Pigs"
+                        text: app.i18n_strings.get("menu_pigs", "Pigs")
                         screen_name: "pigs"
                     MenuButton:
                         text: ">"
