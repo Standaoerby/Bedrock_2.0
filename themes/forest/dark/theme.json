@@ -1,0 +1,101 @@
+{
+  "_about": "Forest Dark — deep forest bg with glowing lime accent. Mirror of Forest Light (same colour roles, mode-flipped values). panel_bg alpha bumped to 0.95 per the BRANDBOOK coupling rule.",
+
+  "name": "Forest Dark",
+  "mode": "dark",
+
+  "font_name": "Minecraftia",
+  "font_color": [0.85, 0.92, 0.85, 1],
+
+  "font_sizes": {
+    "tiny":    "12sp",
+    "small":   "14sp",
+    "default": "18sp",
+    "medium":  "22sp",
+    "large":   "28sp",
+    "xlarge":  "36sp",
+    "huge":    "200sp",
+    "section_title": "28sp",
+    "field_label":   "22sp",
+    "metric_value":  "18sp"
+  },
+
+  "colors": {
+    "primary":        [0.40, 0.85, 0.45, 1],
+    "font_default":   [0.85, 0.92, 0.85, 1],
+    "font_secondary": [0.55, 0.65, 0.55, 1],
+    "font_highlight": [0.55, 0.95, 0.40, 1],
+    "font_action":    [0.60, 1.00, 0.50, 1],
+    "font_disabled":  [0.40, 0.45, 0.40, 1],
+
+    "active":      [0.50, 1.00, 0.50, 1],
+    "inactive":    [0.40, 0.45, 0.40, 1],
+    "semi_active": [0.55, 0.80, 0.55, 1],
+    "warning":     [1.00, 0.75, 0.15, 1],
+    "error":       [1.00, 0.40, 0.35, 1],
+
+    "shadow_light": [0.00, 0.10, 0.00, 0.55],
+    "shadow_dark":  [0.70, 1.00, 0.60, 0.40],
+
+    "trend_up":   [1.00, 0.45, 0.40, 1],
+    "trend_down": [0.40, 0.70, 1.00, 1],
+
+    "weekend": [1.00, 0.50, 0.40, 1],
+    "weekday": [0.55, 0.85, 0.45, 1],
+
+    "bar_water": [0.30, 0.70, 1.00, 0.85],
+    "bar_food":  [1.00, 0.60, 0.25, 0.85],
+    "bar_clean": [0.40, 0.85, 0.40, 0.85],
+
+    "button_bg":         [0.20, 0.18, 0.12, 1],
+    "button_bg_active":  [0.35, 0.30, 0.20, 1],
+    "input_bg":          [0.08, 0.12, 0.08, 0.92]
+  },
+
+  "layout": {
+    "grid_unit": 8,
+    "padding_xs":  4,
+    "padding_sm":  8,
+    "padding_md":  16,
+    "padding_lg":  24,
+    "spacing_xs":  4,
+    "spacing_sm":  8,
+    "spacing_md":  16,
+    "spacing_lg":  24,
+    "widget_height_sm": 32,
+    "widget_height_md": 48,
+    "widget_height_lg": 64,
+    "menu_height":     72,
+    "menu_padding":    8,
+    "content_padding": 16,
+    "widget_spacing":  10,
+    "widget_height":   48,
+    "small_widget_height": 36
+  },
+
+  "panel_bg":     [0.05, 0.15, 0.08, 0.95],
+  "panel_radius": 12,
+
+  "overlay_opacity": 0.3,
+  "overlay_images": {
+    "home":     "",
+    "alarm":    "",
+    "schedule": "",
+    "weather":  "",
+    "pigs":     "",
+    "settings": ""
+  },
+
+  "background_image": "",
+
+  "menu_button_normal":     "",
+  "menu_button_active":     "",
+  "menu_button_size":       [180, 60],
+  "menu_button_font_size":  24,
+  "menu_button_padding":    [0, 0, 0, 0],
+  "menu_selected_color":    [0.55, 0.95, 0.40, 1],
+  "menu_unselected_color":  [0.55, 0.65, 0.55, 1],
+
+  "button_normal": "",
+  "button_active": ""
+}
