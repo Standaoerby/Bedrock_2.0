@@ -508,8 +508,10 @@ Before declaring a theme "done":
 
 **Per theme (covers both modes):**
 
-- [ ] Light → dark switch works without restarting (Settings → Dark
-      Mode toggle).
+- [ ] Light ↔ dark switch works without restarting — driven by
+      AutoThemeService (toggle `auto_theme_strategy` in user.json or
+      via admin web UI; Settings page no longer carries a manual
+      Dark Mode checkbox).
 - [ ] Saved choice persists across app restart.
 - [ ] All `overlay_images` exist on disk if not `""`.
 - [ ] `background_image` exists on disk for both modes.
@@ -555,9 +557,12 @@ together — see the coupling table in Step 5. Symptom: in dark mode,
 overlay characters' saturated pixels (green zombies, orange skin)
 become visible through panel rectangles right where labels sit.
 
-**Forgetting `dark_mode_available`.** A theme without a `dark/`
-folder can still be selected; the dark mode toggle just becomes
-greyed out. Don't ship without dark.
+**Theme without a `dark/` folder.** AutoThemeService still calls
+`apply_theme(theme, "dark")` if the strategy decides "dark" — and
+the missing folder makes that load silently fail (load_theme_config
+raises, caught in `apply_theme`, returns False). The panel sticks
+in `light`. Ship both `light/` and `dark/` so auto-theme can swing
+both ways.
 
 **JSON without `_about`.** Future-you is going to wonder why the
 panel is sage green. `_about` and `_comment_*` keys are ignored at

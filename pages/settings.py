@@ -3,7 +3,6 @@ import os
 from datetime import datetime
 from kivy.properties import (
     StringProperty,
-    BooleanProperty,
     ListProperty,
     NumericProperty,
 )
@@ -20,8 +19,6 @@ class SettingsScreen(BaseScreen):
 
     current_theme = StringProperty("minecraft")
     available_themes = ListProperty([])
-    dark_mode_enabled = BooleanProperty(False)
-    dark_mode_available = BooleanProperty(False)
     username = StringProperty("")
     birth_day = StringProperty("")
     birth_month = StringProperty("")
@@ -38,7 +35,6 @@ class SettingsScreen(BaseScreen):
     def do_on_pre_enter(self):
         self.scan_available_themes()
         self.load_settings()
-        self.check_dark_mode_availability()
         self._load_available_languages()
         self.refresh_auto_theme_status()
         self.refresh_volume_status()
@@ -63,10 +59,6 @@ class SettingsScreen(BaseScreen):
             pass
         self.available_themes = sorted(themes) if themes else ["minecraft"]
 
-    def check_dark_mode_availability(self):
-        dark_path = os.path.join("themes", self.current_theme, "dark")
-        self.dark_mode_available = os.path.isdir(dark_path)
-
     def load_settings(self):
         if not os.path.exists(USER_CONFIG):
             return
@@ -76,7 +68,6 @@ class SettingsScreen(BaseScreen):
         except (json.JSONDecodeError, OSError):
             return
         self.current_theme = cfg.get("theme", "minecraft")
-        self.dark_mode_enabled = cfg.get("theme_mode", "light") == "dark"
         self.username = cfg.get("username", "")
         self.language = cfg.get("language", "en")
         # Strategy: prefer the new key, fall back to legacy auto_dark_mode
@@ -106,7 +97,6 @@ class SettingsScreen(BaseScreen):
         if "username_input" in self.ids:
             self.username = self.ids.username_input.text
         self.update_birthdate()
-        mode = "dark" if self.dark_mode_enabled else "light"
 
         os.makedirs("config", exist_ok=True)
         existing = {}
@@ -116,9 +106,11 @@ class SettingsScreen(BaseScreen):
                     existing = json.load(f)
             except (json.JSONDecodeError, OSError):
                 existing = {}
+        # theme_mode is owned by AutoThemeService (or admin web UI) — Settings
+        # page no longer writes it. Keeping the existing value in user.json so
+        # auto-strategy "off" still resolves to a sensible mode at startup.
         existing.update({
             "theme": self.current_theme,
-            "theme_mode": mode,
             "username": self.username,
             "birthdate": self.get_birthdate_string(),
             "language": self.language,
@@ -134,29 +126,17 @@ class SettingsScreen(BaseScreen):
 
         app = self.get_app()
         if app and hasattr(app, "apply_theme"):
-            app.apply_theme(self.current_theme, mode, persist=False)
+            # Re-render with the currently active mode (auto-theme's choice
+            # or the persisted one) — no manual override from Settings.
+            app.apply_theme(self.current_theme, app.theme_mode, persist=False)
 
     def change_theme(self, theme):
         if theme == self.current_theme:
             return
         self.current_theme = theme
-        self.check_dark_mode_availability()
-        if not self.dark_mode_available:
-            self.dark_mode_enabled = False
         app = self.get_app()
         if app and hasattr(app, "apply_theme"):
-            mode = "dark" if self.dark_mode_enabled else "light"
-            app.apply_theme(theme, mode)
-
-    def toggle_dark_mode(self, enabled):
-        if not self.dark_mode_available:
-            self.dark_mode_enabled = False
-            return
-        self.dark_mode_enabled = bool(enabled)
-        app = self.get_app()
-        if app and hasattr(app, "apply_theme"):
-            mode = "dark" if self.dark_mode_enabled else "light"
-            app.apply_theme(self.current_theme, mode)
+            app.apply_theme(theme, app.theme_mode)
 
     def change_language(self, language):
         if not language or language == self.language:

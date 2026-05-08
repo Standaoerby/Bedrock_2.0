@@ -12,11 +12,11 @@
             padding: app.ui_metrics["padding_xs"]
             spacing: app.ui_metrics["spacing_md"]
 
-            # Theme + dark mode
+            # Theme picker (dark/light is owned by Auto Theme — no manual toggle here)
             ThemedPanel:
                 orientation: "vertical"
                 size_hint_y: None
-                height: 2 * app.ui_metrics["widget_height_md"] + 2 * app.ui_metrics["padding_md"]
+                height: app.ui_metrics["widget_height_md"] + 2 * app.ui_metrics["padding_md"]
                 padding: app.ui_metrics["padding_md"]
                 spacing: app.ui_metrics["spacing_xs"]
 
@@ -42,27 +42,6 @@
                         color_role: "font_default"
                         size_hint_x: 0.7
                         on_text: root.change_theme(self.text)
-
-                BoxLayout:
-                    orientation: "horizontal"
-                    size_hint_y: None
-                    height: app.ui_metrics["widget_height_md"]
-                    spacing: app.ui_metrics["spacing_sm"]
-
-                    ThemedLabel:
-                        text: app.i18n_strings.get("settings_dark_mode", "Dark Mode")
-                        size_role: "field_label"
-                        color: app.theme_config.get("colors", {}).get("font_default", [1, 1, 1, 1]) if root.dark_mode_available else app.theme_config.get("colors", {}).get("font_disabled", [0.6, 0.6, 0.6, 1])
-                        halign: "right"
-                        valign: "middle"
-                        size_hint_x: 0.6
-
-                    CheckBox:
-                        id: dark_mode_checkbox
-                        active: root.dark_mode_enabled
-                        disabled: not root.dark_mode_available
-                        size_hint_x: 0.4
-                        on_active: root.toggle_dark_mode(self.active)
 
             # Language picker
             ThemedPanel:
