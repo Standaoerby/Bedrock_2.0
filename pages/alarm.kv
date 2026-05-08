@@ -12,11 +12,14 @@
             padding: app.ui_metrics["padding_xs"]
             spacing: app.ui_metrics["spacing_sm"]
 
-            # Section 1: Time + Active toggle
+            # Section 1: Time + Active toggle. Section is sized for the
+            # 72sp digits with breathing room; +/- columns use a stack of
+            # two short buttons (≈ widget_height_sm each) centred via
+            # spacers so they don't balloon to the full row height.
             BoxLayout:
                 orientation: "horizontal"
                 size_hint_y: None
-                height: "120dp"
+                height: "96dp"
                 spacing: app.ui_metrics["spacing_md"]
 
                 ThemedLabel:
@@ -32,11 +35,18 @@
                 BoxLayout:
                     orientation: "vertical"
                     size_hint_x: 0.12
+                    spacing: app.ui_metrics["spacing_xs"]
+
+                    Widget:
+                        size_hint_y: None
+                        height: app.ui_metrics["padding_xs"]
 
                     ThemedButton:
                         text: "+"
                         size_role: "large"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: app.ui_metrics["widget_height_sm"]
                         on_press: app.play_sound("click")
                         on_release: root.increment_hour()
 
@@ -44,13 +54,18 @@
                         text: "-"
                         size_role: "large"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: app.ui_metrics["widget_height_sm"]
                         on_press: app.play_sound("click")
                         on_release: root.decrement_hour()
+
+                    Widget:
+                        size_hint_y: None
+                        height: app.ui_metrics["padding_xs"]
 
                 ThemedLabel:
                     id: hour_label
                     text: root.alarm_time.split(':')[0]
-                    size_role: "huge"
                     color_role: "font_default"
                     size_hint_x: 0.18
                     halign: "center"
@@ -60,7 +75,6 @@
 
                 ThemedLabel:
                     text: ":"
-                    size_role: "huge"
                     color_role: "font_default"
                     size_hint_x: 0.04
                     halign: "center"
@@ -70,7 +84,6 @@
                 ThemedLabel:
                     id: minute_label
                     text: root.alarm_time.split(':')[1]
-                    size_role: "huge"
                     color_role: "font_default"
                     size_hint_x: 0.18
                     halign: "center"
@@ -81,11 +94,18 @@
                 BoxLayout:
                     orientation: "vertical"
                     size_hint_x: 0.12
+                    spacing: app.ui_metrics["spacing_xs"]
+
+                    Widget:
+                        size_hint_y: None
+                        height: app.ui_metrics["padding_xs"]
 
                     ThemedButton:
                         text: "+"
                         size_role: "large"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: app.ui_metrics["widget_height_sm"]
                         on_press: app.play_sound("click")
                         on_release: root.increment_minute()
 
@@ -93,8 +113,14 @@
                         text: "-"
                         size_role: "large"
                         color_role: "font_default"
+                        size_hint_y: None
+                        height: app.ui_metrics["widget_height_sm"]
                         on_press: app.play_sound("click")
                         on_release: root.decrement_minute()
+
+                    Widget:
+                        size_hint_y: None
+                        height: app.ui_metrics["padding_xs"]
 
                 # Active toggle
                 BoxLayout:
