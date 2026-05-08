@@ -232,10 +232,18 @@ class SensorService:
             self._ldr_device = None
 
     def _read_ldr_raw(self) -> int | None:
-        """Return 0 (light) / 1 (dark), or None if backend isn't ready."""
+        """Return 0 (light) / 1 (dark), or None if backend isn't ready.
+
+        gpiozero.DigitalInputDevice with pull_up=True returns `value=1` when
+        the pin is *active* (pulled low by the external circuit), not the
+        raw line state. Our LDR scheme matches the 0.5.5 convention:
+        light → pin pulled low → raw 0; dark → pin floats high → raw 1.
+        So gpiozero `value=1` (active/low) maps to raw `0` (light) and
+        vice versa — invert here. The MockLDR already returns raw 0/1
+        directly."""
         try:
             if self._ldr_backend == "gpiozero":
-                return int(self._ldr_device.value)
+                return 0 if self._ldr_device.value else 1
             if self._ldr_backend == "mock":
                 return self._ldr_mock.read_digital()
         except Exception as e:
