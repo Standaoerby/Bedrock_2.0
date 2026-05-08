@@ -82,9 +82,7 @@
             ThemedPanel:
                 orientation: "vertical"
                 size_hint_y: None
-                height:
-                    (3 if root.auto_theme_strategy == "ldr" else 2) * app.ui_metrics["widget_height_md"] \
-                        + 2 * app.ui_metrics["padding_md"]
+                height: (3 if root.auto_theme_strategy == "ldr" else 2) * app.ui_metrics["widget_height_md"] + 2 * app.ui_metrics["padding_md"]
                 padding: app.ui_metrics["padding_md"]
                 spacing: app.ui_metrics["spacing_xs"]
 
