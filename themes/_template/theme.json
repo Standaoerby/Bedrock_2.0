@@ -32,6 +32,7 @@
     "font_highlight": [1, 0.95, 0.6, 1],
     "_comment_reserved_font_action": "Reserved palette slot — not currently consumed. Intended for CTA text inside primary buttons.",
     "font_action":    [0.5, 1, 0.6, 1],
+    "_comment_button_bg_active_note": "Now also drives MenuButton selected-state background when the theme has no menu_button PNG graphics.",
     "font_disabled":  [0.5, 0.5, 0.5, 1],
 
     "active":      [0.2, 1, 0.2, 1],
@@ -55,7 +56,7 @@
     "bar_food":  [0.95, 0.55, 0.15, 0.85],
     "bar_clean": [0.25, 0.85, 0.35, 0.85],
 
-    "_comment_button_input": "Flat background for ThemedButton/ThemedSpinner/ThemedTextInput. button_bg is the resting fill (always used). button_bg_active is reserved for the pressed state but ThemedButton currently relies on Kivy's default pressed rendering — the slot is kept for parity and a future ThemedButton update. input_bg is the textbox fill; in dark themes keep it dark so font_default is readable inside it.",
+    "_comment_button_input": "Flat background for ThemedButton/ThemedSpinner/ThemedTextInput plus the top-bar MenuButton (when the theme ships no PNG menu graphics). button_bg is the resting fill, button_bg_active is the selected-screen fill on the menu (and reserved for ThemedButton pressed state — currently Kivy's default pressed rendering still applies for those). input_bg is the textbox fill; in dark themes keep it dark so font_default is readable inside it.",
     "button_bg":         [0.42, 0.28, 0.14, 1],
     "button_bg_active":  [0.58, 0.40, 0.22, 1],
     "input_bg":          [0.15, 0.18, 0.22, 0.92]

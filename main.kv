@@ -16,8 +16,16 @@
 # StringProperties — KV per-instance overrides are no longer fought.
 
 <MenuButton@Button>:
-    background_normal: app.theme_config["menu_button_normal"]
-    background_down: app.theme_config.get("menu_button_active", app.theme_config["menu_button_normal"])
+    # If the theme ships PNG button graphics, use them; otherwise fall
+    # back to flat colors from theme.colors (button_bg / button_bg_active).
+    # Without this fallback an art-less theme like `forest` left both
+    # selected and unselected buttons rendering Kivy's default white,
+    # because `background_normal=""` skips the atlas and we hadn't told
+    # Kivy what colour to draw underneath.
+    _has_png: bool(app.theme_config.get("menu_button_normal", ""))
+    background_normal: app.theme_config.get("menu_button_normal", "") or ""
+    background_down: app.theme_config.get("menu_button_active", "") or app.theme_config.get("menu_button_normal", "") or ""
+    background_color: [1, 1, 1, 1] if self._has_png else (app.theme_config.get("colors", {}).get("button_bg_active", [0.55, 0.55, 0.55, 1]) if self.screen_name == app.current_screen else app.theme_config.get("colors", {}).get("button_bg", [0.75, 0.75, 0.75, 1]))
     color: app.theme_config["menu_selected_color"] if self.screen_name == app.current_screen else app.theme_config["menu_unselected_color"]
     font_name: app.theme_config["font_name"]
     font_size: app.scale_font(app.theme_config.get("menu_button_font_size", 30))

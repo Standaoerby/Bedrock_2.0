@@ -174,8 +174,8 @@ fallback logic as font sizes.
 
 | Role | Used for | Wired? |
 |---|---|---|
-| `button_bg` | `ThemedButton` flat fill. | ✓ |
-| `button_bg_active` | Pressed-state fill (or kept equal — KV / themed.py decides). | reserved (Kivy default pressed used) |
+| `button_bg` | `ThemedButton` flat fill, MenuButton resting fill (when no PNG). | ✓ |
+| `button_bg_active` | MenuButton selected/active fill (when no PNG). | ✓ |
 | `input_bg` | `ThemedTextInput` background — keep dark in dark themes so `font_default` is readable. | ✓ |
 
 ### Shadow
