@@ -557,6 +557,22 @@ together — see the coupling table in Step 5. Symptom: in dark mode,
 overlay characters' saturated pixels (green zombies, orange skin)
 become visible through panel rectangles right where labels sit.
 
+**Reserved palette slots.** Three roles are present in every theme
+but currently consumed nowhere in the code: `font_action`, `warning`,
+`button_bg_active`. They're kept for parity (so adding the wiring
+later doesn't require touching every theme) — but if you re-skin
+them, expect no visual change until something starts reading them.
+
+**Legacy size keys in old KV.** `pages/{alarm,schedule,weather,pigs}.kv`
+still pull a few sizing tokens via `app.theme_config.get("grid_unit",
+"32dp")`, `widget_font_size`, `widget_heights.button` etc. Those keys
+are *not* defined in `_template/theme.json`, so KV always falls back
+to the hardcoded literals — meaning a new theme can't override them.
+Migration target: replace these with `app.ui_metrics["padding_md"]` /
+`["widget_height_md"]` etc. (same way `home.kv` and `settings.kv`
+already work). Until that's done, treat those tokens as off-limits
+for theme tuning.
+
 **Theme without a `dark/` folder.** AutoThemeService still calls
 `apply_theme(theme, "dark")` if the strategy decides "dark" — and
 the missing folder makes that load silently fail (load_theme_config

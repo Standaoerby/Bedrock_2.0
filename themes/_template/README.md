@@ -143,24 +143,24 @@ fallback logic as font sizes.
 
 ### Text
 
-| Role | Used for |
-|---|---|
-| `font_default` | Default body text. |
-| `font_secondary` | De-emphasized text (helper labels). |
-| `font_highlight` | Section titles, accents. |
-| `font_action` | Call-to-action text inside buttons. |
-| `font_disabled` | Disabled state text. |
+| Role | Used for | Wired? |
+|---|---|---|
+| `font_default` | Default body text. | ✓ (heaviest use) |
+| `font_secondary` | De-emphasized text (helper labels). | ✓ |
+| `font_highlight` | Section titles, accents. | ✓ |
+| `font_action` | Call-to-action text inside buttons. | reserved (not consumed yet) |
+| `font_disabled` | Disabled state text. | ✓ |
 
 ### State
 
-| Role | Used for |
-|---|---|
-| `active` | Toggle ON, alarm armed, success state. |
-| `inactive` | Toggle OFF, default chrome. |
-| `semi_active` | "About to fire" or partial state (alarm time when armed). |
-| `warning` | Yellow-amber attention. |
-| `error` | Red error state. |
-| `primary` | Generic accent (cursor, selection in TextInput). |
+| Role | Used for | Wired? |
+|---|---|---|
+| `active` | Toggle ON, alarm armed, success state. | ✓ |
+| `inactive` | Toggle OFF, default chrome. | ✓ |
+| `semi_active` | "About to fire" or partial state (alarm time when armed). | ✓ |
+| `warning` | Yellow-amber attention. | reserved (not consumed yet) |
+| `error` | Red error state. | ✓ |
+| `primary` | Generic accent (cursor, selection in TextInput). | ✓ |
 
 ### Domain-specific
 
@@ -172,11 +172,11 @@ fallback logic as font sizes.
 
 ### Backgrounds for chrome
 
-| Role | Used for |
-|---|---|
-| `button_bg` | `ThemedButton` flat fill. |
-| `button_bg_active` | Pressed-state fill (or kept equal — KV / themed.py decides). |
-| `input_bg` | `ThemedTextInput` background — keep dark in dark themes so `font_default` is readable. |
+| Role | Used for | Wired? |
+|---|---|---|
+| `button_bg` | `ThemedButton` flat fill. | ✓ |
+| `button_bg_active` | Pressed-state fill (or kept equal — KV / themed.py decides). | reserved (Kivy default pressed used) |
+| `input_bg` | `ThemedTextInput` background — keep dark in dark themes so `font_default` is readable. | ✓ |
 
 ### Shadow
 
