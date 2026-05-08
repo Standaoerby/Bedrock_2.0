@@ -446,6 +446,21 @@ Run the app, switch to your theme, cycle through screens. Adjust:
 - Default `overlay_opacity = 0.5` is a sweet spot — go below `0.3`
   only if your artwork is noisy.
 
+**Coupling rule (tested 2026-05-08 on minecraft + clean):** the two
+knobs are not independent. Picking high `overlay_opacity` without
+matching `panel_bg` alpha makes Settings (the panel-heaviest screen)
+unreadable when overlay artwork has sharp light figures on dark areas.
+Pair them like this:
+
+| `overlay_opacity` | dark `panel_bg[3]` | light `panel_bg[3]` |
+|---|---|---|
+| 0.3–0.5 | 0.75 | 0.55 |
+| 0.6–0.8 | 0.85 | 0.65 |
+| 0.9–1.0 | 0.95 | 0.75 |
+
+Drop a row if you ship pastel/low-contrast artwork; bump a row if
+the overlay has high-saturation accents (bright greens, oranges).
+
 ### Step 6 — Walk through the validation checklist (§ 11).
 
 ### Step 7 — Add to release.
@@ -467,7 +482,7 @@ When a designer says "make it more X," reach for:
 | Bigger text | Bump every `font_sizes` entry by 1–2 sp. |
 | More breathing room | `spacing_md` / `padding_md` already at 16; jump panel padding to `padding_lg` (24). |
 | Tighter | `padding_xs` / `spacing_xs` (4 each) — but watch touch targets. |
-| Stronger artwork | Raise `overlay_opacity` toward 1.0. Re-check readability. |
+| Stronger artwork | Raise `overlay_opacity` toward 1.0 — and raise `panel_bg[3]` in lockstep (see Step 5 coupling table). |
 | Quieter artwork | Drop `overlay_opacity` toward 0.3. |
 | Snappier touch feel | Bump `button_bg_active` away from `button_bg` so the press registers. |
 
@@ -532,6 +547,13 @@ becomes mud on dark. Always pick mode-specific panel backgrounds.
 predates the knob, you might omit it. The default `0.5` kicks in,
 which is usually fine — but explicitly setting it makes the
 intent clear.
+
+**Bumping `overlay_opacity` without panel alpha.** Cranking
+`overlay_opacity` to 1.0 alone makes panel-heavy screens (Settings)
+bleed overlay through panel transparency. Always bump `panel_bg[3]`
+together — see the coupling table in Step 5. Symptom: in dark mode,
+overlay characters' saturated pixels (green zombies, orange skin)
+become visible through panel rectangles right where labels sit.
 
 **Forgetting `dark_mode_available`.** A theme without a `dark/`
 folder can still be selected; the dark mode toggle just becomes

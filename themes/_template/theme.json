@@ -81,12 +81,12 @@
     "small_widget_height": 36
   },
 
-  "_comment_panels": "ThemedPanel rounded-rectangle background.",
+  "_comment_panels": "ThemedPanel rounded-rectangle background. Alpha must be tuned in concert with overlay_opacity below — panel alpha is the only barrier between bright overlay artwork and the text rendered on top of the panel. Empirically 0.95 (dark) / 0.75 (light) reads cleanly when overlay_opacity is at or near 1.0. If you drop overlay_opacity below 0.5, you can drop panel alpha too.",
   "panel_bg":     [0, 0, 0, 0.25],
   "panel_radius": 12,
 
   "_comment_overlays": "Per-screen decorative PNG drawn full-screen behind content. Set to '' (empty string) to disable for that screen — render still works, just without decoration.",
-  "_comment_overlay_opacity": "Global multiplier for overlay PNGs. PNGs already carry their own alpha channel; this knob lets a theme dial the whole decorative layer down (0 = invisible, 1 = full art) without re-exporting graphics. Use lower values when an overlay's saturation fights with text on top of panels.",
+  "_comment_overlay_opacity": "Global multiplier for overlay PNGs. PNGs already carry their own alpha channel; this knob lets a theme dial the whole decorative layer down (0 = invisible, 1 = full art) without re-exporting graphics. Coupling rule: when raising overlay_opacity ≥ 0.7, also raise panel_bg alpha to ≥ 0.85 (dark) / ≥ 0.75 (light) or text bleeds through saturated overlay pixels.",
   "overlay_opacity": 0.5,
   "overlay_images": {
     "home":     "",
