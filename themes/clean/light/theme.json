@@ -187,7 +187,7 @@
     1,
     0.55
   ],
-  "overlay_opacity": 0.5,
+  "overlay_opacity": 1.0,
   "panel_radius": 14,
   "background_image": "themes/clean/light/background.png",
   "menu_button_normal": "",
