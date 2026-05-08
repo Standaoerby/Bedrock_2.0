@@ -16,7 +16,7 @@
     "medium":  "22sp",
     "large":   "28sp",
     "xlarge":  "36sp",
-    "huge":    "120sp",
+    "huge":    "180sp",
 
     "_comment_semantic": "Use these in KV instead of raw t-shirt sizes — they let you tune section vs field vs metric typography per theme without hunting through KV files.",
     "section_title": "28sp",
