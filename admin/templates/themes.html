@@ -17,7 +17,7 @@
     </label>
 
     <fieldset class="block">
-        <legend>Mode</legend>
+        <legend>Mode (only used when Auto Theme = off)</legend>
         <label class="inline">
             <input type="radio" name="mode" value="light"
                    {% if current.theme_mode != 'dark' %}checked{% endif %}>
@@ -30,10 +30,17 @@
         </label>
     </fieldset>
 
-    <label class="inline">
-        <input type="checkbox" name="auto_dark_mode"
-               {% if current.auto_dark_mode %}checked{% endif %}>
-        Auto-switch on sunrise/sunset
+    <label class="block">
+        <span>Auto Theme</span>
+        {# Resolve current strategy: prefer the new key, fall back to the legacy
+           auto_dark_mode bool (true → ldr, false → off) so existing configs upgrade. #}
+        {% set strat = current.auto_theme_strategy
+                       or ('ldr' if current.auto_dark_mode else 'off') %}
+        <select name="auto_theme_strategy">
+            <option value="off"    {% if strat == 'off' %}selected{% endif %}>Off (use Mode above)</option>
+            <option value="ldr"    {% if strat == 'ldr' %}selected{% endif %}>LDR — light sensor (BCM 12)</option>
+            <option value="astral" {% if strat == 'astral' %}selected{% endif %}>Astral — sunset/sunrise</option>
+        </select>
     </label>
 
     <div class="row">

@@ -87,16 +87,22 @@ def create_app() -> Flask:
     def themes_apply():
         theme = request.form.get("theme")
         mode = request.form.get("mode", "light")
-        auto = request.form.get("auto_dark_mode") == "on"
+        strategy = request.form.get("auto_theme_strategy", "off")
+        if strategy not in ("off", "ldr", "astral"):
+            strategy = "off"
         if not _theme_exists(theme, mode):
             flash(f"Theme '{theme}/{mode}' not found", "error")
             return redirect(url_for("themes"))
         cfg = read_json(USER_CONFIG, default={})
         cfg["theme"] = theme
         cfg["theme_mode"] = mode
-        cfg["auto_dark_mode"] = auto
+        cfg["auto_theme_strategy"] = strategy
+        # Drop the legacy bool now that we own the canonical key. Existing
+        # configs without auto_theme_strategy still resolve through the same
+        # fallback in Kivy Settings + this template.
+        cfg.pop("auto_dark_mode", None)
         write_json(USER_CONFIG, cfg)
-        flash(f"Theme set to {theme}/{mode} — restart Bedrock to apply.", "success")
+        flash(f"Theme set to {theme}/{mode}, auto={strategy} — restart Bedrock to apply.", "success")
         return redirect(url_for("themes"))
 
     # ── Alarm ─────────────────────────────────────────────────────────

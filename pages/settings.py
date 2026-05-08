@@ -172,6 +172,10 @@ class SettingsScreen(BaseScreen):
         ats = getattr(app, "auto_theme_service", None) if app else None
         if ats is not None:
             ats.set_threshold(new)
+        # Persist immediately — the threshold input fires on focus-lost,
+        # not on Save, so without this it would survive only until restart.
+        if app and hasattr(app, "_persist_user_pref"):
+            app._persist_user_pref("light_sensor_threshold", new)
 
     def volume_up(self):
         app = self.get_app()
