@@ -9,6 +9,72 @@
 #
 # - <BaseScreen>: bare scaffolding for a screen. Subclass KV rules
 #   instantiate `ScreenOverlay` and pass `page_key:` (e.g. "home").
+#
+# - Embossed buttons: `<ThemedButton>` / `<ThemedToggleButton>` /
+#   `<ThemedSpinner>` / `<MenuButton>` paint a top highlight + bottom
+#   shadow into canvas.after. This sits on top of whatever Kivy
+#   already drew (theme PNG atlas or the flat `background_color`
+#   chosen in `themed.py:_refresh`), so the affordance reads as
+#   "raised" without depending on bitmap artwork — matters for
+#   art-less themes like `forest` where the panels are just flat
+#   rounded rectangles. State-aware: when the button is pressed
+#   (state == 'down') the highlight/shadow flip, mimicking the
+#   surface being pushed in. Touch target for an 11-year-old user
+#   needs that visual cue more than an adult-grade UI does.
+
+#:import dp kivy.metrics.dp
+
+<ThemedButton>:
+    canvas.after:
+        Color:
+            rgba: (1, 1, 1, 0.24) if self.state == 'normal' else (0, 0, 0, 0.30)
+        Line:
+            points: [self.x + dp(4), self.top - dp(1.5), self.right - dp(4), self.top - dp(1.5)]
+            width: 1.5
+        Color:
+            rgba: (0, 0, 0, 0.34) if self.state == 'normal' else (1, 1, 1, 0.18)
+        Line:
+            points: [self.x + dp(4), self.y + dp(1.5), self.right - dp(4), self.y + dp(1.5)]
+            width: 1.5
+
+<ThemedToggleButton>:
+    canvas.after:
+        Color:
+            rgba: (1, 1, 1, 0.24) if self.state == 'normal' else (0, 0, 0, 0.30)
+        Line:
+            points: [self.x + dp(4), self.top - dp(1.5), self.right - dp(4), self.top - dp(1.5)]
+            width: 1.5
+        Color:
+            rgba: (0, 0, 0, 0.34) if self.state == 'normal' else (1, 1, 1, 0.18)
+        Line:
+            points: [self.x + dp(4), self.y + dp(1.5), self.right - dp(4), self.y + dp(1.5)]
+            width: 1.5
+
+<ThemedSpinner>:
+    canvas.after:
+        Color:
+            rgba: 1, 1, 1, 0.24
+        Line:
+            points: [self.x + dp(4), self.top - dp(1.5), self.right - dp(4), self.top - dp(1.5)]
+            width: 1.5
+        Color:
+            rgba: 0, 0, 0, 0.34
+        Line:
+            points: [self.x + dp(4), self.y + dp(1.5), self.right - dp(4), self.y + dp(1.5)]
+            width: 1.5
+
+<MenuButton>:
+    canvas.after:
+        Color:
+            rgba: (1, 1, 1, 0.24) if self.state == 'normal' else (0, 0, 0, 0.30)
+        Line:
+            points: [self.x + dp(4), self.top - dp(1.5), self.right - dp(4), self.top - dp(1.5)]
+            width: 1.5
+        Color:
+            rgba: (0, 0, 0, 0.34) if self.state == 'normal' else (1, 1, 1, 0.18)
+        Line:
+            points: [self.x + dp(4), self.y + dp(1.5), self.right - dp(4), self.y + dp(1.5)]
+            width: 1.5
 
 <BaseScreen>:
     # Subclasses declare their own FloatLayout root with widgets.
