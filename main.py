@@ -132,16 +132,24 @@ class BedrockApp(App):
         from app import __version__ as _version
         self.title = f"Bedrock {_version}"
 
-        # One-shot legacy cleanup: drop `auto_dark_mode` from user.json
-        # if the canonical `auto_theme_strategy` is already set. The bool
-        # was the 0.5.5-era key, replaced by the strategy string in 2.1.0.
-        # Stops the orphan from sitting in the config forever.
-        _cleanup_prefs = load_user_config()
-        if "auto_dark_mode" in _cleanup_prefs and "auto_theme_strategy" in _cleanup_prefs:
+        # One-shot legacy migration: convert the 0.5.5-era
+        # `auto_dark_mode` bool into the 2.1.0 `auto_theme_strategy`
+        # string and drop the legacy key. Same mapping as Settings page
+        # uses at read-time (true → ldr, false → off) — promoting it
+        # to disk so the bool stops floating around.
+        _migrate_prefs = load_user_config()
+        _dirty = False
+        if "auto_dark_mode" in _migrate_prefs:
+            if "auto_theme_strategy" not in _migrate_prefs:
+                _migrate_prefs["auto_theme_strategy"] = (
+                    "ldr" if _migrate_prefs.get("auto_dark_mode") else "off"
+                )
+            _migrate_prefs.pop("auto_dark_mode", None)
+            _dirty = True
+        if _dirty:
             try:
-                _cleanup_prefs.pop("auto_dark_mode", None)
                 with open("config/user.json", "w", encoding="utf-8") as _f:
-                    json.dump(_cleanup_prefs, _f, ensure_ascii=False, indent=2)
+                    json.dump(_migrate_prefs, _f, ensure_ascii=False, indent=2)
             except OSError:
                 pass
 
