@@ -50,6 +50,7 @@ from classes.themed import (  # noqa: F401 — registers Factory classes
     ThemedLabel,
     ThemedButton,
     ThemedToggleButton,
+    ThemedMenuButton,
     ThemedPanel,
     ThemedSpinner,
     ThemedTextInput,
@@ -130,6 +131,19 @@ class BedrockApp(App):
     def build(self):
         from app import __version__ as _version
         self.title = f"Bedrock {_version}"
+
+        # One-shot legacy cleanup: drop `auto_dark_mode` from user.json
+        # if the canonical `auto_theme_strategy` is already set. The bool
+        # was the 0.5.5-era key, replaced by the strategy string in 2.1.0.
+        # Stops the orphan from sitting in the config forever.
+        _cleanup_prefs = load_user_config()
+        if "auto_dark_mode" in _cleanup_prefs and "auto_theme_strategy" in _cleanup_prefs:
+            try:
+                _cleanup_prefs.pop("auto_dark_mode", None)
+                with open("config/user.json", "w", encoding="utf-8") as _f:
+                    json.dump(_cleanup_prefs, _f, ensure_ascii=False, indent=2)
+            except OSError:
+                pass
 
         # Pin gpiozero's pin factory once before any service touches GPIO.
         # Both SensorService (LDR on BCM 12) and VolumeService (Buttons on

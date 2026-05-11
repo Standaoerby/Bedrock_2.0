@@ -155,6 +155,93 @@ class ThemedButton(_BounceFilter, Button, _ThemeBound):
         self.background_color = colors.get("button_bg", [1, 1, 1, 1])
 
 
+class ThemedMenuButton(_BounceFilter, Button, _ThemeBound):
+    """Top-bar navigation button. Replaces the old `<MenuButton@Button>`
+    KV rule because chained `.get().get()` expressions against
+    `app.theme_config` are unreliable on DictProperty reassign — the
+    selected-screen tint refused to repaint on apply_theme() unless the
+    user navigated to a different screen first (which forced KV to
+    re-instantiate the rule).
+
+    All styling is driven from `_refresh`, called on:
+    - theme_config change (theme switch),
+    - current_screen change (selected-button tint flip).
+
+    PNG-backed themes keep using background_normal / background_down;
+    art-less themes (forest) get a flat colors.button_bg / .button_bg_active
+    fallback. Press / release wire screen navigation directly (no KV
+    handler needed — keeps usage sites in main.kv to two-line entries).
+    """
+
+    screen_name = StringProperty("")
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        # Drop the default atlas — background_color will be set from theme.
+        self.background_normal = ""
+        self.background_down = ""
+        self._bind_theme()
+        app = App.get_running_app()
+        if app is not None:
+            app.bind(current_screen=lambda *_: self._refresh())
+
+    def on_press(self):
+        app = App.get_running_app()
+        if app is None:
+            return
+        try:
+            app.play_sound("click")
+        except Exception:
+            pass
+        app.menu_navigation = True
+
+    def on_release(self):
+        app = App.get_running_app()
+        if app is None or not self.screen_name or app.root is None:
+            return
+        sm = app.root.ids.get("screen_manager")
+        if sm is not None:
+            sm.current = self.screen_name
+
+    def _refresh(self):
+        app = App.get_running_app()
+        if app is None:
+            return
+        cfg = app.theme_config or {}
+        colors = cfg.get("colors", {}) or {}
+
+        png_normal = cfg.get("menu_button_normal", "") or ""
+        png_down = cfg.get("menu_button_active", "") or png_normal
+        self.background_normal = png_normal
+        self.background_down = png_down
+
+        is_selected = bool(self.screen_name) and (self.screen_name == app.current_screen)
+
+        if png_normal:
+            # Theme ships PNGs — don't tint them.
+            self.background_color = [1, 1, 1, 1]
+        else:
+            # Flat fallback: button_bg_active when selected, button_bg otherwise.
+            key = "button_bg_active" if is_selected else "button_bg"
+            self.background_color = colors.get(key, [0.55, 0.55, 0.55, 1])
+
+        if is_selected:
+            self.color = cfg.get("menu_selected_color", [1, 1, 1, 1])
+        else:
+            self.color = cfg.get("menu_unselected_color", [0.7, 0.7, 0.7, 1])
+
+        self.font_name = cfg.get("font_name", _DEFAULT_FONT_NAME)
+        size = cfg.get("menu_button_font_size", 24)
+        # accept "24" / 24 / "24sp"
+        if isinstance(size, str) and size.endswith("sp"):
+            self.font_size = size
+        else:
+            try:
+                self.font_size = f"{int(size)}sp"
+            except (TypeError, ValueError):
+                self.font_size = "24sp"
+
+
 class ThemedToggleButton(_BounceFilter, ToggleButton, _ThemeBound):
     """ToggleButton that picks up font_name + size + color from theme,
     AND replaces Kivy's default blue/grey atlas with theme-driven flat

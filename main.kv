@@ -15,26 +15,24 @@
 # colors/font sizes are managed in Python via color_role / size_role
 # StringProperties — KV per-instance overrides are no longer fought.
 
-<MenuButton@Button>:
-    # If the theme ships PNG button graphics, use them; otherwise fall
-    # back to flat colors from theme.colors (button_bg / button_bg_active).
-    # Without this fallback an art-less theme like `forest` left both
-    # selected and unselected buttons rendering Kivy's default white,
-    # because `background_normal=""` skips the atlas and we hadn't told
-    # Kivy what colour to draw underneath.
-    _has_png: bool(app.theme_config.get("menu_button_normal", ""))
-    background_normal: app.theme_config.get("menu_button_normal", "") or ""
-    background_down: app.theme_config.get("menu_button_active", "") or app.theme_config.get("menu_button_normal", "") or ""
-    background_color: [1, 1, 1, 1] if self._has_png else (app.theme_config.get("colors", {}).get("button_bg_active", [0.55, 0.55, 0.55, 1]) if self.screen_name == app.current_screen else app.theme_config.get("colors", {}).get("button_bg", [0.75, 0.75, 0.75, 1]))
-    color: app.theme_config["menu_selected_color"] if self.screen_name == app.current_screen else app.theme_config["menu_unselected_color"]
-    font_name: app.theme_config["font_name"]
-    font_size: app.scale_font(app.theme_config.get("menu_button_font_size", 30))
+# MenuButton was a `<MenuButton@Button>:` KV rule that read theme_config
+# via chained `.get().get()`. Those bindings don't reliably re-fire on
+# DictProperty reassignment — apply_theme() updated theme_config but
+# the selected-screen tint refused to repaint until the user navigated
+# away and back, forcing KV to rebuild the instance. Moved to a Python
+# class (classes.themed.ThemedMenuButton) where `_ThemeBound._bind_theme`
+# guarantees a refresh on every theme switch.
+#
+# Sizing knobs live in `MenuLayout` below so the dynamic geometry stays
+# in KV (where Window.width is bindable) — the Python class only owns
+# colour/font/state.
+
+<MenuButton@ThemedMenuButton>:
     size_hint_x: None
     size_hint_y: None
     width: app.scale_size(app.theme_config.get("menu_button_size", [192,64])[0])
     height: app.scale_size(app.theme_config.get("menu_button_size", [192,64])[1])
     padding: [app.scale_size(p) for p in app.theme_config.get("menu_button_padding", [0,0,0,0])]
-    screen_name: ""
     on_press:
         app.play_sound("click")
         app.menu_navigation = True

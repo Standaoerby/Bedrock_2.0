@@ -10,16 +10,18 @@
             size_hint: 0.96, 0.94
             pos_hint: {"center_x": 0.5, "top": 0.98}
             padding: app.ui_metrics["padding_xs"]
-            spacing: app.ui_metrics["spacing_sm"]
+            spacing: app.ui_metrics["spacing_md"]
 
-            # Section 1: Time + Active toggle. Section is sized for the
-            # 72sp digits with breathing room; +/- columns use a stack of
-            # two short buttons (≈ widget_height_sm each) centred via
-            # spacers so they don't balloon to the full row height.
+            # Section 1: Time + Active toggle. Section sized so the 72sp
+            # digits have real breathing room and the +/- columns are
+            # finger-sized — not the cramped 32dp stamps the previous
+            # version gave. Active toggle is now a ThemedToggleButton
+            # (ON/OFF) instead of a default CheckBox, so its state reads
+            # at a glance from 2 m away.
             BoxLayout:
                 orientation: "horizontal"
                 size_hint_y: None
-                height: "96dp"
+                height: "128dp"
                 spacing: app.ui_metrics["spacing_md"]
 
                 ThemedLabel:
@@ -39,14 +41,14 @@
 
                     Widget:
                         size_hint_y: None
-                        height: app.ui_metrics["padding_xs"]
+                        height: app.ui_metrics["spacing_sm"]
 
                     ThemedButton:
                         text: "+"
                         size_role: "large"
                         color_role: "font_default"
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_sm"]
+                        height: app.ui_metrics["widget_height_md"]
                         on_press: app.play_sound("click")
                         on_release: root.increment_hour()
 
@@ -55,13 +57,13 @@
                         size_role: "large"
                         color_role: "font_default"
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_sm"]
+                        height: app.ui_metrics["widget_height_md"]
                         on_press: app.play_sound("click")
                         on_release: root.decrement_hour()
 
                     Widget:
                         size_hint_y: None
-                        height: app.ui_metrics["padding_xs"]
+                        height: app.ui_metrics["spacing_sm"]
 
                 ThemedLabel:
                     id: hour_label
@@ -98,14 +100,14 @@
 
                     Widget:
                         size_hint_y: None
-                        height: app.ui_metrics["padding_xs"]
+                        height: app.ui_metrics["spacing_sm"]
 
                     ThemedButton:
                         text: "+"
                         size_role: "large"
                         color_role: "font_default"
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_sm"]
+                        height: app.ui_metrics["widget_height_md"]
                         on_press: app.play_sound("click")
                         on_release: root.increment_minute()
 
@@ -114,35 +116,49 @@
                         size_role: "large"
                         color_role: "font_default"
                         size_hint_y: None
-                        height: app.ui_metrics["widget_height_sm"]
+                        height: app.ui_metrics["widget_height_md"]
                         on_press: app.play_sound("click")
                         on_release: root.decrement_minute()
 
                     Widget:
                         size_hint_y: None
-                        height: app.ui_metrics["padding_xs"]
+                        height: app.ui_metrics["spacing_sm"]
 
-                # Active toggle
+                # Active toggle — replaces the tiny CheckBox with an
+                # explicit ON/OFF ThemedToggleButton so the state reads
+                # from across the room.
                 BoxLayout:
-                    orientation: "horizontal"
+                    orientation: "vertical"
                     size_hint_x: 0.24
                     spacing: app.ui_metrics["spacing_xs"]
+
+                    Widget:
+                        size_hint_y: None
+                        height: app.ui_metrics["spacing_sm"]
 
                     ThemedLabel:
                         text: "Active"
                         size_role: "field_label"
                         color_role: "font_default"
-                        size_hint_x: 0.6
-                        halign: "right"
+                        size_hint_y: None
+                        height: app.ui_metrics["widget_height_sm"]
+                        halign: "center"
                         valign: "middle"
-                        text_size: self.size
 
-                    CheckBox:
-                        id: active_checkbox
-                        active: root.alarm_active
-                        size_hint_x: 0.4
+                    ThemedToggleButton:
+                        id: active_toggle
+                        text: "ON" if self.state == "down" else "OFF"
+                        state: "down" if root.alarm_active else "normal"
+                        size_role: "field_label"
+                        color_role: "font_default"
+                        size_hint_y: None
+                        height: app.ui_metrics["widget_height_md"]
                         on_press: app.play_sound("click")
-                        on_active: root.on_active_toggled(self.active)
+                        on_state: root.on_active_toggled(self.state == "down")
+
+                    Widget:
+                        size_hint_y: None
+                        height: app.ui_metrics["spacing_sm"]
 
             # Section 2: Repeat days
             BoxLayout:
@@ -224,11 +240,12 @@
                         on_press: app.play_sound("click")
                         on_state: root.toggle_repeat("Sun", self.state)
 
-            # Section 3: Ringtone + Play
+            # Section 3: Ringtone + Play. Bumped to widget_height_lg
+            # so the Spinner text breathes and Play matches the others.
             BoxLayout:
                 orientation: "horizontal"
                 size_hint_y: None
-                height: app.ui_metrics["widget_height_md"]
+                height: app.ui_metrics["widget_height_lg"]
                 spacing: app.ui_metrics["spacing_sm"]
 
                 ThemedLabel:
@@ -257,11 +274,11 @@
                     size_hint_x: 0.22
                     on_state: root.toggle_play_ringtone(self.state)
 
-            # Section 4: Fade-in
+            # Section 4: Fade-in.
             BoxLayout:
                 orientation: "horizontal"
                 size_hint_y: None
-                height: app.ui_metrics["widget_height_md"]
+                height: app.ui_metrics["widget_height_lg"]
                 spacing: app.ui_metrics["spacing_sm"]
 
                 Widget:
@@ -271,7 +288,7 @@
                     id: fadein_checkbox
                     active: root.alarm_fadein
                     size_hint_x: None
-                    width: app.ui_metrics["widget_height_sm"]
+                    width: app.ui_metrics["widget_height_md"]
                     on_press: app.play_sound("click")
                     on_active: root.on_fadein_toggled(self.active)
 
@@ -287,18 +304,18 @@
                 Widget:
                     size_hint_x: 0.3
 
-            # Section 5: Save
+            # Section 5: Save.
             AnchorLayout:
                 anchor_x: "center"
                 anchor_y: "center"
                 size_hint_y: None
-                height: app.ui_metrics["widget_height_md"]
+                height: app.ui_metrics["widget_height_lg"]
 
                 ThemedButton:
                     text: "Save"
                     size_role: "large"
                     color_role: "font_default"
-                    size_hint: 0.3, None
-                    height: app.ui_metrics["widget_height_md"]
+                    size_hint: 0.35, None
+                    height: app.ui_metrics["widget_height_lg"]
                     on_press: app.play_sound("click")
                     on_release: root.save_alarm()
